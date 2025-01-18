@@ -2,19 +2,12 @@ import asyncio
 
 from behave import given, when, then
 
-from engine import RulesEngine
-from services.services import ServiceProvider
-from utils import RuleResolver
+from service import RuleService
 
 
 @given('het is het jaar "{year}"')
 def step_impl(context, year):
-    reference_date = f"{year}-01-01"
-    resolver = RuleResolver()
-    spec = resolver.get_rule_spec("zorgtoeslagwet", reference_date)
-    context.provider = ServiceProvider("services.yaml")
-    context.engine = RulesEngine(spec=spec, service_provider=context.provider)
-    context.service_context['reference_date'] = reference_date
+    context.reference_date = f"{year}-01-01"
 
 
 @given('een persoon met BSN "{bsn}"')
@@ -52,10 +45,13 @@ def step_impl(context, worth):
     context.test_data["@BELASTINGDIENST.net_worth"] = int(float(worth) * 100)
 
 
-@when('de zorgtoeslag wordt berekend')
-def step_impl(context):
+@when('de {law} wordt uitgevoerd door {service}')
+def step_impl(context, law, service):
+    service = RuleService(service)
     context.result = asyncio.run(
-        context.engine.evaluate(
+        service.evaluate(
+            law=law,
+            reference_date=context.reference_date,
             service_context=context.service_context,
             overwrite_input=context.test_data
         )
@@ -64,30 +60,29 @@ def step_impl(context):
 
 @then('heeft de persoon recht op zorgtoeslag')
 def step_impl(context):
-    assert context.result['output']['is_verzekerde_zorgtoeslag']['value'] == True
+    assert context.result.output['is_verzekerde_zorgtoeslag'] == True
 
 
 @then('heeft de persoon geen recht op zorgtoeslag')
 def step_impl(context):
-    assert not context.result['output']['is_verzekerde_zorgtoeslag']['value']
+    assert not context.result.output['is_verzekerde_zorgtoeslag']
 
 
 @then('is voldaan aan de voorwaarden')
 def step_impl(context):
-    assert context.result['requirements_met'] == True
+    assert context.result.requirements_met == True
 
 
 @then('is niet voldaan aan de voorwaarden')
 def step_impl(context):
-    assert context.result['requirements_met'] == False
+    assert context.result.requirements_met == False
 
 
 @then('is het toeslagbedrag hoger dan "{amount}" euro')
 def step_impl(context, amount):
-    toeslag_cents = context.result['output']['hoogte_toeslag']['value']
-    assert toeslag_cents > int(float(amount) * 100)
+    assert context.result.output['hoogte_toeslag'] > int(float(amount) * 100)
 
 
 @then('is het toeslagbedrag "{amount}" euro')
 def step_impl(context, amount):
-    assert context.result['output']['hoogte_toeslag']['value'] == int(float(amount) * 100)
+    assert context.result.output['hoogte_toeslag'] == int(float(amount) * 100)
