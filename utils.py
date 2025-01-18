@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, List
@@ -52,6 +53,12 @@ class RuleResolver:
                         self.rules.append(rule)
                     except Exception as e:
                         print(f"Error loading rule from {path}: {e}")
+        self.laws_by_service = defaultdict(set)
+        for rule in self.rules:
+            self.laws_by_service[rule.service].add(rule.law)
+
+    def get_service_laws(self):
+        return self.laws_by_service
 
     def find_rule(self, law: str, reference_date: str) -> Optional[RuleSpec]:
         """Find the applicable rule for a given law and reference date"""

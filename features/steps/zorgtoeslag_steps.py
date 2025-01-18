@@ -2,8 +2,6 @@ import asyncio
 
 from behave import given, when, then
 
-from service import RuleService
-
 
 @given('het is het jaar "{year}"')
 def step_impl(context, year):
@@ -47,9 +45,9 @@ def step_impl(context, worth):
 
 @when('de {law} wordt uitgevoerd door {service}')
 def step_impl(context, law, service):
-    service = RuleService(service)
     context.result = asyncio.run(
-        service.evaluate(
+        context.services.evaluate(
+            service,
             law=law,
             reference_date=context.reference_date,
             service_context=context.service_context,

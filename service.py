@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
@@ -108,6 +109,29 @@ class RuleService:
         except ValueError:
             return None
         return None
+
+
+class Services:
+    def __init__(self):
+        self.resolver = RuleResolver()
+        self.service_laws = self.resolver.get_service_laws()
+        self.services = {service: RuleService(service) for service in self.service_laws}
+        self.overwrite = defaultdict(dict)
+
+    async def evaluate(
+            self,
+            service: str,
+            law: str,
+            reference_date: str,
+            service_context: Dict[str, Any],
+            overwrite_input: Optional[Dict[str, Any]] = None
+    ) -> RuleResult:
+        return await self.services[service].evaluate(
+            law=law,
+            reference_date=reference_date,
+            service_context=service_context,
+            overwrite_input=overwrite_input
+        )
 
 
 # Example usage:
