@@ -1,3 +1,4 @@
+import functools
 import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -121,35 +122,26 @@ class RulesEngine:
         if not values:
             return 0
 
-        # Handle different operation types
-        if op == 'MIN':
-            return min(values)
-        elif op == 'MAX':
-            return max(values)
-        elif op == 'ADD':
-            return sum(values)
-        elif op == 'SUBTRACT':
-            result = values[0]
-            for value in values[1:]:
-                result -= value
-            return result
-        elif op == 'MULTIPLY':
-            result = values[0]
-            for value in values[1:]:
-                # Handle percentage multiplication
-                if isinstance(value, float) and value < 1:
-                    result = int(result * value)
-                else:
-                    result *= value
-            return result
-        elif op == 'DIVIDE':
-            if 0 in values[1:]:
-                return 0
-            result = values[0]
-            for value in values[1:]:
-                result = int(result / value) if value != 0 else 0
-            return result
-        return 0
+        operations = {
+            'MIN': min,
+            'MAX': max,
+            'ADD': sum,
+            'MULTIPLY': lambda vals: functools.reduce(
+                lambda x, y: int(x * y) if isinstance(y, float) and y < 1 else x * y,
+                vals[1:],
+                vals[0]
+            ),
+            'SUBTRACT': lambda vals: functools.reduce(operator.sub, vals[1:], vals[0]),
+            'DIVIDE': lambda vals: (
+                functools.reduce(
+                    lambda x, y: int(x / y) if y != 0 else 0,
+                    vals[1:],
+                    vals[0]
+                ) if 0 not in vals[1:] else 0
+            )
+        }
+
+        return operations.get(op, lambda _: 0)(values)
 
     def _compare(self, op: str, left: Any, right: Any) -> bool:
         """Compare two values based on operator"""
