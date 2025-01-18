@@ -3,7 +3,7 @@ from pprint import pprint
 
 from engine import RulesEngine
 from services.services import ServiceProvider
-from utils import get_rule_spec
+from utils import RuleResolver
 
 
 async def run(service_context, engine, data=None):
@@ -12,15 +12,18 @@ async def run(service_context, engine, data=None):
     pprint(path)
     pprint(result)
 
+
 async def main():
-    spec = get_rule_spec()
+    reference_date = "2025-01-01"
+    resolver = RuleResolver()
+    spec = resolver.get_rule_spec("zorgtoeslagwet", reference_date)
 
     provider = ServiceProvider("services.yaml")
     engine = RulesEngine(spec=spec, service_provider=provider)
 
     service_context = {'bsn': '999993653'}
 
-    # await run(service_context, engine)
+    await run(service_context, engine)
 
     data = {"@BRP.age": 19}
     await run(service_context, engine, data)
