@@ -2,7 +2,49 @@ import functools
 import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union, TypeVar
+
+T = TypeVar('T')
+
+
+@dataclass
+class TypeSpec:
+    """Specification for value types"""
+    unit: Optional[str] = None
+    precision: Optional[int] = None
+    min: Optional[Union[int, float]] = None
+    max: Optional[Union[int, float]] = None
+
+    def enforce(self, value: Any) -> Any:
+        """Enforce type specifications on a value"""
+        if value is None:
+            return value
+
+        # Convert to numeric if needed
+        if isinstance(value, str):
+            try:
+                value = float(value)
+            except ValueError:
+                return value
+
+        if not isinstance(value, (int, float)):
+            return value
+
+        # Apply min/max constraints
+        if self.min is not None:
+            value = max(value, self.min)
+        if self.max is not None:
+            value = min(value, self.max)
+
+        # Apply precision
+        if self.precision is not None:
+            value = round(value, self.precision)
+
+        # Convert to int for cent units
+        if self.unit == 'eurocent':
+            value = int(value)
+
+        return value
 
 
 class AbstractServiceProvider(ABC):
@@ -34,6 +76,7 @@ class RuleContext:
     service_provider: Optional[AbstractServiceProvider]
     service_context: Dict[str, Any]
     property_specs: Dict[str, Dict[str, Any]]
+    output_specs: Dict[str, Dict[str, Any]]
     accessed_paths: Set[str] = field(default_factory=set)
     values_cache: Dict[str, Any] = field(default_factory=dict)
     path: List[PathNode] = field(default_factory=list)
@@ -103,10 +146,12 @@ class RulesEngine:
     """Rules engine for evaluating business rules"""
 
     def __init__(self, spec: Dict[str, Any], service_provider: Optional[AbstractServiceProvider] = None):
+        self.spec = spec  # Store full spec for metadata access
         self.definitions = spec.get('properties', {}).get('definitions', {})
         self.requirements = spec.get('requirements', [])
         self.actions = spec.get('actions', [])
         self.property_specs = self._build_property_specs(spec.get('properties', {}))
+        self.output_specs = self._build_output_specs(spec.get('properties', {}))
         self.service_provider = service_provider
 
     def _build_property_specs(self, properties: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -116,6 +161,26 @@ class RulesEngine:
             for prop in properties.get('input', [])
             if 'name' in prop
         }
+
+    def _build_output_specs(self, properties: Dict[str, Any]) -> Dict[str, TypeSpec]:
+        """Build mapping of output names to their type specifications"""
+        specs = {}
+        for output in properties.get('output', []):
+            if 'name' in output:
+                type_spec = output.get('type_spec', {})
+                specs[output['name']] = TypeSpec(
+                    unit=type_spec.get('unit'),
+                    precision=type_spec.get('precision'),
+                    min=type_spec.get('min'),
+                    max=type_spec.get('max')
+                )
+        return specs
+
+    def _enforce_output_type(self, name: str, value: Any) -> Any:
+        """Enforce type specifications on output value"""
+        if name in self.output_specs:
+            return self.output_specs[name].enforce(value)
+        return value
 
     def _calculate(self, op: str, values: List[Any]) -> Any:
         """Calculate result based on operation type"""
@@ -164,6 +229,7 @@ class RulesEngine:
             service_provider=self.service_provider,
             service_context=service_context or {},
             property_specs=self.property_specs,
+            output_specs=self.output_specs,
             path=[root],
             overwrite_input=overwrite_input or {}
         )
@@ -181,19 +247,45 @@ class RulesEngine:
         # Process actions if requirements are met
         if requirements_met:
             for action in self.actions:
-                action_node = PathNode(type='action',
-                                       name=f"Evaluate action for {action.get('output', '')}",
-                                       result=None)
+                action_node = PathNode(
+                    type='action',
+                    name=f"Evaluate action for {action.get('output', '')}",
+                    result=None
+                )
                 context.add_to_path(action_node)
 
+                output_name = action['output']
+                # Find output specification
+                output_spec = next((
+                    spec for spec in self.spec.get('properties', {}).get('output', [])
+                    if spec.get('name') == output_name
+                ), {})
+
+                # Get the value
                 if 'value' in action:
-                    output_values[action['output']] = action['value']
-                    action_node.result = action['value']
+                    result = self._enforce_output_type(output_name, action['value'])
+                    action_node.result = result
                 else:
-                    result = await self._evaluate_operation(action, context)
-                    output_values[action['output']] = result
+                    raw_result = await self._evaluate_operation(action, context)
+                    result = self._enforce_output_type(output_name, raw_result)
                     action_node.result = result
 
+                # Build output with metadata
+                output_def = {
+                    'value': result,
+                    'type': output_spec.get('type', 'unknown'),
+                    'description': output_spec.get('description', '')
+                }
+
+                # Add type_spec if present
+                if 'type_spec' in output_spec:
+                    output_def['type_spec'] = output_spec['type_spec']
+
+                # Add temporal if present
+                if 'temporal' in output_spec:
+                    output_def['temporal'] = output_spec['temporal']
+
+                output_values[output_name] = output_def
                 context.pop_path()
 
         return {
