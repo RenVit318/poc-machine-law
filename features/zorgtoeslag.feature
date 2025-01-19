@@ -33,7 +33,7 @@ Zodat ik de juiste toeslag kan ontvangen
     Als de zorgtoeslagwet wordt uitgevoerd door TOESLAGEN
     Dan is niet voldaan aan de voorwaarden
 
-  Scenario: Persoon ouder 18 heeft recht op zorgtoeslag
+  Scenario: Persoon ouder dan 18 heeft recht op zorgtoeslag
     Gegeven de persoon is "19" jaar oud
     Als de zorgtoeslagwet wordt uitgevoerd door TOESLAGEN
     Dan is het toeslagbedrag "1782.34" euro

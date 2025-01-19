@@ -55,7 +55,8 @@ class AbstractServiceProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_value(self, service: str, law: str, field: str, temporal: Dict[str, Any], context: Dict[str, Any]) -> Any:
+    async def get_value(self, service: str, law: str, field: str, temporal: Dict[str, Any],
+                        context: Dict[str, Any]) -> Any:
         pass
 
 
@@ -77,6 +78,7 @@ class RuleContext:
     service_context: Dict[str, Any]
     property_specs: Dict[str, Dict[str, Any]]
     output_specs: Dict[str, Dict[str, Any]]
+    sources: Optional[Dict[str, Dict[str, Any]]] = None
     accessed_paths: Set[str] = field(default_factory=set)
     values_cache: Dict[str, Any] = field(default_factory=dict)
     path: List[PathNode] = field(default_factory=list)
@@ -98,19 +100,22 @@ class RuleContext:
             self.path.pop()
 
     async def resolve_value(self, path: str) -> Any:
-        """Resolve a value from definitions or services"""
+        """Resolve a value from definitions, services, or sources"""
         if not isinstance(path, str) or not path.startswith('$'):
             return path
 
         path = path[1:]  # Remove $ prefix
         self.track_access(path)
+        print(f"GETTING FROM PATH {path}")
 
         # Check definitions first
         if path in self.definitions:
+            print(f"    DEFINITION")
             return self.definitions[path]
 
         # Check cache
         if path in self.values_cache:
+            print(f"    CACHE")
             return self.values_cache[path]
 
         # Check overwrite data
@@ -124,7 +129,21 @@ class RuleContext:
         if service_field_key and service_field_key in self.overwrite_input:
             value = self.overwrite_input[service_field_key]
             self.values_cache[path] = value
+            print(f"    OVERWRITE")
             return value
+
+        # Check sources
+        if path in self.property_specs:
+            spec = self.property_specs[path]
+            source_ref = spec.get('source_reference', {})
+            if source_ref and self.sources:
+                table = source_ref.get('table')
+                field = source_ref.get('field')
+                if table in self.sources and field in self.sources[table]:
+                    value = self.sources[table][field]
+                    print(f"    GETTING FROM SOURCE {table} {field}: {value}")
+                    self.values_cache[path] = value
+                    return value
 
         # Check services
         if path in self.property_specs:
@@ -138,7 +157,6 @@ class RuleContext:
                     spec['temporal'],
                     self.service_context
                 )
-
                 self.values_cache[path] = value
                 return value
 
@@ -149,7 +167,7 @@ class RulesEngine:
     """Rules engine for evaluating business rules"""
 
     def __init__(self, spec: Dict[str, Any], service_provider: Optional[AbstractServiceProvider] = None):
-        self.spec = spec  # Store full spec for metadata access
+        self.spec = spec
         self.definitions = spec.get('properties', {}).get('definitions', {})
         self.requirements = spec.get('requirements', [])
         self.actions = spec.get('actions', [])
@@ -159,11 +177,19 @@ class RulesEngine:
 
     def _build_property_specs(self, properties: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         """Build mapping of property paths to their specifications"""
-        return {
-            prop['name']: prop
-            for prop in properties.get('input', [])
-            if 'name' in prop
-        }
+        specs = {}
+
+        # Add input properties
+        for prop in properties.get('input', []):
+            if 'name' in prop:
+                specs[prop['name']] = prop
+
+        # Add source properties
+        for source in properties.get('sources', []):
+            if 'name' in source:
+                specs[source['name']] = source
+
+        return specs
 
     def _build_output_specs(self, properties: Dict[str, Any]) -> Dict[str, TypeSpec]:
         """Build mapping of output names to their type specifications"""
@@ -233,6 +259,7 @@ class RulesEngine:
             service_context=service_context or {},
             property_specs=self.property_specs,
             output_specs=self.output_specs,
+            sources=sources,
             path=[root],
             overwrite_input=overwrite_input or {}
         )
@@ -250,6 +277,7 @@ class RulesEngine:
         # Process actions if requirements are met
         if requirements_met:
             for action in self.actions:
+                print(f"Action {action.get('output', '')}")
                 action_node = PathNode(
                     type='action',
                     name=f"Evaluate action for {action.get('output', '')}",

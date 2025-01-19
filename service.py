@@ -88,7 +88,8 @@ class RuleService:
         engine = self._get_engine(law, reference_date)
         result = await engine.evaluate(
             service_context=service_context,
-            overwrite_input=overwrite_input
+            overwrite_input=overwrite_input,
+            sources=self.source_values,
         )
         return RuleResult.from_engine_result(result)
 
