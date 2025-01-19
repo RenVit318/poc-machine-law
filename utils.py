@@ -1,13 +1,13 @@
-import os
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, List
 
 import yaml
 
 # BASE_URL = "https://gitlab.com/ai-validation/regelspraak/-/raw/master/rules"
-BASE_URL = "/Users/anneschuth/poc-machine-law/law/zorgtoeslagwet"
+BASE_DIR = "law"
 
 
 @dataclass
@@ -38,21 +38,22 @@ class RuleSpec:
 
 class RuleResolver:
     def __init__(self):
-        self.rules_dir = BASE_URL
+        self.rules_dir = Path(BASE_DIR)
         self.rules: List[RuleSpec] = []
         self._load_rules()
 
     def _load_rules(self):
         """Load all rule specifications from the rules directory"""
-        for root, _, files in os.walk(self.rules_dir):
-            for file in files:
-                if file.endswith('.yaml') or file.endswith('.yml'):
-                    path = os.path.join(root, file)
-                    try:
-                        rule = RuleSpec.from_yaml(path)
-                        self.rules.append(rule)
-                    except Exception as e:
-                        print(f"Error loading rule from {path}: {e}")
+        # Use Path.rglob to find all .yaml and .yml files recursively
+        yaml_files = list(self.rules_dir.rglob('*.yaml')) + list(self.rules_dir.rglob('*.yml'))
+
+        for path in yaml_files:
+            try:
+                rule = RuleSpec.from_yaml(str(path))
+                self.rules.append(rule)
+            except Exception as e:
+                print(f"Error loading rule from {path}: {e}")
+
         self.laws_by_service = defaultdict(set)
         for rule in self.rules:
             self.laws_by_service[rule.service].add(rule.law)
