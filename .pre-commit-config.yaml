@@ -12,3 +12,12 @@ repos:
       - id: check-merge-conflict
       - id: check-toml
       - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: validate-schema
+        name: validate schema
+        entry: sh -c './script/validate'
+        language: python
+        additional_dependencies: [ jsonschema, pyyaml ]
+        pass_filenames: false
+        always_run: true
