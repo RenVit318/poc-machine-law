@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+
+import json
+import sys
+from pathlib import Path
+
+import jsonschema
+import yaml
+from jsonschema import validate
+
+
+def validate_file(schema_file, yaml_file) -> None:
+    # Load the JSON schema
+    with open(schema_file) as sf:
+        schema = json.load(sf)
+
+    # Load the YAML file and convert to JSON-compatible structure
+    with open(yaml_file) as yf:
+        data = yaml.safe_load(yf)
+        # Convert to JSON and back to ensure we have JSON-compatible structures
+        data = json.loads(json.dumps(data, default=str))
+
+    # Validate the data
+    try:
+        validate(instance=data, schema=schema)
+        print(f"Validation of '{yaml_file}' against '{schema_file}' successful.")
+    except jsonschema.exceptions.ValidationError as err:
+        print(f"Validation error in '{yaml_file}' against '{schema_file}': {err.message}")
+        sys.exit(1)
+
+
+BASE_DIR = Path("law")
+schema = "schema.json"
+for f in list(BASE_DIR.rglob('*.yaml')) + list(BASE_DIR.rglob('*.yml')):
+    validate_file(schema, f)
