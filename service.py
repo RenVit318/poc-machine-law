@@ -2,8 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
-from engine import RulesEngine
-from services.services import ServiceProvider
+from engine import RulesEngine, AbstractServiceProvider
 from utils import RuleResolver
 
 
@@ -30,18 +29,19 @@ class RuleResult:
 class RuleService:
     """Interface for executing business rules for a specific service"""
 
-    def __init__(self, service_name: str, provider_config: str = "services.yaml"):
+    def __init__(self, service_name: str, services):
         """
         Initialize service for specific business rules
 
         Args:
             service_name: Name of the service (e.g. "TOESLAGEN")
-            provider_config: Path to service provider configuration
+            services: parent services
         """
         self.service_name = service_name
-        self.provider = ServiceProvider(provider_config)
+        self.services = services
         self.resolver = RuleResolver()
         self._engines: Dict[str, Dict[str, RulesEngine]] = {}
+        self.source_values = defaultdict(dict)
 
     def _get_engine(self, law: str, reference_date: str) -> RulesEngine:
         """Get or create RulesEngine instance for given law and date"""
@@ -61,7 +61,7 @@ class RuleService:
                 )
             self._engines[law][reference_date] = RulesEngine(
                 spec=spec,
-                service_provider=self.provider
+                service_provider=self.services
             )
 
         return self._engines[law][reference_date]
@@ -110,13 +110,21 @@ class RuleService:
             return None
         return None
 
+    def set_source_value(self, table: str, field: str, value: Any):
+        """Set a source value override"""
+        self.source_values[table][field] = value
 
-class Services:
-    def __init__(self):
+
+class Services(AbstractServiceProvider):
+    def __init__(self, reference_date: str):
         self.resolver = RuleResolver()
         self.service_laws = self.resolver.get_service_laws()
-        self.services = {service: RuleService(service) for service in self.service_laws}
-        self.overwrite = defaultdict(dict)
+        self.services = {service: RuleService(service, self) for service in self.service_laws}
+        self.root_reference_date = reference_date
+
+    def set_source_value(self, service: str, table: str, field: str, value: Any):
+        """Set a source value override"""
+        self.services[service].set_source_value(table, field, value)
 
     async def evaluate(
             self,
@@ -126,12 +134,23 @@ class Services:
             service_context: Dict[str, Any],
             overwrite_input: Optional[Dict[str, Any]] = None
     ) -> RuleResult:
+        print(f"RUNNING {service} {law} {reference_date} {service_context} {overwrite_input}")
+
         return await self.services[service].evaluate(
             law=law,
             reference_date=reference_date,
             service_context=service_context,
             overwrite_input=overwrite_input
         )
+
+    async def get_value(self, service: str, law: str, field: str, temporal: Dict[str, Any],
+                        context: Dict[str, Any]) -> Any:
+        print(f"GETTING VALUE: {service} {field} {context}")
+        # reference_date = None
+        # if temporal['reference_date'] == "calculation_date":
+        reference_date = self.root_reference_date
+        result = await self.evaluate(service, law, reference_date, context)
+        return result.output.get(field)
 
 
 # Example usage:

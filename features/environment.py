@@ -1,9 +1,5 @@
-from service import Services
-
-
 def before_scenario(context, scenario):
     context.config.setup_logging()
-    context.services = Services()
     context.test_data = {}
     context.service_context = {}
     context.result = None

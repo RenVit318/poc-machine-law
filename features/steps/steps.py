@@ -4,6 +4,8 @@ from typing import Any
 from behave import given
 from behave import when, then
 
+from service import Services
+
 
 def parse_value(value: str) -> Any:
     """Parse string value to appropriate type"""
@@ -52,9 +54,10 @@ def step_impl(context):
         )
 
 
-@given('het is het jaar "{year}"')
-def step_impl(context, year):
-    context.reference_date = f"{year}-01-01"
+@given('de datum is "{date}"')
+def step_impl(context, date):
+    context.root_reference_date = date
+    context.services = Services(date)
 
 
 @given('een persoon met BSN "{bsn}"')
@@ -98,7 +101,7 @@ def step_impl(context, law, service):
         context.services.evaluate(
             service,
             law=law,
-            reference_date=context.reference_date,
+            reference_date=context.root_reference_date,
             service_context=context.service_context,
             overwrite_input=context.test_data
         )

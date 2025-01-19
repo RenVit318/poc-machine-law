@@ -2,7 +2,7 @@ import asyncio
 from pprint import pprint
 
 from engine import RulesEngine
-from services.services import ServiceProvider
+from service import Services
 from utils import RuleResolver
 
 
@@ -18,7 +18,7 @@ async def main():
     resolver = RuleResolver()
     spec = resolver.get_rule_spec("zorgtoeslagwet", reference_date)
 
-    provider = ServiceProvider("services.yaml")
+    provider = Services()
     engine = RulesEngine(spec=spec, service_provider=provider)
 
     service_context = {'bsn': '999993653'}

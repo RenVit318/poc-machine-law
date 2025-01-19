@@ -51,11 +51,11 @@ class AbstractServiceProvider(ABC):
     """Abstract base class for service providers"""
 
     @abstractmethod
-    def __init__(self, config_path: str):
+    def __init__(self, reference_date: str):
         pass
 
     @abstractmethod
-    async def get_value(self, service: str, method: str, context: Dict[str, Any]) -> Any:
+    async def get_value(self, service: str, law: str, field: str, temporal: Dict[str, Any], context: Dict[str, Any]) -> Any:
         pass
 
 
@@ -133,9 +133,12 @@ class RuleContext:
             if service_ref and self.service_provider:
                 value = await self.service_provider.get_value(
                     service_ref['service'],
+                    service_ref['law'],
                     service_ref['field'],
+                    spec['temporal'],
                     self.service_context
                 )
+
                 self.values_cache[path] = value
                 return value
 
