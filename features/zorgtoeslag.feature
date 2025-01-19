@@ -7,6 +7,25 @@ Zodat ik de juiste toeslag kan ontvangen
   Achtergrond:
     Gegeven het is het jaar "2025"
     En een persoon met BSN "999993653"
+    En de volgende brongegevens:
+      | Service         | Law                         | Table                 | Field                  | Value      |
+      | BRP             | wet_brp                     | personen              | geboortedatum          | 1986-01-01 |
+      | BRP             | wet_brp                     | personen              | verblijfsadres         | Amsterdam  |
+      | BRP             | wet_brp                     | relaties              | partnerschap_type      | GEEN       |
+      | DJI             | penitentiaire_beginselenwet | detenties             | status                 | VRIJ       |
+      | DJI             | penitentiaire_beginselenwet | detenties             | inrichting_type        | GEEN       |
+      | DJI             | wet_forensische_zorg        | forensische_zorg      | zorgtype               | GEEN       |
+      | DJI             | wet_forensische_zorg        | forensische_zorg      | juridische_titel       | GEEN       |
+      | RVZ             | zvw                         | verzekeringen         | polis.status           | ACTIEF     |
+      | RVZ             | zvw                         | verdragsverzekeringen | registratie.status     | INACTIEF   |
+      | BELASTINGDIENST | wet_inkomstenbelasting      | inkomen               | box1                   | 12000000   |
+      | BELASTINGDIENST | wet_inkomstenbelasting      | inkomen               | box2                   | 0          |
+      | BELASTINGDIENST | wet_inkomstenbelasting      | inkomen               | box3                   | 0          |
+      | BELASTINGDIENST | wet_inkomstenbelasting      | inkomen               | buitenlands            | 0          |
+      | BELASTINGDIENST | wet_inkomstenbelasting      | vermogen              | bezittingen            | 12040000   |
+      | BELASTINGDIENST | wet_inkomstenbelasting      | vermogen              | schulden               | 0          |
+      | DUO             | wet_studiefinanciering      | studiefinanciering    | aantal_studerend_gezin | 0          |
+      | DUO             | wet_studiefinanciering      | inschrijvingen        | onderwijstype          | GEEN       |
 
   Scenario: Persoon jonger dan 18 heeft geen recht op zorgtoeslag
     Gegeven de persoon is "17" jaar oud
