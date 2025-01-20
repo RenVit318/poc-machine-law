@@ -6,6 +6,10 @@ from behave import when, then
 
 from service import Services
 
+from unittest import TestCase
+
+assertions = TestCase()
+
 
 def parse_value(value: str) -> Any:
     """Parse string value to appropriate type"""
@@ -110,29 +114,53 @@ def step_impl(context, law, service):
 
 @then('heeft de persoon recht op zorgtoeslag')
 def step_impl(context):
-    assert context.result.output['is_verzekerde_zorgtoeslag'] == True
+    assertions.assertTrue(
+        context.result.output['is_verzekerde_zorgtoeslag'],
+        "Expected person to be eligible for healthcare allowance, but they were not"
+    )
 
 
 @then('heeft de persoon geen recht op zorgtoeslag')
 def step_impl(context):
-    assert not context.result.output['is_verzekerde_zorgtoeslag']
+    assertions.assertFalse(
+        context.result.output['is_verzekerde_zorgtoeslag'],
+        "Expected person to not be eligible for healthcare allowance, but they were"
+    )
 
 
 @then('is voldaan aan de voorwaarden')
 def step_impl(context):
-    assert context.result.requirements_met == True
+    assertions.assertTrue(
+        context.result.requirements_met,
+        "Expected requirements to be met, but they were not"
+    )
 
 
 @then('is niet voldaan aan de voorwaarden')
 def step_impl(context):
-    assert context.result.requirements_met == False
+    assertions.assertFalse(
+        context.result.requirements_met,
+        "Expected requirements to not be met, but they were"
+    )
 
 
 @then('is het toeslagbedrag hoger dan "{amount}" euro')
 def step_impl(context, amount):
-    assert context.result.output['hoogte_toeslag'] > int(float(amount) * 100)
+    actual_amount = context.result.output['hoogte_toeslag']
+    expected_min = int(float(amount) * 100)
+    assertions.assertGreater(
+        actual_amount,
+        expected_min,
+        f"Expected allowance amount to be greater than {amount} euros, but was {actual_amount / 100:.2f} euros"
+    )
 
 
 @then('is het toeslagbedrag "{amount}" euro')
 def step_impl(context, amount):
-    assert context.result.output['hoogte_toeslag'] == int(float(amount) * 100)
+    actual_amount = context.result.output['hoogte_toeslag']
+    expected_amount = int(float(amount) * 100)
+    assertions.assertEqual(
+        actual_amount,
+        expected_amount,
+        f"Expected allowance amount to be {amount} euros, but was {actual_amount / 100:.2f} euros"
+    )
