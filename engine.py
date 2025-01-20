@@ -451,6 +451,10 @@ class RulesEngine:
         if not isinstance(operation, dict):
             return await self._evaluate_value(operation, context)
 
+        # Direct value assignment - no operation needed
+        if 'value' in operation and not operation.get('operation'):
+            return await self._evaluate_value(operation['value'], context)
+
         op_type = operation.get('operation')
         node = PathNode(
             type='operation',
