@@ -57,7 +57,7 @@ class AbstractServiceProvider(ABC):
 
     @abstractmethod
     async def get_value(self, service: str, law: str, field: str, temporal: Dict[str, Any],
-                        context: Dict[str, Any]) -> Any:
+                        context: Dict[str, Any], overwrite_input: Dict[str, Any]) -> Any:
         pass
 
 
@@ -159,7 +159,8 @@ class RuleContext:
                     service_ref['law'],
                     service_ref['field'],
                     spec['temporal'],
-                    self.service_context
+                    self.service_context,
+                    self.overwrite_input
                 )
                 self.values_cache[path] = value
                 print(
@@ -174,6 +175,7 @@ class RulesEngine:
 
     def __init__(self, spec: Dict[str, Any], service_provider: Optional[AbstractServiceProvider] = None):
         self.spec = spec
+        self.service_name = spec.get('service')  # Get service name from spec
         self.definitions = spec.get('properties', {}).get('definitions', {})
         self.requirements = spec.get('requirements', [])
         self.actions = spec.get('actions', [])
@@ -258,22 +260,26 @@ class RulesEngine:
                     result=None
                 )
                 context.add_to_path(action_node)
-
                 output_name = action['output']
+
                 # Find output specification
                 output_spec = next((
                     spec for spec in self.spec.get('properties', {}).get('output', [])
                     if spec.get('name') == output_name
                 ), {})
 
-                # Get the value
-                if 'value' in action:
-                    result = self._enforce_output_type(output_name, action['value'])
-                    action_node.result = result
+                # Check for overwrite using service name
+                service_path = f"@{self.service_name}.{output_name}"
+                if service_path in context.overwrite_input:
+                    raw_result = context.overwrite_input[service_path]
+                    print(f"        RESOLVING VALUE {service_path} FROM OVERWRITE {raw_result}")
+                elif 'value' in action:
+                    raw_result = action['value']
                 else:
                     raw_result = await self._evaluate_operation(action, context)
-                    result = self._enforce_output_type(output_name, raw_result)
-                    action_node.result = result
+
+                result = self._enforce_output_type(output_name, raw_result)
+                action_node.result = result
 
                 print(f"        RESULT OF ACTION {action.get('output', '')}: {result}")
 
@@ -312,6 +318,7 @@ class RulesEngine:
                             name='Check ALL conditions' if 'all' in req else 'Check OR conditions' if 'or' in req else 'Test condition',
                             result=None)
             context.add_to_path(node)
+            print(f"    CHECKING REQUIREMENT {req}")
 
             if 'all' in req:
                 results = []
@@ -327,6 +334,8 @@ class RulesEngine:
                 result = any(results)
             else:
                 result = await self._evaluate_operation(req, context)
+
+            print(f"        RESULT OF REQUIREMENT: {result}")
 
             node.result = result
             context.pop_path()
