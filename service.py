@@ -90,6 +90,7 @@ class RuleService:
             service_context=service_context,
             overwrite_input=overwrite_input,
             sources=self.source_values,
+            calculation_date=reference_date
         )
         return RuleResult.from_engine_result(result)
 
@@ -135,7 +136,7 @@ class Services(AbstractServiceProvider):
             service_context: Dict[str, Any],
             overwrite_input: Optional[Dict[str, Any]] = None
     ) -> RuleResult:
-        print(f"RUNNING {service} {law} {reference_date} {service_context} {overwrite_input}")
+        print(f"APPLYING {law} BY {service} ({reference_date} {service_context} {overwrite_input})")
 
         return await self.services[service].evaluate(
             law=law,
@@ -146,7 +147,6 @@ class Services(AbstractServiceProvider):
 
     async def get_value(self, service: str, law: str, field: str, temporal: Dict[str, Any],
                         context: Dict[str, Any]) -> Any:
-        print(f"GETTING VALUE: {service} {field} {context}")
         # reference_date = None
         # if temporal['reference_date'] == "calculation_date":
         reference_date = self.root_reference_date

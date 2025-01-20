@@ -2,6 +2,7 @@ import functools
 import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Union, TypeVar
 
 T = TypeVar('T')
@@ -83,6 +84,7 @@ class RuleContext:
     values_cache: Dict[str, Any] = field(default_factory=dict)
     path: List[PathNode] = field(default_factory=list)
     overwrite_input: Dict[str, Any] = field(default_factory=dict)
+    calculation_date: Optional[str] = None
 
     def track_access(self, path: str):
         """Track accessed data paths"""
@@ -106,16 +108,18 @@ class RuleContext:
 
         path = path[1:]  # Remove $ prefix
         self.track_access(path)
-        print(f"GETTING FROM PATH {path}")
+
+        if path == "calculation_date":
+            return self.calculation_date
 
         # Check definitions first
         if path in self.definitions:
-            print(f"    DEFINITION")
+            print(f"        RESOLVING VALUE ${path} FROM DEFINITION {self.definitions[path]}")
             return self.definitions[path]
 
         # Check cache
         if path in self.values_cache:
-            print(f"    CACHE")
+            print(f"        RESOLVING VALUE ${path} FROM CACHE {self.values_cache[path]}")
             return self.values_cache[path]
 
         # Check overwrite data
@@ -129,7 +133,7 @@ class RuleContext:
         if service_field_key and service_field_key in self.overwrite_input:
             value = self.overwrite_input[service_field_key]
             self.values_cache[path] = value
-            print(f"    OVERWRITE")
+            print(f"        RESOLVING VALUE ${path} FROM OVERWRITE {value}")
             return value
 
         # Check sources
@@ -141,7 +145,7 @@ class RuleContext:
                 field = source_ref.get('field')
                 if table in self.sources and field in self.sources[table]:
                     value = self.sources[table][field]
-                    print(f"    GETTING FROM SOURCE {table} {field}: {value}")
+                    print(f"        RESOLVING VALUE ${path} FROM SOURCE {table} {field}: {value}")
                     self.values_cache[path] = value
                     return value
 
@@ -158,6 +162,8 @@ class RuleContext:
                     self.service_context
                 )
                 self.values_cache[path] = value
+                print(
+                    f"        RESOLVING VALUE ${path} FROM SERVICE {service_ref['service']} field {service_ref['field']} ({self.service_context}): {value}")
                 return value
 
         return None
@@ -211,47 +217,14 @@ class RulesEngine:
             return self.output_specs[name].enforce(value)
         return value
 
-    def _calculate(self, op: str, values: List[Any]) -> Any:
-        """Calculate result based on operation type"""
-        if not values:
-            return 0
-
-        operations = {
-            'MIN': min,
-            'MAX': max,
-            'ADD': sum,
-            'MULTIPLY': lambda vals: functools.reduce(
-                lambda x, y: int(x * y) if isinstance(y, float) and y < 1 else x * y,
-                vals[1:],
-                vals[0]
-            ),
-            'SUBTRACT': lambda vals: functools.reduce(operator.sub, vals[1:], vals[0]),
-            'DIVIDE': lambda vals: (
-                functools.reduce(
-                    lambda x, y: int(x / y) if y != 0 else 0,
-                    vals[1:],
-                    vals[0]
-                ) if 0 not in vals[1:] else 0
-            )
-        }
-
-        return operations.get(op, lambda _: 0)(values)
-
-    def _compare(self, op: str, left: Any, right: Any) -> bool:
-        """Compare two values based on operator"""
-        ops = {
-            'EQUALS': operator.eq,
-            'NOT_EQUALS': operator.ne,
-            'GREATER_THAN': operator.gt,
-            'LESS_THAN': operator.lt,
-            'GREATER_OR_EQUAL': operator.ge,
-            'LESS_OR_EQUAL': operator.le,
-        }
-        return ops[op](left, right) if op in ops else False
-
     async def evaluate(self, service_context: Optional[Dict[str, Any]] = None,
-                       overwrite_input: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Evaluate rules using service context"""
+                       overwrite_input: Optional[Dict[str, Any]] = None,
+                       sources: Optional[Dict[str, Dict[str, Any]]] = None,
+                       calculation_date=None) -> Dict[str, Any]:
+        """Evaluate rules using service context and sources
+        :param calculation_date:
+        """
+
         root = PathNode(type='root', name='evaluation', result=None)
         context = RuleContext(
             definitions=self.definitions,
@@ -261,7 +234,8 @@ class RulesEngine:
             output_specs=self.output_specs,
             sources=sources,
             path=[root],
-            overwrite_input=overwrite_input or {}
+            overwrite_input=overwrite_input or {},
+            calculation_date=calculation_date,
         )
 
         # Check requirements
@@ -277,7 +251,7 @@ class RulesEngine:
         # Process actions if requirements are met
         if requirements_met:
             for action in self.actions:
-                print(f"Action {action.get('output', '')}")
+                print(f"    RUNNING ACTION {action.get('output', '')}")
                 action_node = PathNode(
                     type='action',
                     name=f"Evaluate action for {action.get('output', '')}",
@@ -300,6 +274,8 @@ class RulesEngine:
                     raw_result = await self._evaluate_operation(action, context)
                     result = self._enforce_output_type(output_name, raw_result)
                     action_node.result = result
+
+                print(f"        RESULT OF ACTION {action.get('output', '')}: {result}")
 
                 # Build output with metadata
                 output_def = {
@@ -350,7 +326,7 @@ class RulesEngine:
                     results.append(result)
                 result = any(results)
             else:
-                result = await self._evaluate_condition(req, context)
+                result = await self._evaluate_operation(req, context)
 
             node.result = result
             context.pop_path()
@@ -359,74 +335,6 @@ class RulesEngine:
                 return False
 
         return True
-
-    async def _evaluate_condition(self, condition: Dict[str, Any], context: RuleContext) -> bool:
-        """Evaluate a single condition"""
-        test_desc = f"Test: {condition.get('subject', 'operation')}"
-        node = PathNode(type='test', name=test_desc, result=None, details={})
-        context.add_to_path(node)
-
-        try:
-            if 'operation' in condition:
-                values = [await self._evaluate_value(v, context) for v in condition['values']]
-                result = self._compare(condition['operation'], *values)
-                node.details.update({
-                    'operation': condition['operation'],
-                    'values': values
-                })
-            else:
-                subject = await self._evaluate_value(condition['subject'], context)
-                value = await self._evaluate_value(condition['value'], context)
-                result = self._compare(condition['operator'], subject, value)
-                node.details.update({
-                    'subject_path': condition['subject'],
-                    'subject_value': subject,
-                    'operator': condition['operator'],
-                    'comparison_value': value
-                })
-
-            node.result = result
-            context.pop_path()
-            return result
-
-        except Exception as e:
-            print(f"Error evaluating condition: {e}")
-            context.pop_path()
-            return False
-
-    async def _evaluate_operation(self, operation: Dict[str, Any], context: RuleContext) -> Any:
-        """Evaluate an operation"""
-        if not isinstance(operation, dict):
-            return await self._evaluate_value(operation, context)
-
-        op_type = operation.get('operation')
-        node = PathNode(type='operation',
-                        name=f"Operation: {op_type}",
-                        result=None,
-                        details={'operation_type': op_type})
-        context.add_to_path(node)
-
-        try:
-            if op_type == 'IF':
-                result = await self._evaluate_if_operation(operation, context)
-            elif 'values' in operation:
-                values = [await self._evaluate_value(v, context) for v in operation['values']]
-                result = self._calculate(op_type, values)
-                node.details.update({
-                    'raw_values': operation['values'],
-                    'evaluated_values': values
-                })
-            else:
-                result = 0
-
-            node.result = result
-            context.pop_path()
-            return result
-
-        except Exception as e:
-            print(f"Error evaluating operation: {e}")
-            context.pop_path()
-            return 0
 
     async def _evaluate_if_operation(self, operation: Dict[str, Any], context: RuleContext) -> Any:
         """Evaluate an IF operation"""
@@ -447,7 +355,7 @@ class RulesEngine:
                 }
 
                 if 'test' in condition:
-                    test_result = await self._evaluate_condition(condition['test'], context)
+                    test_result = await self._evaluate_operation(condition['test'], context)
                     condition_result['test_result'] = test_result
                     if test_result:
                         result = await self._evaluate_value(condition['then'], context)
@@ -468,6 +376,145 @@ class RulesEngine:
 
         except Exception as e:
             print(f"Error evaluating IF operation: {e}")
+            context.pop_path()
+            return 0
+
+    def _evaluate_arithmetic(self, op: str, values: List[Any]) -> Union[int, float]:
+        """Handle pure arithmetic operations"""
+        if not values:
+            return 0
+
+        ops = {
+            'MIN': min,
+            'MAX': max,
+            'ADD': sum,
+            'MULTIPLY': lambda vals: functools.reduce(
+                lambda x, y: int(x * y) if isinstance(y, float) and y < 1 else x * y,
+                vals[1:],
+                vals[0]
+            ),
+            'SUBTRACT': lambda vals: functools.reduce(operator.sub, vals[1:], vals[0]),
+            'DIVIDE': lambda vals: (
+                functools.reduce(
+                    lambda x, y: int(x / y) if y != 0 else 0,
+                    vals[1:],
+                    vals[0]
+                ) if 0 not in vals[1:] else 0
+            )
+        }
+        return ops[op](values)
+
+    def _evaluate_comparison(self, op: str, left: Any, right: Any) -> bool:
+        """Handle comparison operations"""
+        ops = {
+            'EQUALS': operator.eq,
+            'NOT_EQUALS': operator.ne,
+            'GREATER_THAN': operator.gt,
+            'LESS_THAN': operator.lt,
+            'GREATER_OR_EQUAL': operator.ge,
+            'LESS_OR_EQUAL': operator.le,
+        }
+        return ops[op](left, right)
+
+    def _evaluate_date_operation(self, op: str, values: List[Any], unit: str) -> int:
+        """Handle date-specific operations"""
+        if op == 'SUBTRACT_DATE':
+
+            if len(values) != 2:
+                print(f"Warning: SUBTRACT_DATE requires exactly 2 values")
+                return 0
+
+            end_date, start_date = values
+
+            if not isinstance(end_date, datetime):
+                end_date = datetime.fromisoformat(str(end_date))
+            if not isinstance(start_date, datetime):
+                start_date = datetime.fromisoformat(str(start_date))
+
+            delta = end_date - start_date
+
+            if unit == 'days':
+                return delta.days
+            elif unit == 'years':
+                return (end_date.year - start_date.year -
+                        ((end_date.month, end_date.day) <
+                         (start_date.month, start_date.day)))
+            elif unit == 'months':
+                return ((end_date.year - start_date.year) * 12 +
+                        end_date.month - start_date.month)
+            else:
+                print(f"Warning: Unknown date unit {unit}")
+                return 0
+
+    async def _evaluate_operation(self, operation: Dict[str, Any], context: RuleContext) -> Any:
+        """Evaluate an operation or condition"""
+        if not isinstance(operation, dict):
+            return await self._evaluate_value(operation, context)
+
+        op_type = operation.get('operation')
+        node = PathNode(
+            type='operation',
+            name=f"Operation: {op_type}",
+            result=None,
+            details={'operation_type': op_type}
+        )
+        context.add_to_path(node)
+
+        try:
+            if op_type == 'IF':
+                result = await self._evaluate_if_operation(operation, context)
+
+            elif op_type == 'IN':
+                subject = await self._evaluate_value(operation['subject'], context)
+                allowed_values = await self._evaluate_value(operation.get('values', []), context)
+                result = subject in (allowed_values if isinstance(allowed_values, list) else [allowed_values])
+
+            elif op_type == 'NOT_NULL':
+                subject = await self._evaluate_value(operation['subject'], context)
+                result = subject is not None
+                node.details['subject_value'] = subject
+
+            elif op_type == 'AND':
+                values = [await self._evaluate_value(v, context) for v in operation['values']]
+                result = all(bool(v) for v in values)
+
+            elif op_type == 'OR':
+                values = [await self._evaluate_value(v, context) for v in operation['values']]
+                result = any(bool(v) for v in values)
+
+            elif op_type == 'SUBTRACT_DATE':
+                values = [await self._evaluate_value(v, context) for v in operation['values']]
+                unit = operation.get('unit', 'days')
+                result = self._evaluate_date_operation(op_type, values, unit)
+
+            elif 'subject' in operation:
+                # Handle comparison conditions
+                subject = await self._evaluate_value(operation['subject'], context)
+                value = await self._evaluate_value(operation['value'], context)
+                result = self._evaluate_comparison(op_type, subject, value)
+                node.details.update({
+                    'subject_value': subject,
+                    'comparison_value': value
+                })
+
+            elif 'values' in operation:
+                # Handle arithmetic operations
+                values = [await self._evaluate_value(v, context) for v in operation['values']]
+                result = self._evaluate_arithmetic(op_type, values)
+                node.details.update({
+                    'raw_values': operation['values'],
+                    'evaluated_values': values
+                })
+
+            else:
+                result = 0
+
+            node.result = result
+            context.pop_path()
+            return result
+
+        except Exception as e:
+            print(f"Error evaluating operation: {e} ({operation})")
             context.pop_path()
             return 0
 
