@@ -183,7 +183,8 @@ class RulesEngine:
         self.output_specs = self._build_output_specs(spec.get('properties', {}))
         self.service_provider = service_provider
 
-    def _build_property_specs(self, properties: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    @staticmethod
+    def _build_property_specs(properties: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         """Build mapping of property paths to their specifications"""
         specs = {}
 
@@ -199,7 +200,8 @@ class RulesEngine:
 
         return specs
 
-    def _build_output_specs(self, properties: Dict[str, Any]) -> Dict[str, TypeSpec]:
+    @staticmethod
+    def _build_output_specs(properties: Dict[str, Any]) -> Dict[str, TypeSpec]:
         """Build mapping of output names to their type specifications"""
         specs = {}
         for output in properties.get('output', []):
@@ -384,7 +386,8 @@ class RulesEngine:
             context.pop_path()
             return 0
 
-    def _evaluate_arithmetic(self, op: str, values: List[Any]) -> Union[int, float]:
+    @staticmethod
+    def _evaluate_arithmetic(op: str, values: List[Any]) -> Union[int, float]:
         """Handle pure arithmetic operations"""
         if not values:
             return 0
@@ -409,7 +412,8 @@ class RulesEngine:
         }
         return ops[op](values)
 
-    def _evaluate_comparison(self, op: str, left: Any, right: Any) -> bool:
+    @staticmethod
+    def _evaluate_comparison(op: str, left: Any, right: Any) -> bool:
         """Handle comparison operations"""
         ops = {
             'EQUALS': operator.eq,
@@ -421,7 +425,8 @@ class RulesEngine:
         }
         return ops[op](left, right)
 
-    def _evaluate_date_operation(self, op: str, values: List[Any], unit: str) -> int:
+    @staticmethod
+    def _evaluate_date_operation(op: str, values: List[Any], unit: str) -> int:
         """Handle date-specific operations"""
         if op == 'SUBTRACT_DATE':
 
@@ -453,6 +458,7 @@ class RulesEngine:
 
     async def _evaluate_operation(self, operation: Dict[str, Any], context: RuleContext) -> Any:
         """Evaluate an operation or condition"""
+
         if not isinstance(operation, dict):
             node = PathNode(
                 type='value',
@@ -489,77 +495,71 @@ class RulesEngine:
         )
         context.add_to_path(node)
 
-        try:
-            if op_type == 'IF':
-                result = await self._evaluate_if_operation(operation, context)
+        if op_type == 'IF':
+            result = await self._evaluate_if_operation(operation, context)
 
-            elif op_type == 'IN':
-                subject = await self._evaluate_value(operation['subject'], context)
-                allowed_values = await self._evaluate_value(operation.get('values', []), context)
-                result = subject in (allowed_values if isinstance(allowed_values, list) else [allowed_values])
-                node.details.update({
-                    'subject_value': subject,
-                    'allowed_values': allowed_values
-                })
+        elif op_type == 'IN':
+            subject = await self._evaluate_value(operation['subject'], context)
+            allowed_values = await self._evaluate_value(operation.get('values', []), context)
+            result = subject in (allowed_values if isinstance(allowed_values, list) else [allowed_values])
+            node.details.update({
+                'subject_value': subject,
+                'allowed_values': allowed_values
+            })
 
-            elif op_type == 'NOT_NULL':
-                subject = await self._evaluate_value(operation['subject'], context)
-                result = subject is not None
-                node.details['subject_value'] = subject
+        elif op_type == 'NOT_NULL':
+            subject = await self._evaluate_value(operation['subject'], context)
+            result = subject is not None
+            node.details['subject_value'] = subject
 
-            elif op_type == 'AND':
-                values = [await self._evaluate_value(v, context) for v in operation['values']]
-                result = all(bool(v) for v in values)
-                node.details['evaluated_values'] = values
+        elif op_type == 'AND':
+            values = [await self._evaluate_value(v, context) for v in operation['values']]
+            result = all(bool(v) for v in values)
+            node.details['evaluated_values'] = values
 
-            elif op_type == 'OR':
-                values = [await self._evaluate_value(v, context) for v in operation['values']]
-                result = any(bool(v) for v in values)
-                node.details['evaluated_values'] = values
+        elif op_type == 'OR':
+            values = [await self._evaluate_value(v, context) for v in operation['values']]
+            result = any(bool(v) for v in values)
+            node.details['evaluated_values'] = values
 
-            elif op_type == 'SUBTRACT_DATE':
-                values = [await self._evaluate_value(v, context) for v in operation['values']]
-                unit = operation.get('unit', 'days')
-                result = self._evaluate_date_operation(op_type, values, unit)
-                node.details.update({
-                    'evaluated_values': values,
-                    'unit': unit
-                })
+        elif op_type == 'SUBTRACT_DATE':
+            values = [await self._evaluate_value(v, context) for v in operation['values']]
+            unit = operation.get('unit', 'days')
+            result = self._evaluate_date_operation(op_type, values, unit)
+            node.details.update({
+                'evaluated_values': values,
+                'unit': unit
+            })
 
-            elif 'subject' in operation:
-                # Handle comparison conditions
-                subject = await self._evaluate_value(operation['subject'], context)
-                value = await self._evaluate_value(operation['value'], context)
-                result = self._evaluate_comparison(op_type, subject, value)
-                node.details.update({
-                    'subject_value': subject,
-                    'comparison_value': value,
-                    'comparison_type': op_type
-                })
+        elif 'subject' in operation:
+            # Handle comparison conditions
+            subject = await self._evaluate_value(operation['subject'], context)
+            value = await self._evaluate_value(operation['value'], context)
+            result = self._evaluate_comparison(op_type, subject, value)
+            node.details.update({
+                'subject_value': subject,
+                'comparison_value': value,
+                'comparison_type': op_type
+            })
 
-            elif 'values' in operation:
-                # Handle arithmetic operations
-                values = [await self._evaluate_value(v, context) for v in operation['values']]
-                result = self._evaluate_arithmetic(op_type, values)
-                node.details.update({
-                    'raw_values': operation['values'],
-                    'evaluated_values': values,
-                    'arithmetic_type': op_type
-                })
+        elif 'values' in operation:
+            # Handle arithmetic operations
+            values = [await self._evaluate_value(v, context) for v in operation['values']]
+            result = self._evaluate_arithmetic(op_type, values)
+            node.details.update({
+                'raw_values': operation['values'],
+                'evaluated_values': values,
+                'arithmetic_type': op_type
+            })
 
-            else:
-                result = 0
-                node.details['error'] = 'Invalid operation format'
+        else:
+            result = 0
+            node.details['error'] = 'Invalid operation format'
 
-            node.result = result
-            context.pop_path()
-            return result
+        node.result = result
+        context.pop_path()
+        return result
 
-        except Exception as e:
-            node.details['error'] = str(e)
-            node.result = 0
-            context.pop_path()
-            return 0
 
     async def _evaluate_value(self, value: Any, context: RuleContext) -> Any:
         """Evaluate a value which might be a number, operation, or reference"""
