@@ -156,32 +156,3 @@ class Services(AbstractServiceProvider):
         reference_date = self.root_reference_date
         result = await self.evaluate(service, law, reference_date, context, overwrite_input)
         return result.output.get(field)
-
-
-# Example usage:
-async def main():
-    # Initialize service
-    toeslagen = RuleService("TOESLAGEN")
-
-    # Get rule info
-    rule_info = toeslagen.get_rule_info("zorgtoeslagwet", "2025-01-01")
-    print(f"Using rule: {rule_info}")
-
-    # Evaluate rules
-    result = await toeslagen.evaluate(
-        law="zorgtoeslagwet",
-        reference_date="2025-01-01",
-        service_context={'bsn': '999993653'},
-        overwrite_input={"@BRP.age": 19}
-    )
-
-    # Access results
-    print(f"Requirements met: {result.requirements_met}")
-    print(f"Outputs: {result.output}")
-    print(f"Inputs used: {result.input}")
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())
