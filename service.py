@@ -75,7 +75,8 @@ class RuleService:
             law: str,
             reference_date: str,
             service_context: Dict[str, Any],
-            overwrite_input: Optional[Dict[str, Any]] = None
+            overwrite_input: Optional[Dict[str, Any]] = None,
+            requested_output: str = None
     ) -> RuleResult:
         """
         Evaluate rules for given law and reference date
@@ -94,7 +95,8 @@ class RuleService:
             service_context=service_context,
             overwrite_input=overwrite_input,
             sources=self.source_values,
-            calculation_date=reference_date
+            calculation_date=reference_date,
+            requested_output=requested_output,
         )
         return RuleResult.from_engine_result(result)
 
@@ -138,21 +140,29 @@ class Services(AbstractServiceProvider):
             law: str,
             reference_date: str,
             service_context: Dict[str, Any],
-            overwrite_input: Optional[Dict[str, Any]] = None
+            overwrite_input: Optional[Dict[str, Any]] = None,
+            requested_output: str = None
     ) -> RuleResult:
-        with logger.indent_block(f"{service}: {law} ({reference_date} {service_context} {overwrite_input})",
+        with logger.indent_block(f"{service}: {law} ({reference_date} {service_context} {requested_output})",
                                  double_line=True):
             return await self.services[service].evaluate(
                 law=law,
                 reference_date=reference_date,
                 service_context=service_context,
-                overwrite_input=overwrite_input
+                overwrite_input=overwrite_input,
+                requested_output=requested_output,
             )
 
-    async def get_value(self, service: str, law: str, field: str, temporal: Dict[str, Any],
-                        context: Dict[str, Any], overwrite_input: Dict[str, Any]) -> Any:
+    async def get_value(
+            self,
+            service: str,
+            law: str,
+            field: str,
+            temporal: Dict[str, Any],
+            context: Dict[str, Any],
+            overwrite_input: Dict[str, Any]) -> Any:
         # reference_date = None
         # if temporal['reference_date'] == "calculation_date":
         reference_date = self.root_reference_date
-        result = await self.evaluate(service, law, reference_date, context, overwrite_input)
+        result = await self.evaluate(service, law, reference_date, context, overwrite_input, requested_output=field)
         return result.output.get(field)

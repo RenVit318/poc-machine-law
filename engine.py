@@ -181,7 +181,8 @@ class RulesEngine:
 
     def __init__(self, spec: Dict[str, Any], service_provider: Optional[AbstractServiceProvider] = None):
         self.spec = spec
-        self.service_name = spec.get('service')  # Get service name from spec
+        self.service_name = spec.get('service')
+        self.law = spec.get('law')
         self.definitions = spec.get('properties', {}).get('definitions', {})
         self.requirements = spec.get('requirements', [])
         self.actions = spec.get('actions', [])
@@ -230,11 +231,11 @@ class RulesEngine:
     async def evaluate(self, service_context: Optional[Dict[str, Any]] = None,
                        overwrite_input: Optional[Dict[str, Any]] = None,
                        sources: Optional[Dict[str, Dict[str, Any]]] = None,
-                       calculation_date=None) -> Dict[str, Any]:
+                       calculation_date=None, requested_output: str = None) -> Dict[str, Any]:
         """Evaluate rules using service context and sources
         :param calculation_date:
         """
-
+        logger.debug(f"Evaluating rules for {self.service_name} {self.law} ({calculation_date} {requested_output})")
         root = PathNode(type='root', name='evaluation', result=None)
         context = RuleContext(
             definitions=self.definitions,
@@ -258,9 +259,12 @@ class RulesEngine:
         input_values = dict(context.values_cache)
         output_values = {}
 
-        # Process actions if requirements are met
         if requirements_met:
             for action in self.actions:
+                output_name = action['output']
+                if requested_output and requested_output != output_name:
+                    logger.debug(f"Skipping action {output_name}")
+                    continue
                 output_def, output_name = await self._evaluate_action(action, context)
                 output_values[output_name] = output_def
                 context.pop_path()
@@ -315,6 +319,7 @@ class RulesEngine:
     async def _evaluate_requirements(self, requirements: list, context: RuleContext) -> bool:
         """Evaluate all requirements"""
         if not requirements:
+            logger.debug("No requirements found")
             return True
 
         for req in requirements:
