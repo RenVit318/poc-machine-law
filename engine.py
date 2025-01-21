@@ -286,7 +286,7 @@ class RulesEngine:
             raw_result = context.overwrite_input[service_path]
             print(f"        RESOLVING VALUE {service_path} FROM OVERWRITE {raw_result}")
         elif 'value' in action:
-            raw_result = action['value']
+            raw_result = await self._evaluate_value(action['value'], context)
         else:
             raw_result = await self._evaluate_operation(action, context)
         result = self._enforce_output_type(output_name, raw_result)
@@ -351,40 +351,34 @@ class RulesEngine:
                            details={'condition_results': []})
         context.add_to_path(if_node)
 
-        try:
-            result = 0
-            conditions = operation.get('conditions', [])
+        result = 0
+        conditions = operation.get('conditions', [])
 
-            for i, condition in enumerate(conditions):
-                condition_result = {
-                    'condition_index': i,
-                    'type': 'test' if 'test' in condition else 'else'
-                }
+        for i, condition in enumerate(conditions):
+            condition_result = {
+                'condition_index': i,
+                'type': 'test' if 'test' in condition else 'else'
+            }
 
-                if 'test' in condition:
-                    test_result = await self._evaluate_operation(condition['test'], context)
-                    condition_result['test_result'] = test_result
-                    if test_result:
-                        result = await self._evaluate_value(condition['then'], context)
-                        condition_result['then_value'] = result
-                        if_node.details['condition_results'].append(condition_result)
-                        break
-                elif 'else' in condition:
-                    result = await self._evaluate_value(condition['else'], context)
-                    condition_result['else_value'] = result
+            if 'test' in condition:
+                test_result = await self._evaluate_operation(condition['test'], context)
+                condition_result['test_result'] = test_result
+                if test_result:
+                    result = await self._evaluate_value(condition['then'], context)
+                    condition_result['then_value'] = result
                     if_node.details['condition_results'].append(condition_result)
                     break
-
+            elif 'else' in condition:
+                result = await self._evaluate_value(condition['else'], context)
+                condition_result['else_value'] = result
                 if_node.details['condition_results'].append(condition_result)
+                break
 
-            if_node.result = result
-            context.pop_path()
-            return result
+            if_node.details['condition_results'].append(condition_result)
 
-        except Exception as e:
-            print(f"Error evaluating IF operation: {e}")
-            context.pop_path()
-            return 0
+        if_node.result = result
+        context.pop_path()
+        return result
 
     @staticmethod
     def _evaluate_arithmetic(op: str, values: List[Any]) -> Union[int, float]:
@@ -559,7 +553,6 @@ class RulesEngine:
         node.result = result
         context.pop_path()
         return result
-
 
     async def _evaluate_value(self, value: Any, context: RuleContext) -> Any:
         """Evaluate a value which might be a number, operation, or reference"""
