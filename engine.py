@@ -78,7 +78,7 @@ class RuleContext:
     service_provider: Optional[AbstractServiceProvider]
     service_context: Dict[str, Any]
     property_specs: Dict[str, Dict[str, Any]]
-    output_specs: Dict[str, Dict[str, Any]]
+    output_specs: Dict[str, TypeSpec]
     sources: Optional[Dict[str, Dict[str, Any]]] = None
     accessed_paths: Set[str] = field(default_factory=set)
     values_cache: Dict[str, Any] = field(default_factory=dict)
