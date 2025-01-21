@@ -522,7 +522,7 @@ class RulesEngine:
             result = any(bool(v) for v in values)
             node.details['evaluated_values'] = values
 
-        elif op_type == 'SUBTRACT_DATE':
+        elif '_DATE' in op_type:
             values = [await self._evaluate_value(v, context) for v in operation['values']]
             unit = operation.get('unit', 'days')
             result = self._evaluate_date_operation(op_type, values, unit)
