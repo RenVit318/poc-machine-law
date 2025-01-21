@@ -17,11 +17,11 @@ Feature: Healthcare Allowance Calculation 2025
       | DJI             | forensische_zorg      | juridische_titel       | GEEN       |
       | RVZ             | verzekeringen         | polis_status           | ACTIEF     |
       | RVZ             | verdragsverzekeringen | registratie.status     | INACTIEF   |
-      | BELASTINGDIENST | inkomen               | box1                   | 12000000   |
+      | BELASTINGDIENST | inkomen               | box1                   | 79547      |
       | BELASTINGDIENST | inkomen               | box2                   | 0          |
       | BELASTINGDIENST | inkomen               | box3                   | 0          |
       | BELASTINGDIENST | inkomen               | buitenlands            | 0          |
-      | BELASTINGDIENST | vermogen              | bezittingen            | 12040000   |
+      | BELASTINGDIENST | vermogen              | bezittingen            | 1200000    |
       | BELASTINGDIENST | vermogen              | schulden               | 0          |
       | DUO             | studiefinanciering    | aantal_studerend_gezin | 0          |
       | DUO             | inschrijvingen        | onderwijstype          | GEEN       |
@@ -47,6 +47,7 @@ Feature: Healthcare Allowance Calculation 2025
     Then heeft de persoon recht op zorgtoeslag
     And is voldaan aan de voorwaarden
     And is het toeslagbedrag hoger dan "0" euro
+    And is het toeslagbedrag "849.00" euro
 
   Scenario: Single person with student finance is eligible for healthcare allowance
     Given de persoon is "20" jaar oud
@@ -59,3 +60,4 @@ Feature: Healthcare Allowance Calculation 2025
     Then heeft de persoon recht op zorgtoeslag
     And is voldaan aan de voorwaarden
     And is het toeslagbedrag hoger dan "0" euro
+    And is het toeslagbedrag "1092.00" euro
