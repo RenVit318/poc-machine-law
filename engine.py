@@ -344,7 +344,7 @@ class RulesEngine:
                 else:
                     result = await self._evaluate_operation(req, context)
 
-            logger.debug(f"Requirement met ({req})" if {result} else f"Requirement NOT met ({req})")
+            logger.debug(f"Requirement met" if {result} else f"Requirement NOT met")
 
             node.result = result
             context.pop_path()

@@ -1,7 +1,7 @@
 from logging_config import configure_logging
 
 def before_all(context):
-    log_level = context.config.userdata.get('log_level', 'DEBUG')
+    log_level = context.config.userdata.get('log_level', 'INFO')
     context.loggers = configure_logging(log_level)
 
 def before_scenario(context, scenario):
