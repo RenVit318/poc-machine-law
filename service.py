@@ -1,9 +1,13 @@
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
 from engine import RulesEngine, AbstractServiceProvider
+from logging_config import IndentLogger
 from utils import RuleResolver
+
+logger = IndentLogger(logging.getLogger('service'))
 
 
 @dataclass
@@ -136,14 +140,14 @@ class Services(AbstractServiceProvider):
             service_context: Dict[str, Any],
             overwrite_input: Optional[Dict[str, Any]] = None
     ) -> RuleResult:
-        print(f"APPLYING {law} BY {service} ({reference_date} {service_context} {overwrite_input})")
-
-        return await self.services[service].evaluate(
-            law=law,
-            reference_date=reference_date,
-            service_context=service_context,
-            overwrite_input=overwrite_input
-        )
+        with logger.indent_block(f"{service}: {law} ({reference_date} {service_context} {overwrite_input})",
+                                 double_line=True):
+            return await self.services[service].evaluate(
+                law=law,
+                reference_date=reference_date,
+                service_context=service_context,
+                overwrite_input=overwrite_input
+            )
 
     async def get_value(self, service: str, law: str, field: str, temporal: Dict[str, Any],
                         context: Dict[str, Any], overwrite_input: Dict[str, Any]) -> Any:

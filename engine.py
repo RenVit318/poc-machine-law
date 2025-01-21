@@ -1,9 +1,14 @@
 import functools
+import logging
 import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Union, TypeVar
+
+from logging_config import IndentLogger
+
+logger = IndentLogger(logging.getLogger('service'))
 
 T = TypeVar('T')
 
@@ -114,12 +119,12 @@ class RuleContext:
 
         # Check definitions first
         if path in self.definitions:
-            print(f"        RESOLVING VALUE ${path} FROM DEFINITION {self.definitions[path]}")
+            logger.debug(f"Resolving value ${path} from DEFINITION: {self.definitions[path]}")
             return self.definitions[path]
 
         # Check cache
         if path in self.values_cache:
-            print(f"        RESOLVING VALUE ${path} FROM CACHE {self.values_cache[path]}")
+            logger.debug(f"Resolving value ${path} from CACHE: {self.values_cache[path]}")
             return self.values_cache[path]
 
         # Check overwrite data
@@ -133,7 +138,7 @@ class RuleContext:
         if service_field_key and service_field_key in self.overwrite_input:
             value = self.overwrite_input[service_field_key]
             self.values_cache[path] = value
-            print(f"        RESOLVING VALUE ${path} FROM OVERWRITE {value}")
+            logger.debug(f"Resolving value ${path} from OVERWRITE: {value}")
             return value
 
         # Check sources
@@ -145,7 +150,7 @@ class RuleContext:
                 field = source_ref.get('field')
                 if table in self.sources and field in self.sources[table]:
                     value = self.sources[table][field]
-                    print(f"        RESOLVING VALUE ${path} FROM SOURCE {table} {field}: {value}")
+                    logger.debug(f"Resolving value ${path} from SOURCE {table} {field}: {value}")
                     self.values_cache[path] = value
                     return value
 
@@ -154,6 +159,8 @@ class RuleContext:
             spec = self.property_specs[path]
             service_ref = spec.get('service_reference', {})
             if service_ref and self.service_provider:
+                logger.debug(
+                    f"Resolving value ${path} from {service_ref['service']} field {service_ref['field']} ({self.service_context})")
                 value = await self.service_provider.get_value(
                     service_ref['service'],
                     service_ref['law'],
@@ -163,10 +170,9 @@ class RuleContext:
                     self.overwrite_input
                 )
                 self.values_cache[path] = value
-                print(
-                    f"        RESOLVING VALUE ${path} FROM SERVICE {service_ref['service']} field {service_ref['field']} ({self.service_context}): {value}")
+                logger.debug(
+                    f"Result for ${path} from {service_ref['service']} field {service_ref['field']}: {value}")
                 return value
-
         return None
 
 
@@ -267,31 +273,31 @@ class RulesEngine:
         }
 
     async def _evaluate_action(self, action, context):
-        print(f"    RUNNING ACTION {action.get('output', '')}")
-        action_node = PathNode(
-            type='action',
-            name=f"Evaluate action for {action.get('output', '')}",
-            result=None
-        )
-        context.add_to_path(action_node)
-        output_name = action['output']
-        # Find output specification
-        output_spec = next((
-            spec for spec in self.spec.get('properties', {}).get('output', [])
-            if spec.get('name') == output_name
-        ), {})
-        # Check for overwrite using service name
-        service_path = f"@{self.service_name}.{output_name}"
-        if service_path in context.overwrite_input:
-            raw_result = context.overwrite_input[service_path]
-            print(f"        RESOLVING VALUE {service_path} FROM OVERWRITE {raw_result}")
-        elif 'value' in action:
-            raw_result = await self._evaluate_value(action['value'], context)
-        else:
-            raw_result = await self._evaluate_operation(action, context)
-        result = self._enforce_output_type(output_name, raw_result)
+        with logger.indent_block(f"Computing {action.get('output', '')}"):
+            action_node = PathNode(
+                type='action',
+                name=f"Evaluate action for {action.get('output', '')}",
+                result=None
+            )
+            context.add_to_path(action_node)
+            output_name = action['output']
+            # Find output specification
+            output_spec = next((
+                spec for spec in self.spec.get('properties', {}).get('output', [])
+                if spec.get('name') == output_name
+            ), {})
+            # Check for overwrite using service name
+            service_path = f"@{self.service_name}.{output_name}"
+            if service_path in context.overwrite_input:
+                raw_result = context.overwrite_input[service_path]
+                logger.debug(f"Resolving value {service_path} from OVERWRITE {raw_result}")
+            elif 'value' in action:
+                raw_result = await self._evaluate_value(action['value'], context)
+            else:
+                raw_result = await self._evaluate_operation(action, context)
+            result = self._enforce_output_type(output_name, raw_result)
         action_node.result = result
-        print(f"        RESULT OF ACTION {action.get('output', '')}: {result}")
+        logger.debug(f"Result of {action.get('output', '')}: {result}")
         # Build output with metadata
         output_def = {
             'value': result,
@@ -312,28 +318,28 @@ class RulesEngine:
             return True
 
         for req in requirements:
-            node = PathNode(type='requirement',
-                            name='Check ALL conditions' if 'all' in req else 'Check OR conditions' if 'or' in req else 'Test condition',
-                            result=None)
-            context.add_to_path(node)
-            print(f"    CHECKING REQUIREMENT {req}")
+            with logger.indent_block(f"Requirements {req}"):
+                node = PathNode(type='requirement',
+                                name='Check ALL conditions' if 'all' in req else 'Check OR conditions' if 'or' in req else 'Test condition',
+                                result=None)
+                context.add_to_path(node)
 
-            if 'all' in req:
-                results = []
-                for r in req['all']:
-                    result = await self._evaluate_requirements([r], context)
-                    results.append(result)
-                result = all(results)
-            elif 'or' in req:
-                results = []
-                for r in req['or']:
-                    result = await self._evaluate_requirements([r], context)
-                    results.append(result)
-                result = any(results)
-            else:
-                result = await self._evaluate_operation(req, context)
+                if 'all' in req:
+                    results = []
+                    for r in req['all']:
+                        result = await self._evaluate_requirements([r], context)
+                        results.append(result)
+                    result = all(results)
+                elif 'or' in req:
+                    results = []
+                    for r in req['or']:
+                        result = await self._evaluate_requirements([r], context)
+                        results.append(result)
+                    result = any(results)
+                else:
+                    result = await self._evaluate_operation(req, context)
 
-            print(f"        RESULT OF REQUIREMENT: {result}")
+            logger.debug(f"Requirement met ({req})" if {result} else f"Requirement NOT met ({req})")
 
             node.result = result
             context.pop_path()
@@ -420,13 +426,12 @@ class RulesEngine:
         """Handle comparison operations"""
         return RulesEngine.COMPARISON_OPS[op](left, right)
 
-    @staticmethod
-    def _evaluate_date_operation(op: str, values: List[Any], unit: str) -> int:
+    def _evaluate_date_operation(self, op: str, values: List[Any], unit: str) -> int:
         """Handle date-specific operations"""
         if op == 'SUBTRACT_DATE':
 
             if len(values) != 2:
-                print(f"Warning: SUBTRACT_DATE requires exactly 2 values")
+                logger.warning(f"Warning: SUBTRACT_DATE requires exactly 2 values")
                 return 0
 
             end_date, start_date = values
@@ -448,7 +453,7 @@ class RulesEngine:
                 return ((end_date.year - start_date.year) * 12 +
                         end_date.month - start_date.month)
             else:
-                print(f"Warning: Unknown date unit {unit}")
+                logger.warning(f"Warning: Unknown date unit {unit}")
                 return 0
 
     async def _evaluate_operation(self, operation: Dict[str, Any], context: RuleContext) -> Any:
