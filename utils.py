@@ -70,7 +70,7 @@ class RuleResolver:
 
         if service:
             # If a service is given, filter rules for the given service
-            law_rules = [r for r in self.rules if r.service == service]
+            law_rules = [r for r in law_rules if r.service == service]
 
         if not law_rules:
             raise ValueError(f"No rules found for law: {law} (and service: {service})")
