@@ -253,51 +253,7 @@ class RulesEngine:
         # Process actions if requirements are met
         if requirements_met:
             for action in self.actions:
-                print(f"    RUNNING ACTION {action.get('output', '')}")
-                action_node = PathNode(
-                    type='action',
-                    name=f"Evaluate action for {action.get('output', '')}",
-                    result=None
-                )
-                context.add_to_path(action_node)
-                output_name = action['output']
-
-                # Find output specification
-                output_spec = next((
-                    spec for spec in self.spec.get('properties', {}).get('output', [])
-                    if spec.get('name') == output_name
-                ), {})
-
-                # Check for overwrite using service name
-                service_path = f"@{self.service_name}.{output_name}"
-                if service_path in context.overwrite_input:
-                    raw_result = context.overwrite_input[service_path]
-                    print(f"        RESOLVING VALUE {service_path} FROM OVERWRITE {raw_result}")
-                elif 'value' in action:
-                    raw_result = action['value']
-                else:
-                    raw_result = await self._evaluate_operation(action, context)
-
-                result = self._enforce_output_type(output_name, raw_result)
-                action_node.result = result
-
-                print(f"        RESULT OF ACTION {action.get('output', '')}: {result}")
-
-                # Build output with metadata
-                output_def = {
-                    'value': result,
-                    'type': output_spec.get('type', 'unknown'),
-                    'description': output_spec.get('description', '')
-                }
-
-                # Add type_spec if present
-                if 'type_spec' in output_spec:
-                    output_def['type_spec'] = output_spec['type_spec']
-
-                # Add temporal if present
-                if 'temporal' in output_spec:
-                    output_def['temporal'] = output_spec['temporal']
-
+                output_def, output_name = await self._evaluate_action(action, context)
                 output_values[output_name] = output_def
                 context.pop_path()
 
@@ -307,6 +263,46 @@ class RulesEngine:
             'requirements_met': requirements_met,
             'path': root
         }
+
+    async def _evaluate_action(self, action, context):
+        print(f"    RUNNING ACTION {action.get('output', '')}")
+        action_node = PathNode(
+            type='action',
+            name=f"Evaluate action for {action.get('output', '')}",
+            result=None
+        )
+        context.add_to_path(action_node)
+        output_name = action['output']
+        # Find output specification
+        output_spec = next((
+            spec for spec in self.spec.get('properties', {}).get('output', [])
+            if spec.get('name') == output_name
+        ), {})
+        # Check for overwrite using service name
+        service_path = f"@{self.service_name}.{output_name}"
+        if service_path in context.overwrite_input:
+            raw_result = context.overwrite_input[service_path]
+            print(f"        RESOLVING VALUE {service_path} FROM OVERWRITE {raw_result}")
+        elif 'value' in action:
+            raw_result = action['value']
+        else:
+            raw_result = await self._evaluate_operation(action, context)
+        result = self._enforce_output_type(output_name, raw_result)
+        action_node.result = result
+        print(f"        RESULT OF ACTION {action.get('output', '')}: {result}")
+        # Build output with metadata
+        output_def = {
+            'value': result,
+            'type': output_spec.get('type', 'unknown'),
+            'description': output_spec.get('description', '')
+        }
+        # Add type_spec if present
+        if 'type_spec' in output_spec:
+            output_def['type_spec'] = output_spec['type_spec']
+        # Add temporal if present
+        if 'temporal' in output_spec:
+            output_def['temporal'] = output_spec['temporal']
+        return output_def, output_name
 
     async def _evaluate_requirements(self, requirements: list, context: RuleContext) -> bool:
         """Evaluate all requirements"""
