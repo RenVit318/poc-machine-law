@@ -380,44 +380,45 @@ class RulesEngine:
         context.pop_path()
         return result
 
+    COMPARISON_OPS = {
+        'EQUALS': operator.eq,
+        'NOT_EQUALS': operator.ne,
+        'GREATER_THAN': operator.gt,
+        'LESS_THAN': operator.lt,
+        'GREATER_OR_EQUAL': operator.ge,
+        'LESS_OR_EQUAL': operator.le,
+    }
+
+    ARITHMETIC_OPS = {
+        'MIN': min,
+        'MAX': max,
+        'ADD': sum,
+        'MULTIPLY': lambda vals: functools.reduce(
+            lambda x, y: int(x * y) if isinstance(y, float) and y < 1 else x * y,
+            vals[1:],
+            vals[0]
+        ),
+        'SUBTRACT': lambda vals: functools.reduce(operator.sub, vals[1:], vals[0]),
+        'DIVIDE': lambda vals: (
+            functools.reduce(
+                lambda x, y: int(x / y) if y != 0 else 0,
+                vals[1:],
+                vals[0]
+            ) if 0 not in vals[1:] else 0
+        )
+    }
+
     @staticmethod
     def _evaluate_arithmetic(op: str, values: List[Any]) -> Union[int, float]:
         """Handle pure arithmetic operations"""
         if not values:
             return 0
-
-        ops = {
-            'MIN': min,
-            'MAX': max,
-            'ADD': sum,
-            'MULTIPLY': lambda vals: functools.reduce(
-                lambda x, y: int(x * y) if isinstance(y, float) and y < 1 else x * y,
-                vals[1:],
-                vals[0]
-            ),
-            'SUBTRACT': lambda vals: functools.reduce(operator.sub, vals[1:], vals[0]),
-            'DIVIDE': lambda vals: (
-                functools.reduce(
-                    lambda x, y: int(x / y) if y != 0 else 0,
-                    vals[1:],
-                    vals[0]
-                ) if 0 not in vals[1:] else 0
-            )
-        }
-        return ops[op](values)
+        return RulesEngine.ARITHMETIC_OPS[op](values)
 
     @staticmethod
     def _evaluate_comparison(op: str, left: Any, right: Any) -> bool:
         """Handle comparison operations"""
-        ops = {
-            'EQUALS': operator.eq,
-            'NOT_EQUALS': operator.ne,
-            'GREATER_THAN': operator.gt,
-            'LESS_THAN': operator.lt,
-            'GREATER_OR_EQUAL': operator.ge,
-            'LESS_OR_EQUAL': operator.le,
-        }
-        return ops[op](left, right)
+        return RulesEngine.COMPARISON_OPS[op](left, right)
 
     @staticmethod
     def _evaluate_date_operation(op: str, values: List[Any], unit: str) -> int:
@@ -525,7 +526,8 @@ class RulesEngine:
                 'unit': unit
             })
 
-        elif 'subject' in operation:
+
+        elif op_type in self.COMPARISON_OPS and 'subject' in operation:
             # Handle comparison conditions
             subject = await self._evaluate_value(operation['subject'], context)
             value = await self._evaluate_value(operation['value'], context)
@@ -536,7 +538,8 @@ class RulesEngine:
                 'comparison_type': op_type
             })
 
-        elif 'values' in operation:
+
+        elif op_type in self.ARITHMETIC_OPS and 'values' in operation:
             # Handle arithmetic operations
             values = [await self._evaluate_value(v, context) for v in operation['values']]
             result = self._evaluate_arithmetic(op_type, values)
