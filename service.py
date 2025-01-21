@@ -49,7 +49,7 @@ class RuleService:
             self._engines[law] = {}
 
         if reference_date not in self._engines[law]:
-            spec = self.resolver.get_rule_spec(law, reference_date)
+            spec = self.resolver.get_rule_spec(law, reference_date, service=self.service_name)
             if not spec:
                 raise ValueError(
                     f"No rules found for law '{law}' at date '{reference_date}'"

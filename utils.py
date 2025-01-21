@@ -61,15 +61,19 @@ class RuleResolver:
     def get_service_laws(self):
         return self.laws_by_service
 
-    def find_rule(self, law: str, reference_date: str) -> Optional[RuleSpec]:
+    def find_rule(self, law: str, reference_date: str, service: str = None) -> Optional[RuleSpec]:
         """Find the applicable rule for a given law and reference date"""
         ref_date = datetime.strptime(reference_date, '%Y-%m-%d')
 
         # Filter rules for the given law
         law_rules = [r for r in self.rules if r.law == law]
 
+        if service:
+            # If a service is given, filter rules for the given service
+            law_rules = [r for r in self.rules if r.service == service]
+
         if not law_rules:
-            raise ValueError(f"No rules found for law: {law}")
+            raise ValueError(f"No rules found for law: {law} (and service: {service})")
 
         # Find the most recent valid rule before the reference date
         valid_rules = [r for r in law_rules if r.valid_from <= ref_date]
@@ -80,9 +84,9 @@ class RuleResolver:
         # Return the most recently valid rule
         return max(valid_rules, key=lambda r: r.valid_from)
 
-    def get_rule_spec(self, law: str, reference_date: str) -> dict:
+    def get_rule_spec(self, law: str, reference_date: str, service: str = None) -> dict:
         """Get the rule specification as a dictionary"""
-        rule = self.find_rule(law, reference_date)
+        rule = self.find_rule(law, reference_date, service)
         if not rule:
             raise ValueError(f"No rule found for {law} at {reference_date}")
 
