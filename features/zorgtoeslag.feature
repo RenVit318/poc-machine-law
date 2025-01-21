@@ -10,6 +10,7 @@ Feature: Healthcare Allowance Calculation 2025
       | Service         | Table                 | Field                  | Value      |
       | BRP             | personen              | geboortedatum          | 1986-01-01 |
       | BRP             | personen              | verblijfsadres         | Amsterdam  |
+      | BRP             | personen              | land_verblijf          | NEDERLAND  |
       | BRP             | relaties              | partnerschap_type      | GEEN       |
       | DJI             | detenties             | status                 | VRIJ       |
       | DJI             | detenties             | inrichting_type        | GEEN       |

@@ -97,7 +97,7 @@ def configure_logging(level: Optional[str] = None):
     detailed_formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    simple_formatter = logging.Formatter('%(levelname)s - %(message)s')
+    simple_formatter = logging.Formatter('%(levelname)8s %(message)s')
 
     # Create console handler
     console_handler = logging.StreamHandler()

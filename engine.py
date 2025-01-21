@@ -173,6 +173,7 @@ class RuleContext:
                 logger.debug(
                     f"Result for ${path} from {service_ref['service']} field {service_ref['field']}: {value}")
                 return value
+        logger.warning(f"Could not resolve value for {path}")
         return None
 
 
@@ -424,12 +425,16 @@ class RulesEngine:
         """Handle pure arithmetic operations"""
         if not values:
             return 0
-        return RulesEngine.ARITHMETIC_OPS[op](values)
+        result = RulesEngine.ARITHMETIC_OPS[op](values)
+        logger.debug(f"Compute {op}({values}) = {result}")
+        return result
 
     @staticmethod
     def _evaluate_comparison(op: str, left: Any, right: Any) -> bool:
         """Handle comparison operations"""
-        return RulesEngine.COMPARISON_OPS[op](left, right)
+        result = RulesEngine.COMPARISON_OPS[op](left, right)
+        logger.debug(f"Compute {op}({left}, {right}) = {result}")
+        return result
 
     def _evaluate_date_operation(self, op: str, values: List[Any], unit: str) -> int:
         """Handle date-specific operations"""
@@ -504,13 +509,17 @@ class RulesEngine:
             result = await self._evaluate_if_operation(operation, context)
 
         elif op_type == 'IN':
-            subject = await self._evaluate_value(operation['subject'], context)
-            allowed_values = await self._evaluate_value(operation.get('values', []), context)
-            result = subject in (allowed_values if isinstance(allowed_values, list) else [allowed_values])
+            with logger.indent_block(f"IN"):
+
+                subject = await self._evaluate_value(operation['subject'], context)
+                allowed_values = await self._evaluate_value(operation.get('values', []), context)
+                result = subject in (allowed_values if isinstance(allowed_values, list) else [allowed_values])
+
             node.details.update({
                 'subject_value': subject,
                 'allowed_values': allowed_values
             })
+            logger.debug(f"Result {subject} IN {allowed_values}: {result}")
 
         elif op_type == 'NOT_NULL':
             subject = await self._evaluate_value(operation['subject'], context)
@@ -518,14 +527,21 @@ class RulesEngine:
             node.details['subject_value'] = subject
 
         elif op_type == 'AND':
-            values = [await self._evaluate_value(v, context) for v in operation['values']]
-            result = all(bool(v) for v in values)
+            with logger.indent_block(f"AND"):
+
+                values = [await self._evaluate_value(v, context) for v in operation['values']]
+                result = all(bool(v) for v in values)
+
             node.details['evaluated_values'] = values
+            logger.debug(f"Result {[v for v in values]} AND: {result}")
 
         elif op_type == 'OR':
-            values = [await self._evaluate_value(v, context) for v in operation['values']]
-            result = any(bool(v) for v in values)
+            with logger.indent_block(f"OR"):
+
+                values = [await self._evaluate_value(v, context) for v in operation['values']]
+                result = any(bool(v) for v in values)
             node.details['evaluated_values'] = values
+            logger.debug(f"Result {[v for v in values]} OR: {result}")
 
         elif '_DATE' in op_type:
             values = [await self._evaluate_value(v, context) for v in operation['values']]
@@ -574,5 +590,4 @@ class RulesEngine:
         elif isinstance(value, dict) and 'operation' in value:
             return await self._evaluate_operation(value, context)
         else:
-            resolved = await context.resolve_value(value)
-            return resolved if resolved is not None else 0
+            return await context.resolve_value(value)
