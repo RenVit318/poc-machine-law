@@ -56,6 +56,24 @@
     "properties": {
       "type": "object",
       "properties": {
+        "parameters": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/dataField"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            ]
+          }
+        },
         "sources": {
           "type": "array",
           "items": {
@@ -273,6 +291,24 @@
             },
             "law": {
               "type": "string"
+            },
+            "parameters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "reference"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "reference": {
+                    "type": "string"
+                  }
+                }
+              }
             }
           }
         },

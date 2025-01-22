@@ -8,10 +8,10 @@ Feature: Healthcare Allowance Calculation 2025
     And een persoon met BSN "999993653"
     And de volgende brongegevens:
       | Service         | Table                 | Field                  | Value      |
-      | BRP             | personen              | geboortedatum          | 1986-01-01 |
-      | BRP             | personen              | verblijfsadres         | Amsterdam  |
-      | BRP             | personen              | land_verblijf          | NEDERLAND  |
-      | BRP             | relaties              | partnerschap_type      | GEEN       |
+      | RvIG            | personen              | geboortedatum          | 1986-01-01 |
+      | RvIG            | personen              | verblijfsadres         | Amsterdam  |
+      | RvIG            | personen              | land_verblijf          | NEDERLAND  |
+      | RvIG            | relaties              | partnerschap_type      | GEEN       |
       | DJI             | detenties             | status                 | VRIJ       |
       | DJI             | detenties             | inrichting_type        | GEEN       |
       | DJI             | forensische_zorg      | zorgtype               | GEEN       |

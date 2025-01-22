@@ -71,7 +71,7 @@ def step_impl(context, bsn):
 
 @given('de persoon is "{age}" jaar oud')
 def step_impl(context, age):
-    context.test_data["@BRP.age"] = int(age)
+    context.test_data["@RvIG.age"] = int(age)
 
 
 @given('de persoon heeft een zorgverzekering')
@@ -81,7 +81,7 @@ def step_impl(context):
 
 @given('de persoon heeft geen toeslagpartner')
 def step_impl(context):
-    context.test_data["@BRP.has_partner"] = False
+    context.test_data["@RvIG.has_partner"] = False
 
 
 @given('de persoon heeft een inkomen van "{income}" euro')

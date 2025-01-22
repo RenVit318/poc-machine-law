@@ -25,7 +25,7 @@ async def main():
 
     await run(service_context, engine)
 
-    data = {"@BRP.age": 19}
+    data = {"@RvIG.age": 19}
     await run(service_context, engine, data)
 
 
