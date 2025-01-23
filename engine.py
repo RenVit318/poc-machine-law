@@ -2,6 +2,7 @@ import functools
 import logging
 import operator
 from abc import ABC, abstractmethod
+from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Union, TypeVar
@@ -85,6 +86,7 @@ class RuleContext:
     property_specs: Dict[str, Dict[str, Any]]
     output_specs: Dict[str, TypeSpec]
     sources: Optional[Dict[str, Dict[str, Any]]] = None
+    bsn_sources: Optional[Dict[str, Dict[str, Any]]] = None
     accessed_paths: Set[str] = field(default_factory=set)
     values_cache: Dict[str, Any] = field(default_factory=dict)
     path: List[PathNode] = field(default_factory=list)
@@ -108,73 +110,91 @@ class RuleContext:
 
     async def resolve_value(self, path: str) -> Any:
         """Resolve a value from definitions, services, or sources"""
-        if not isinstance(path, str) or not path.startswith('$'):
-            return path
 
-        path = path[1:]  # Remove $ prefix
-        self.track_access(path)
+        with logger.indent_block(f"Resolving value ${path}"):
 
-        if path == "calculation_date":
-            return self.calculation_date
+            if not isinstance(path, str) or not path.startswith('$'):
+                return path
 
-        # Check definitions first
-        if path in self.definitions:
-            logger.debug(f"Resolving value ${path} from DEFINITION: {self.definitions[path]}")
-            return self.definitions[path]
+            path = path[1:]  # Remove $ prefix
+            self.track_access(path)
 
-        # Check cache
-        if path in self.values_cache:
-            logger.debug(f"Resolving value ${path} from CACHE: {self.values_cache[path]}")
-            return self.values_cache[path]
+            if path == "calculation_date":
+                return self.calculation_date
 
-        # Check overwrite data
-        service_field_key = None
-        if path in self.property_specs:
-            spec = self.property_specs[path]
-            service_ref = spec.get('service_reference', {})
-            if service_ref:
-                service_field_key = f"@{service_ref['service']}.{service_ref['field']}"
+            # Check definitions first
+            if path in self.definitions:
+                logger.debug(f"Resolving from DEFINITION: {self.definitions[path]}")
+                return self.definitions[path]
 
-        if service_field_key and service_field_key in self.overwrite_input:
-            value = self.overwrite_input[service_field_key]
-            self.values_cache[path] = value
-            logger.debug(f"Resolving value ${path} from OVERWRITE: {value}")
-            return value
+            # Check parameters
+            if path in self.parameters:
+                logger.debug(f"Resolving from PARAMETERS: {self.parameters[path]}")
+                return self.parameters[path]
 
-        # Check sources
-        if path in self.property_specs:
-            spec = self.property_specs[path]
-            source_ref = spec.get('source_reference', {})
-            if source_ref and self.sources:
-                table = source_ref.get('table')
-                field = source_ref.get('field')
-                if table in self.sources and field in self.sources[table]:
-                    value = self.sources[table][field]
-                    logger.debug(f"Resolving value ${path} from SOURCE {table} {field}: {value}")
-                    self.values_cache[path] = value
-                    return value
+            # Check cache
+            if path in self.values_cache:
+                logger.debug(f"Resolving from CACHE: {self.values_cache[path]}")
+                return self.values_cache[path]
 
-        # Check services
-        if path in self.property_specs:
-            spec = self.property_specs[path]
-            service_ref = spec.get('service_reference', {})
-            if service_ref and self.service_provider:
-                logger.debug(
-                    f"Resolving value ${path} from {service_ref['service']} field {service_ref['field']} ({self.parameters})")
-                value = await self.service_provider.get_value(
-                    service_ref['service'],
-                    service_ref['law'],
-                    service_ref['field'],
-                    spec['temporal'],
-                    self.parameters,
-                    self.overwrite_input
-                )
+            # Check overwrite data
+            service_field_key = None
+            if path in self.property_specs:
+                spec = self.property_specs[path]
+                service_ref = spec.get('service_reference', {})
+                if service_ref:
+                    service_field_key = f"@{service_ref['service']}.{service_ref['field']}"
+
+            if service_field_key and service_field_key in self.overwrite_input:
+                value = self.overwrite_input[service_field_key]
                 self.values_cache[path] = value
-                logger.debug(
-                    f"Result for ${path} from {service_ref['service']} field {service_ref['field']}: {value}")
+                logger.debug(f"Resolving from OVERWRITE: {value}")
                 return value
-        logger.warning(f"Could not resolve value for {path}")
-        return None
+
+            # Check sources
+            if path in self.property_specs:
+                spec = self.property_specs[path]
+                source_ref = spec.get('source_reference', {})
+                if source_ref and self.sources:
+                    table = source_ref.get('table')
+                    field = source_ref.get('field')
+                    if table in self.sources and field in self.sources[table]:
+                        if 'select_on' in source_ref and source_ref['select_on']['name'] == 'bsn':
+                            bsn = await self.resolve_value(source_ref['select_on']['value'])
+                            value = self.bsn_sources[bsn][table][field]
+                            logger.debug(f"Resolving from SOURCE {bsn} {table} {field}: {value}")
+                        else:
+                            value = self.sources[table][field]
+                            logger.debug(f"Resolving from SOURCE {table} {field}: {value}")
+                        self.values_cache[path] = value
+                        return value
+
+            # Check services
+            if path in self.property_specs:
+                spec = self.property_specs[path]
+                service_ref = spec.get('service_reference', {})
+                if service_ref and self.service_provider:
+                    parameters = copy(self.parameters)
+                    if 'parameters' in spec:
+                        parameters.update({p['name']: await self.resolve_value(p['reference']) for p in spec['parameters']})
+
+                    logger.debug(
+                        f"Resolving from {service_ref['service']} field {service_ref['field']} ({parameters})")
+
+                    value = await self.service_provider.get_value(
+                        service_ref['service'],
+                        service_ref['law'],
+                        service_ref['field'],
+                        spec['temporal'],
+                        parameters,
+                        self.overwrite_input
+                    )
+                    self.values_cache[path] = value
+                    logger.debug(
+                        f"Result for ${path} from {service_ref['service']} field {service_ref['field']}: {value}")
+                    return value
+            logger.warning(f"Could not resolve value for {path}")
+            return None
 
 
 class RulesEngine:
@@ -232,6 +252,7 @@ class RulesEngine:
     async def evaluate(self, parameters: Optional[Dict[str, Any]] = None,
                        overwrite_input: Optional[Dict[str, Any]] = None,
                        sources: Optional[Dict[str, Dict[str, Any]]] = None,
+                       bsn_sources: Optional[Dict[str, Dict[str, Any]]] = None,
                        calculation_date=None, requested_output: str = None) -> Dict[str, Any]:
         """Evaluate rules using service context and sources
         :param calculation_date:
@@ -245,6 +266,7 @@ class RulesEngine:
             property_specs=self.property_specs,
             output_specs=self.output_specs,
             sources=sources,
+            bsn_sources=bsn_sources,
             path=[root],
             overwrite_input=overwrite_input or {},
             calculation_date=calculation_date,

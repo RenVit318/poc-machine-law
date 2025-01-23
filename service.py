@@ -46,6 +46,7 @@ class RuleService:
         self.resolver = RuleResolver()
         self._engines: Dict[str, Dict[str, RulesEngine]] = {}
         self.source_values = defaultdict(dict)
+        self.bsn_source_values = defaultdict(dict)
 
     def _get_engine(self, law: str, reference_date: str) -> RulesEngine:
         """Get or create RulesEngine instance for given law and date"""
@@ -95,6 +96,7 @@ class RuleService:
             parameters=parameters,
             overwrite_input=overwrite_input,
             sources=self.source_values,
+            bsn_sources=self.bsn_source_values,
             calculation_date=reference_date,
             requested_output=requested_output,
         )
@@ -118,9 +120,10 @@ class RuleService:
             return None
         return None
 
-    def set_source_value(self, table: str, field: str, value: Any):
+    def set_source_value(self, table: str, field: str, bsn: str, value: Any):
         """Set a source value override"""
         self.source_values[table][field] = value
+        self.bsn_source_values[bsn][table][field] = value
 
 
 class Services(AbstractServiceProvider):
@@ -130,9 +133,9 @@ class Services(AbstractServiceProvider):
         self.services = {service: RuleService(service, self) for service in self.service_laws}
         self.root_reference_date = reference_date
 
-    def set_source_value(self, service: str, table: str, field: str, value: Any):
+    def set_source_value(self, service: str, table: str, field: str, bsn: str, value: Any):
         """Set a source value override"""
-        self.services[service].set_source_value(table, field, value)
+        self.services[service].set_source_value(table, field, bsn, value)
 
     async def evaluate(
             self,

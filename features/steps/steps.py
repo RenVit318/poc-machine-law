@@ -47,6 +47,7 @@ def step_impl(context):
         service = row['Service'].strip()
         table = row['Table'].strip()
         field = row['Field'].strip()
+        bsn = row['BSN'].strip()
         value = parse_value(row['Value'].strip())
 
         # Set the override in our services instance
@@ -54,6 +55,7 @@ def step_impl(context):
             service=service,
             table=table,
             field=field,
+            bsn=bsn,
             value=value
         )
 
@@ -66,7 +68,7 @@ def step_impl(context, date):
 
 @given('een persoon met BSN "{bsn}"')
 def step_impl(context, bsn):
-    context.parameters['bsn'] = bsn
+    context.parameters['BSN'] = bsn
 
 
 @given('de persoon is "{age}" jaar oud')
