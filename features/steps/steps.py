@@ -66,7 +66,7 @@ def step_impl(context, date):
 
 @given('een persoon met BSN "{bsn}"')
 def step_impl(context, bsn):
-    context.service_context['bsn'] = bsn
+    context.parameters['bsn'] = bsn
 
 
 @given('de persoon is "{age}" jaar oud')
@@ -106,7 +106,7 @@ def step_impl(context, law, service):
             service,
             law=law,
             reference_date=context.root_reference_date,
-            service_context=context.service_context,
+            parameters=context.parameters,
             overwrite_input=context.test_data
         )
     )

@@ -81,7 +81,7 @@ class RuleContext:
     """Context for rule evaluation"""
     definitions: Dict[str, Any]
     service_provider: Optional[AbstractServiceProvider]
-    service_context: Dict[str, Any]
+    parameters: Dict[str, Any]
     property_specs: Dict[str, Dict[str, Any]]
     output_specs: Dict[str, TypeSpec]
     sources: Optional[Dict[str, Dict[str, Any]]] = None
@@ -160,13 +160,13 @@ class RuleContext:
             service_ref = spec.get('service_reference', {})
             if service_ref and self.service_provider:
                 logger.debug(
-                    f"Resolving value ${path} from {service_ref['service']} field {service_ref['field']} ({self.service_context})")
+                    f"Resolving value ${path} from {service_ref['service']} field {service_ref['field']} ({self.parameters})")
                 value = await self.service_provider.get_value(
                     service_ref['service'],
                     service_ref['law'],
                     service_ref['field'],
                     spec['temporal'],
-                    self.service_context,
+                    self.parameters,
                     self.overwrite_input
                 )
                 self.values_cache[path] = value
@@ -229,7 +229,7 @@ class RulesEngine:
             return self.output_specs[name].enforce(value)
         return value
 
-    async def evaluate(self, service_context: Optional[Dict[str, Any]] = None,
+    async def evaluate(self, parameters: Optional[Dict[str, Any]] = None,
                        overwrite_input: Optional[Dict[str, Any]] = None,
                        sources: Optional[Dict[str, Dict[str, Any]]] = None,
                        calculation_date=None, requested_output: str = None) -> Dict[str, Any]:
@@ -241,7 +241,7 @@ class RulesEngine:
         context = RuleContext(
             definitions=self.definitions,
             service_provider=self.service_provider,
-            service_context=service_context or {},
+            parameters=parameters or {},
             property_specs=self.property_specs,
             output_specs=self.output_specs,
             sources=sources,

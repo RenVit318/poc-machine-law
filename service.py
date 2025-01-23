@@ -74,7 +74,7 @@ class RuleService:
             self,
             law: str,
             reference_date: str,
-            service_context: Dict[str, Any],
+            parameters: Dict[str, Any],
             overwrite_input: Optional[Dict[str, Any]] = None,
             requested_output: str = None
     ) -> RuleResult:
@@ -84,7 +84,7 @@ class RuleService:
         Args:
             law: Name of the law (e.g. "zorgtoeslagwet")
             reference_date: Reference date for rule version (YYYY-MM-DD)
-            service_context: Context data for service provider
+            parameters: Context data for service provider
             overwrite_input: Optional overrides for input values
 
         Returns:
@@ -92,7 +92,7 @@ class RuleService:
         """
         engine = self._get_engine(law, reference_date)
         result = await engine.evaluate(
-            service_context=service_context,
+            parameters=parameters,
             overwrite_input=overwrite_input,
             sources=self.source_values,
             calculation_date=reference_date,
@@ -139,16 +139,16 @@ class Services(AbstractServiceProvider):
             service: str,
             law: str,
             reference_date: str,
-            service_context: Dict[str, Any],
+            parametrers: Dict[str, Any],
             overwrite_input: Optional[Dict[str, Any]] = None,
             requested_output: str = None
     ) -> RuleResult:
-        with logger.indent_block(f"{service}: {law} ({reference_date} {service_context} {requested_output})",
+        with logger.indent_block(f"{service}: {law} ({reference_date} {parametrers} {requested_output})",
                                  double_line=True):
             return await self.services[service].evaluate(
                 law=law,
                 reference_date=reference_date,
-                service_context=service_context,
+                parameters=parametrers,
                 overwrite_input=overwrite_input,
                 requested_output=requested_output,
             )

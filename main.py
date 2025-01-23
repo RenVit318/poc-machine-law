@@ -7,7 +7,7 @@ from utils import RuleResolver
 
 
 async def run(service_context, engine, data=None):
-    result = await engine.evaluate(service_context=service_context, overwrite_input=data)
+    result = await engine.evaluate(parameters=service_context, overwrite_input=data)
     path = result.pop('path')
     pprint(path)
     pprint(result)

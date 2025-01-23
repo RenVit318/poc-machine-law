@@ -7,7 +7,7 @@ def before_all(context):
 def before_scenario(context, scenario):
     context.config.setup_logging()
     context.test_data = {}
-    context.service_context = {}
+    context.parameters = {}
     context.result = None
 
 
