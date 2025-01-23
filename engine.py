@@ -111,7 +111,7 @@ class RuleContext:
     async def resolve_value(self, path: str) -> Any:
         """Resolve a value from definitions, services, or sources"""
 
-        with logger.indent_block(f"Resolving value ${path}"):
+        with logger.indent_block(f"Resolving {path}"):
 
             if not isinstance(path, str) or not path.startswith('$'):
                 return path
@@ -159,13 +159,17 @@ class RuleContext:
                     table = source_ref.get('table')
                     field = source_ref.get('field')
                     if table in self.sources and field in self.sources[table]:
-                        if 'select_on' in source_ref and source_ref['select_on']['name'] == 'bsn':
-                            bsn = await self.resolve_value(source_ref['select_on']['value'])
-                            value = self.bsn_sources[bsn][table][field]
-                            logger.debug(f"Resolving from SOURCE {bsn} {table} {field}: {value}")
+                        value = None
+                        if 'select_on' in source_ref:
+                            for select_on in source_ref['select_on']:
+                                if select_on['name'] == 'bsn':
+                                    bsn = await self.resolve_value(select_on['value'])
+                                    value = self.bsn_sources[bsn][table][field]
+                                    logger.debug(f"Resolving from SOURCE bsn={bsn} {table}.{field}: {value}")
+                                    break
                         else:
                             value = self.sources[table][field]
-                            logger.debug(f"Resolving from SOURCE {table} {field}: {value}")
+                            logger.debug(f"Resolving from SOURCE {table}.{field}: {value}")
                         self.values_cache[path] = value
                         return value
 

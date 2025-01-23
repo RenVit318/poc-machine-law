@@ -46,7 +46,7 @@ class RuleService:
         self.resolver = RuleResolver()
         self._engines: Dict[str, Dict[str, RulesEngine]] = {}
         self.source_values = defaultdict(dict)
-        self.bsn_source_values = defaultdict(dict)
+        self.bsn_source_values = defaultdict(lambda: defaultdict(dict))
 
     def _get_engine(self, law: str, reference_date: str) -> RulesEngine:
         """Get or create RulesEngine instance for given law and date"""
@@ -142,16 +142,16 @@ class Services(AbstractServiceProvider):
             service: str,
             law: str,
             reference_date: str,
-            parametrers: Dict[str, Any],
+            parameters: Dict[str, Any],
             overwrite_input: Optional[Dict[str, Any]] = None,
             requested_output: str = None
     ) -> RuleResult:
-        with logger.indent_block(f"{service}: {law} ({reference_date} {parametrers} {requested_output})",
+        with logger.indent_block(f"{service}: {law} ({reference_date} {parameters} {requested_output})",
                                  double_line=True):
             return await self.services[service].evaluate(
                 law=law,
                 reference_date=reference_date,
-                parameters=parametrers,
+                parameters=parameters,
                 overwrite_input=overwrite_input,
                 requested_output=requested_output,
             )
