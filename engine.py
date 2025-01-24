@@ -146,11 +146,6 @@ class RuleContext:
                 logger.debug(f"Resolving from previous OUTPUT: {self.outputs[path]}")
                 return self.outputs[path]
 
-            # Check cache
-            if path in self.values_cache:
-                logger.debug(f"Resolving from CACHE: {self.values_cache[path]}")
-                return self.values_cache[path]
-
             # Check overwrite data
             service_field_key = None
             if path in self.property_specs:
@@ -161,7 +156,6 @@ class RuleContext:
 
             if service_field_key and service_field_key in self.overwrite_input:
                 value = self.overwrite_input[service_field_key]
-                self.values_cache[path] = value
                 logger.debug(f"Resolving from OVERWRITE: {value}")
                 return value
 
@@ -173,7 +167,6 @@ class RuleContext:
                     table = source_ref.get('table')
                     if table in self.sources:
                         result = await self._resolve_from_source(source_ref, table)
-                        self.values_cache[path] = result
                         logger.debug(f"Resolving from SOURCE {table}: {result}")
                         return result
 
@@ -182,21 +175,28 @@ class RuleContext:
                 spec = self.property_specs[path]
                 service_ref = spec.get('service_reference', {})
                 if service_ref and self.service_provider:
-                    value = await self._resolve_from_service(service_ref, spec)
-                    self.values_cache[path] = value
+                    value = await self._resolve_from_service(path, service_ref, spec)
                     logger.debug(
                         f"Result for ${path} from {service_ref['service']} field {service_ref['field']}: {value}")
                     return value
             logger.warning(f"Could not resolve value for {path}")
             return None
 
-    async def _resolve_from_service(self, service_ref, spec):
+    async def _resolve_from_service(self, path, service_ref, spec):
         parameters = copy(self.parameters)
         if 'parameters' in service_ref:
             parameters.update({p['name']: await self.resolve_value(p['reference'])
                                for p in service_ref['parameters']})
+
+        # Check cache
+        cache_key = f"{path}({",".join([f"{k}:{v}" for k, v in sorted(parameters.items())])})"
+        if cache_key in self.values_cache:
+            logger.debug(f"Resolving from CACHE: {self.values_cache[cache_key]}")
+            return self.values_cache[cache_key]
+
         logger.debug(
             f"Resolving from {service_ref['service']} field {service_ref['field']} ({parameters})")
+
         value = await self.service_provider.get_value(
             service_ref['service'],
             service_ref['law'],
@@ -205,6 +205,8 @@ class RuleContext:
             parameters,
             self.overwrite_input
         )
+
+        self.values_cache[cache_key] = value
         return value
 
     async def _resolve_from_source(self, source_ref, table):
