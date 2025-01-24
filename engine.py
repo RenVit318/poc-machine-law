@@ -255,11 +255,12 @@ class RulesEngine:
         self.spec = spec
         self.service_name = spec.get('service')
         self.law = spec.get('law')
-        self.definitions = spec.get('properties', {}).get('definitions', {})
         self.requirements = spec.get('requirements', [])
         self.actions = spec.get('actions', [])
+        self.parameter_specs = spec.get('properties', {}).get('parameters', {})
         self.property_specs = self._build_property_specs(spec.get('properties', {}))
         self.output_specs = self._build_output_specs(spec.get('properties', {}))
+        self.definitions = spec.get('properties', {}).get('definitions', {})
         self.service_provider = service_provider
 
     @staticmethod
@@ -307,12 +308,17 @@ class RulesEngine:
         """Evaluate rules using service context and sources
         :param calculation_date:
         """
+        parameters = parameters or {}
+        for p in self.parameter_specs:
+            if p['required'] and not p['name'] in parameters:
+                logger.warning(f"Required parameter {p} not found in {parameters}")
+
         logger.debug(f"Evaluating rules for {self.service_name} {self.law} ({calculation_date} {requested_output})")
         root = PathNode(type='root', name='evaluation', result=None)
         context = RuleContext(
             definitions=self.definitions,
             service_provider=self.service_provider,
-            parameters=parameters or {},
+            parameters=parameters,
             property_specs=self.property_specs,
             output_specs=self.output_specs,
             sources=sources,
