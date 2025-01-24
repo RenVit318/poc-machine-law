@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
+import pandas as pd
 
 from engine import RulesEngine, AbstractServiceProvider
 from logging_config import IndentLogger
@@ -45,8 +46,7 @@ class RuleService:
         self.services = services
         self.resolver = RuleResolver()
         self._engines: Dict[str, Dict[str, RulesEngine]] = {}
-        self.source_values = defaultdict(dict)
-        self.bsn_source_values = defaultdict(lambda: defaultdict(dict))
+        self.source_dataframes: Dict[str, pd.DataFrame] = {}
 
     def _get_engine(self, law: str, reference_date: str) -> RulesEngine:
         """Get or create RulesEngine instance for given law and date"""
@@ -87,6 +87,7 @@ class RuleService:
             reference_date: Reference date for rule version (YYYY-MM-DD)
             parameters: Context data for service provider
             overwrite_input: Optional overrides for input values
+            requested_output: Optional specific output field to calculate
 
         Returns:
             RuleResult containing outputs and metadata
@@ -95,8 +96,7 @@ class RuleService:
         result = await engine.evaluate(
             parameters=parameters,
             overwrite_input=overwrite_input,
-            sources=self.source_values,
-            bsn_sources=self.bsn_source_values,
+            sources=self.source_dataframes,
             calculation_date=reference_date,
             requested_output=requested_output,
         )
@@ -120,10 +120,9 @@ class RuleService:
             return None
         return None
 
-    def set_source_value(self, table: str, field: str, bsn: str, value: Any):
-        """Set a source value override"""
-        self.source_values[table][field] = value
-        self.bsn_source_values[bsn][table][field] = value
+    def set_source_dataframe(self, table: str, df: pd.DataFrame):
+        """Set a source DataFrame"""
+        self.source_dataframes[table] = df
 
 
 class Services(AbstractServiceProvider):
@@ -133,9 +132,9 @@ class Services(AbstractServiceProvider):
         self.services = {service: RuleService(service, self) for service in self.service_laws}
         self.root_reference_date = reference_date
 
-    def set_source_value(self, service: str, table: str, field: str, bsn: str, value: Any):
-        """Set a source value override"""
-        self.services[service].set_source_value(table, field, bsn, value)
+    def set_source_dataframe(self, service: str, table: str, df: pd.DataFrame):
+        """Set a source DataFrame for a service"""
+        self.services[service].set_source_dataframe(table, df)
 
     async def evaluate(
             self,

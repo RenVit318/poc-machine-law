@@ -8,6 +8,7 @@ dependencies = [
     "behave>=1.2.6",
     "httpx>=0.28.1",
     "jsonschema>=4.23.0",
+    "pandas>=2.2.3",
     "pydantic>=2.10.5",
     "pyyaml>=6.0.2",
     "requests>=2.32.3",

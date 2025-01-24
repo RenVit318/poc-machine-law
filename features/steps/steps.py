@@ -1,12 +1,12 @@
 import asyncio
 from typing import Any
+from unittest import TestCase
 
+import pandas as pd
 from behave import given
 from behave import when, then
 
 from service import Services
-
-from unittest import TestCase
 
 assertions = TestCase()
 
@@ -58,6 +58,27 @@ def step_impl(context):
             bsn=bsn,
             value=value
         )
+
+
+def process_table_data(context, table_name: str, service: str):
+    """Process a data table and convert to DataFrame"""
+
+
+@given('de volgende {service} {table} gegevens')
+def step_impl(context, service, table):
+    if not context.table:
+        raise ValueError(f"No table provided for {table}")
+
+    # Convert table to DataFrame
+    data = []
+    for row in context.table:
+        processed_row = {k: v if k == 'bsn' else parse_value(v) for k, v in row.items()}
+        data.append(processed_row)
+
+    df = pd.DataFrame(data)
+
+    # Set the DataFrame in services
+    context.services.set_source_dataframe(service, table, df)
 
 
 @given('de datum is "{date}"')
@@ -157,12 +178,22 @@ def step_impl(context, amount):
     )
 
 
-@then('is het toeslagbedrag "{amount}" euro')
-def step_impl(context, amount):
-    actual_amount = context.result.output['hoogte_toeslag']
+def compare_euro_amount(actual_amount, amount):
     expected_amount = int(float(amount) * 100)
     assertions.assertEqual(
         actual_amount,
         expected_amount,
-        f"Expected allowance amount to be {amount} euros, but was {actual_amount / 100:.2f} euros"
+        f"Expected amount to be {amount} euros, but was {actual_amount / 100:.2f} euros"
     )
+
+
+@then('is het toeslagbedrag "{amount}" euro')
+def step_impl(context, amount):
+    actual_amount = context.result.output['hoogte_toeslag']
+    compare_euro_amount(actual_amount, amount)
+
+
+@then('is het pensioen "{amount}" euro')
+def step_impl(context, amount):
+    actual_amount = context.result.output['pension_amount']
+    compare_euro_amount(actual_amount, amount)

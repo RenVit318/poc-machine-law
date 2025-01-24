@@ -316,7 +316,6 @@
           "type": "object",
           "required": [
             "table",
-            "field",
             "select_on"
           ],
           "properties": {
@@ -325,6 +324,12 @@
             },
             "field": {
               "type": "string"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             },
             "select_on": {
               "type": "array",
@@ -344,11 +349,26 @@
                   },
                   "type": {
                     "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
                   }
                 }
               }
             }
-          }
+          },
+          "oneOf": [
+            {
+              "required": [
+                "field"
+              ]
+            },
+            {
+              "required": [
+                "fields"
+              ]
+            }
+          ]
         }
       }
     }
