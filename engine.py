@@ -2,9 +2,13 @@ import functools
 import logging
 import operator
 from abc import ABC, abstractmethod
+from copy import copy
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, Dict, List, Optional, Set, Union, TypeVar
+from unittest import result
+
+import pandas as pd
 
 from logging_config import IndentLogger
 
@@ -81,14 +85,16 @@ class RuleContext:
     """Context for rule evaluation"""
     definitions: Dict[str, Any]
     service_provider: Optional[AbstractServiceProvider]
-    service_context: Dict[str, Any]
+    parameters: Dict[str, Any]
     property_specs: Dict[str, Dict[str, Any]]
     output_specs: Dict[str, TypeSpec]
-    sources: Optional[Dict[str, Dict[str, Any]]] = None
+    sources: Dict[str, pd.DataFrame]
+    local: Dict[str, Any] = field(default_factory=dict)
     accessed_paths: Set[str] = field(default_factory=set)
     values_cache: Dict[str, Any] = field(default_factory=dict)
     path: List[PathNode] = field(default_factory=list)
     overwrite_input: Dict[str, Any] = field(default_factory=dict)
+    outputs: Dict[str, Any] = field(default_factory=dict)
     calculation_date: Optional[str] = None
 
     def track_access(self, path: str):
@@ -108,73 +114,138 @@ class RuleContext:
 
     async def resolve_value(self, path: str) -> Any:
         """Resolve a value from definitions, services, or sources"""
-        if not isinstance(path, str) or not path.startswith('$'):
-            return path
 
-        path = path[1:]  # Remove $ prefix
-        self.track_access(path)
+        with logger.indent_block(f"Resolving {path}"):
 
-        if path == "calculation_date":
-            return self.calculation_date
+            if not isinstance(path, str) or not path.startswith('$'):
+                return path
 
-        # Check definitions first
-        if path in self.definitions:
-            logger.debug(f"Resolving value ${path} from DEFINITION: {self.definitions[path]}")
-            return self.definitions[path]
+            path = path[1:]  # Remove $ prefix
+            self.track_access(path)
 
-        # Check cache
-        if path in self.values_cache:
-            logger.debug(f"Resolving value ${path} from CACHE: {self.values_cache[path]}")
-            return self.values_cache[path]
+            if path == "calculation_date":
+                return self.calculation_date
 
-        # Check overwrite data
-        service_field_key = None
-        if path in self.property_specs:
-            spec = self.property_specs[path]
-            service_ref = spec.get('service_reference', {})
-            if service_ref:
-                service_field_key = f"@{service_ref['service']}.{service_ref['field']}"
+            # Check local scope first
+            if path in self.local:
+                logger.debug(f"Resolving from LOCAL: {self.local[path]}")
+                return self.local[path]
 
-        if service_field_key and service_field_key in self.overwrite_input:
-            value = self.overwrite_input[service_field_key]
-            self.values_cache[path] = value
-            logger.debug(f"Resolving value ${path} from OVERWRITE: {value}")
-            return value
+            # Check definitions first
+            if path in self.definitions:
+                logger.debug(f"Resolving from DEFINITION: {self.definitions[path]}")
+                return self.definitions[path]
 
-        # Check sources
-        if path in self.property_specs:
-            spec = self.property_specs[path]
-            source_ref = spec.get('source_reference', {})
-            if source_ref and self.sources:
-                table = source_ref.get('table')
-                field = source_ref.get('field')
-                if table in self.sources and field in self.sources[table]:
-                    value = self.sources[table][field]
-                    logger.debug(f"Resolving value ${path} from SOURCE {table} {field}: {value}")
-                    self.values_cache[path] = value
-                    return value
+            # Check parameters
+            if path in self.parameters:
+                logger.debug(f"Resolving from PARAMETERS: {self.parameters[path]}")
+                return self.parameters[path]
 
-        # Check services
-        if path in self.property_specs:
-            spec = self.property_specs[path]
-            service_ref = spec.get('service_reference', {})
-            if service_ref and self.service_provider:
-                logger.debug(
-                    f"Resolving value ${path} from {service_ref['service']} field {service_ref['field']} ({self.service_context})")
-                value = await self.service_provider.get_value(
-                    service_ref['service'],
-                    service_ref['law'],
-                    service_ref['field'],
-                    spec['temporal'],
-                    self.service_context,
-                    self.overwrite_input
-                )
+            # Check outputs
+            if path in self.outputs:
+                logger.debug(f"Resolving from previous OUTPUT: {self.outputs[path]}")
+                return self.outputs[path]
+
+            # Check cache
+            if path in self.values_cache:
+                logger.debug(f"Resolving from CACHE: {self.values_cache[path]}")
+                return self.values_cache[path]
+
+            # Check overwrite data
+            service_field_key = None
+            if path in self.property_specs:
+                spec = self.property_specs[path]
+                service_ref = spec.get('service_reference', {})
+                if service_ref:
+                    service_field_key = f"@{service_ref['service']}.{service_ref['field']}"
+
+            if service_field_key and service_field_key in self.overwrite_input:
+                value = self.overwrite_input[service_field_key]
                 self.values_cache[path] = value
-                logger.debug(
-                    f"Result for ${path} from {service_ref['service']} field {service_ref['field']}: {value}")
+                logger.debug(f"Resolving from OVERWRITE: {value}")
                 return value
-        logger.warning(f"Could not resolve value for {path}")
-        return None
+
+            # Check sources
+            if path in self.property_specs:
+                spec = self.property_specs[path]
+                source_ref = spec.get('source_reference', {})
+                if source_ref and self.sources:
+                    table = source_ref.get('table')
+                    if table in self.sources:
+                        result = await self._resolve_from_source(source_ref, table)
+                        self.values_cache[path] = result
+                        logger.debug(f"Resolving from SOURCE {table}: {result}")
+                        return result
+
+            # Check services
+            if path in self.property_specs:
+                spec = self.property_specs[path]
+                service_ref = spec.get('service_reference', {})
+                if service_ref and self.service_provider:
+                    value = await self._resolve_from_service(service_ref, spec)
+                    self.values_cache[path] = value
+                    logger.debug(
+                        f"Result for ${path} from {service_ref['service']} field {service_ref['field']}: {value}")
+                    return value
+            logger.warning(f"Could not resolve value for {path}")
+            return None
+
+    async def _resolve_from_service(self, service_ref, spec):
+        parameters = copy(self.parameters)
+        if 'parameters' in service_ref:
+            parameters.update({p['name']: await self.resolve_value(p['reference'])
+                               for p in service_ref['parameters']})
+        logger.debug(
+            f"Resolving from {service_ref['service']} field {service_ref['field']} ({parameters})")
+        value = await self.service_provider.get_value(
+            service_ref['service'],
+            service_ref['law'],
+            service_ref['field'],
+            spec['temporal'],
+            parameters,
+            self.overwrite_input
+        )
+        return value
+
+    async def _resolve_from_source(self, source_ref, table):
+        df = self.sources[table]
+
+        # Filter
+        if 'select_on' in source_ref:
+            for select_on in source_ref['select_on']:
+                value = await self.resolve_value(select_on['value'])
+
+                if isinstance(value, dict) and 'operation' in value and value['operation'] == 'IN':
+                    allowed_values = await self.resolve_value(value['values'])
+                    df = df[df[select_on['name']].isin(allowed_values)]
+                else:
+                    df = df[df[select_on['name']] == value]
+
+        # Get specified fields
+        fields = source_ref.get('fields', [])
+        field = source_ref.get('field')
+
+        if fields:
+            missing_fields = [f for f in fields if f not in df.columns]
+            if missing_fields:
+                logger.warning(f"Fields {missing_fields} not found in source for table {table}")
+            existing_fields = [f for f in fields if f in df.columns]
+            result = df[existing_fields].to_dict('records')
+        elif field:
+            if field not in df.columns:
+                logger.warning(f"Field {field} not found in source for table {table}")
+                return None
+            result = df[field].tolist()
+        else:
+            result = df.to_dict('records')
+
+        if result is None:
+            return None
+        if len(result) == 0:
+            return None
+        if len(result) == 1:
+            return result[0]
+        return result
 
 
 class RulesEngine:
@@ -229,9 +300,9 @@ class RulesEngine:
             return self.output_specs[name].enforce(value)
         return value
 
-    async def evaluate(self, service_context: Optional[Dict[str, Any]] = None,
+    async def evaluate(self, parameters: Optional[Dict[str, Any]] = None,
                        overwrite_input: Optional[Dict[str, Any]] = None,
-                       sources: Optional[Dict[str, Dict[str, Any]]] = None,
+                       sources: Dict[str, pd.DataFrame] = None,
                        calculation_date=None, requested_output: str = None) -> Dict[str, Any]:
         """Evaluate rules using service context and sources
         :param calculation_date:
@@ -241,7 +312,7 @@ class RulesEngine:
         context = RuleContext(
             definitions=self.definitions,
             service_provider=self.service_provider,
-            service_context=service_context or {},
+            parameters=parameters or {},
             property_specs=self.property_specs,
             output_specs=self.output_specs,
             sources=sources,
@@ -267,6 +338,7 @@ class RulesEngine:
                     logger.debug(f"Skipping action {output_name}")
                     continue
                 output_def, output_name = await self._evaluate_action(action, context)
+                context.outputs[output_name] = output_def['value']
                 output_values[output_name] = output_def
                 context.pop_path()
 
@@ -392,6 +464,31 @@ class RulesEngine:
         context.pop_path()
         return result
 
+    async def _evaluate_foreach(self, operation, context):
+        """Handle FOREACH operation"""
+        combine = operation.get('combine')
+
+        array_data = await self._evaluate_value(operation['subject'], context)
+        if not array_data:
+            logger.warning("No data found to run FOREACH on")
+            return self._evaluate_arithmetic(combine, [])
+
+        if not isinstance(array_data, list):
+            array_data = [array_data]
+
+        with logger.indent_block(f"Foreach({combine})"):
+            values = []
+            for item in array_data:
+                with logger.indent_block(f"Item {item}"):
+                    item_context = copy(context)
+                    item_context.local = item
+                    result = await self._evaluate_value(operation['value'][0], item_context)
+                    values.extend(result if isinstance(result, list) else [result])
+            logger.debug(f"Foreach values: {values}")
+            result = self._evaluate_arithmetic(combine, values)
+            logger.debug(f"Foreach result: {result}")
+        return result
+
     COMPARISON_OPS = {
         'EQUALS': operator.eq,
         'NOT_EQUALS': operator.ne,
@@ -413,9 +510,9 @@ class RulesEngine:
         'SUBTRACT': lambda vals: functools.reduce(operator.sub, vals[1:], vals[0]),
         'DIVIDE': lambda vals: (
             functools.reduce(
-                lambda x, y: int(x / y) if y != 0 else 0,
+                lambda x, y: x / y if y != 0 else 0,
                 vals[1:],
-                vals[0]
+                float(vals[0])
             ) if 0 not in vals[1:] else 0
         )
     }
@@ -424,6 +521,7 @@ class RulesEngine:
     def _evaluate_arithmetic(op: str, values: List[Any]) -> Union[int, float]:
         """Handle pure arithmetic operations"""
         if not values:
+            logger.warning(f"No values found, returning 0 for {op}")
             return 0
         result = RulesEngine.ARITHMETIC_OPS[op](values)
         logger.debug(f"Compute {op}({values}) = {result}")
@@ -432,12 +530,18 @@ class RulesEngine:
     @staticmethod
     def _evaluate_comparison(op: str, left: Any, right: Any) -> bool:
         """Handle comparison operations"""
+        if isinstance(left, date) and isinstance(right, str):
+            right = datetime.strptime(right, "%Y-%m-%d").date()
+        elif isinstance(right, date) and isinstance(left, str):
+            left = datetime.strptime(left, "%Y-%m-%d").date()
+
         result = RulesEngine.COMPARISON_OPS[op](left, right)
         logger.debug(f"Compute {op}({left}, {right}) = {result}")
         return result
 
     def _evaluate_date_operation(self, op: str, values: List[Any], unit: str) -> int:
         """Handle date-specific operations"""
+        result = None
         if op == 'SUBTRACT_DATE':
 
             if len(values) != 2:
@@ -454,17 +558,22 @@ class RulesEngine:
             delta = end_date - start_date
 
             if unit == 'days':
-                return delta.days
+                result = delta.days
             elif unit == 'years':
-                return (end_date.year - start_date.year -
-                        ((end_date.month, end_date.day) <
-                         (start_date.month, start_date.day)))
+                result = (end_date.year - start_date.year -
+                          ((end_date.month, end_date.day) <
+                           (start_date.month, start_date.day)))
             elif unit == 'months':
-                return ((end_date.year - start_date.year) * 12 +
-                        end_date.month - start_date.month)
+                result = ((end_date.year - start_date.year) * 12 +
+                          end_date.month - start_date.month)
             else:
                 logger.warning(f"Warning: Unknown date unit {unit}")
-                return 0
+            logger.debug(f"Compute {op}({values}, {unit}) = {result}")
+
+        if result is None:
+            logger.warning(f"Warning: date operation resulted in None")
+
+        return result
 
     async def _evaluate_operation(self, operation: Dict[str, Any], context: RuleContext) -> Any:
         """Evaluate an operation or condition"""
@@ -507,6 +616,13 @@ class RulesEngine:
 
         if op_type == 'IF':
             result = await self._evaluate_if_operation(operation, context)
+
+        elif op_type == 'FOREACH':
+            result = await self._evaluate_foreach(operation, context)
+            node.details.update({
+                'raw_values': operation['value'],
+                'arithmetic_type': op_type
+            })
 
         elif op_type == 'IN':
             with logger.indent_block(f"IN"):
@@ -553,17 +669,29 @@ class RulesEngine:
             })
 
 
-        elif op_type in self.COMPARISON_OPS and 'subject' in operation:
+        elif op_type in self.COMPARISON_OPS:
+            subject = None
+            value = None
+
             # Handle comparison conditions
-            subject = await self._evaluate_value(operation['subject'], context)
-            value = await self._evaluate_value(operation['value'], context)
+            if 'subject' in operation:
+                subject = await self._evaluate_value(operation['subject'], context)
+                value = await self._evaluate_value(operation['value'], context)
+
+            elif 'values' in operation:
+                values = [await self._evaluate_value(v, context) for v in operation['values']]
+                subject = values[0]
+                value = values[1]
+            else:
+                logger.warning(f"Comparison operation expects two values or subject/value.")
+
             result = self._evaluate_comparison(op_type, subject, value)
+
             node.details.update({
                 'subject_value': subject,
                 'comparison_value': value,
                 'comparison_type': op_type
             })
-
 
         elif op_type in self.ARITHMETIC_OPS and 'values' in operation:
             # Handle arithmetic operations
@@ -576,8 +704,9 @@ class RulesEngine:
             })
 
         else:
-            result = 0
+            result = None
             node.details['error'] = 'Invalid operation format'
+            logger.warning(f"Not matched to any operation {op_type}")
 
         node.result = result
         context.pop_path()
@@ -585,7 +714,7 @@ class RulesEngine:
 
     async def _evaluate_value(self, value: Any, context: RuleContext) -> Any:
         """Evaluate a value which might be a number, operation, or reference"""
-        if isinstance(value, (int, float)):
+        if isinstance(value, (int, float, bool, date, datetime)):
             return value
         elif isinstance(value, dict) and 'operation' in value:
             return await self._evaluate_operation(value, context)

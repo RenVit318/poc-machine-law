@@ -7,7 +7,7 @@ from utils import RuleResolver
 
 
 async def run(service_context, engine, data=None):
-    result = await engine.evaluate(service_context=service_context, overwrite_input=data)
+    result = await engine.evaluate(parameters=service_context, overwrite_input=data)
     path = result.pop('path')
     pprint(path)
     pprint(result)
@@ -25,7 +25,7 @@ async def main():
 
     await run(service_context, engine)
 
-    data = {"@BRP.age": 19}
+    data = {"@RvIG.age": 19}
     await run(service_context, engine, data)
 
 

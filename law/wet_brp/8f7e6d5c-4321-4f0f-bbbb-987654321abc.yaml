@@ -2,10 +2,10 @@ uuid: 8f7e6d5c-4321-4f0f-bbbb-987654321abc
 name: Bepalen persoonsgegevens BRP 2024
 law: wet_brp
 valid_from: 2024-01-01
-service: "BRP"
+service: "RvIG"
 description: >
   Regels voor het bepalen van persoonsgegevens volgens de Wet Basisregistratie
-  Personen (BRP). Dit omvat basisgegevens (artikel 1.6 en 1.7), woonsituatie (artikel 2.4)
+  Personen (RvIG). Dit omvat basisgegevens (artikel 1.6 en 1.7), woonsituatie (artikel 2.4)
   en verblijfsgegevens (artikel 2.7).
 
 references:
@@ -23,6 +23,12 @@ references:
     url: "https://wetten.overheid.nl/BWBR0033715/2024-01-01#Hoofdstuk2_Paragraaf2.2_Artikel2.7"
 
 properties:
+  parameters:
+    - name: "BSN"
+      description: "BSN van de persoon"
+      type: "string"
+      required: true
+
   sources:
     - name: "BIRTH_DATE"
       description: "Geboortedatum van de persoon"
@@ -34,9 +40,10 @@ properties:
         table: "personen"
         field: "geboortedatum"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
     - name: "PARTNER_TYPE"
       description: "Type partnerschap registratie"
@@ -48,9 +55,26 @@ properties:
         table: "relaties"
         field: "partnerschap_type"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
+
+
+    - name: "PARTNER_BSN"
+      description: "BSN nummer van de partner"
+      type: "string"
+      temporal:
+        type: "period"
+        period_type: "continuous"
+      source_reference:
+        table: "relaties"
+        field: "partner_bsn"
+        select_on:
+          - name: "bsn"
+            description: "Burgerservicenummer van de persoon"
+            type: "string"
+            value: "$BSN"
 
     - name: "RESIDENCE_ADDRESS"
       description: "Woonadres van de persoon"
@@ -62,9 +86,10 @@ properties:
         table: "personen"
         field: "verblijfsadres"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
     - name: "PARENT_ADDRESSES"
       description: "Woonadressen van de ouders"
@@ -76,9 +101,10 @@ properties:
         table: "relaties"
         field: "ouder_adressen"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
     - name: "COUNTRY_CODE"
       description: "Land van verblijf"
@@ -90,9 +116,10 @@ properties:
         table: "personen"
         field: "land_verblijf"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
   output:
     - name: "age"
@@ -107,8 +134,15 @@ properties:
         reference_date: "calculation_date"
 
     - name: "has_partner"
-      description: "Heeft de persoon een partner volgens BRP"
+      description: "Heeft de persoon een partner volgens RvIG"
       type: "boolean"
+      temporal:
+        type: "point_in_time"
+        reference_date: "calculation_date"
+
+    - name: "partner_bsn"
+      description: "BSN nummber van de partner"
+      type: "string"
       temporal:
         type: "point_in_time"
         reference_date: "calculation_date"
@@ -121,11 +155,18 @@ properties:
         period_type: "month"
 
     - name: "country_of_residence"
-      description: "Land van verblijf volgens BRP"
+      description: "Land van verblijf volgens RvIG"
       type: "string"
       temporal:
         type: "period"
         period_type: "continuous"
+
+    - name: "birth_date"
+      description: "Geboortedatum van de persoon"
+      type: "date"
+      temporal:
+        type: "point_in_time"
+        reference_date: "birth"
 
   definitions:
     HOME_COUNTRIES:
@@ -143,6 +184,10 @@ requirements:
         operation: NOT_NULL
 
 actions:
+  - output: "birth_date"
+    value: "$BIRTH_DATE"
+  - output: "partner_bsn"
+    value: "$PARTNER_BSN"
   - output: "age"
     operation: SUBTRACT_DATE
     unit: "years"

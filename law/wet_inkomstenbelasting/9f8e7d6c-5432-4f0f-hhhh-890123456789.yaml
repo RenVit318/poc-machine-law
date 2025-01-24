@@ -20,6 +20,12 @@ references:
     url: "https://wetten.overheid.nl/BWBR0011353/2024-01-01#Hoofdstuk3_Afdeling3.1_Artikel3.1"
 
 properties:
+  parameters:
+    - name: "BSN"
+      description: "BSN van de persoon"
+      type: "string"
+      required: true
+
   sources:
     - name: "BOX1_INCOME"
       description: "Inkomen uit werk en woning"
@@ -34,9 +40,10 @@ properties:
         table: "inkomen"
         field: "box1"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
     - name: "BOX2_INCOME"
       description: "Inkomen uit aanmerkelijk belang"
@@ -51,9 +58,10 @@ properties:
         table: "inkomen"
         field: "box2"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
     - name: "BOX3_INCOME"
       description: "Inkomen uit sparen en beleggen"
@@ -68,9 +76,10 @@ properties:
         table: "inkomen"
         field: "box3"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
     - name: "FOREIGN_INCOME"
       description: "Niet in Nederland belastbaar inkomen"
@@ -85,9 +94,10 @@ properties:
         table: "inkomen"
         field: "buitenlands"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
     - name: "ASSETS"
       description: "Bezittingen"
@@ -102,9 +112,10 @@ properties:
         table: "vermogen"
         field: "bezittingen"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
     - name: "DEBTS"
       description: "Schulden"
@@ -119,9 +130,10 @@ properties:
         table: "vermogen"
         field: "schulden"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
   output:
     - name: "box1_income"
@@ -249,7 +261,7 @@ properties:
       description: "Heeft de persoon een fiscaal partner"
       type: "boolean"
       service_reference:
-        service: "BRP"
+        service: "RvIG"
         field: "has_partner"
         law: "wet_brp"
       temporal:

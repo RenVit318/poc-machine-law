@@ -20,6 +20,12 @@ references:
     url: "https://wetten.overheid.nl/BWBR0011453/2024-01-01#Hoofdstuk3_Paragraaf3.3_Artikel3.14"
 
 properties:
+  parameters:
+    - name: "BSN"
+      description: "BSN van de persoon"
+      type: "string"
+      required: true
+
   sources:
     - name: "EDUCATION_TYPE"
       description: "Type onderwijs (MBO/HBO/WO)"
@@ -31,9 +37,10 @@ properties:
         table: "inschrijvingen"
         field: "onderwijstype"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
     - name: "SIBLINGS_STUDYING"
       description: "Aantal studerende broers/zussen"
@@ -45,16 +52,17 @@ properties:
         table: "studiefinanciering"
         field: "aantal_studerend_gezin"
         select_on:
-          - name: "BSN"
+          - name: "bsn"
             description: "Burgerservicenummer van de persoon"
             type: "string"
+            value: "$BSN"
 
   input:
     - name: "LIVING_SITUATION"
-      description: "Woonsituatie (uit/thuis) op basis van BRP adres"
+      description: "Woonsituatie (uit/thuis) op basis van RvIG adres"
       type: "string"
       service_reference:
-        service: "BRP"
+        service: "RvIG"
         field: "living_situation"
         law: "wet_brp"
       temporal:

@@ -20,6 +20,12 @@ references:
     url: "https://wetten.overheid.nl/BWBR0018451/2024-01-01#Paragraaf2_Artikel3"
 
 properties:
+  parameters:
+    - name: "BSN"
+      description: "BSN van de persoon"
+      type: "string"
+      required: true
+
   output:
     - name: "is_verzekerde_zorgtoeslag"
       description: "Geeft aan of iemand recht heeft op zorgtoeslag"
@@ -44,7 +50,7 @@ properties:
       description: "Leeftijd van de aanvrager"
       type: "number"
       service_reference:
-        service: "BRP"
+        service: "RvIG"
         field: "age"
         law: "wet_brp"
       type_spec:
@@ -59,7 +65,7 @@ properties:
       description: "Partnerschap status"
       type: "boolean"
       service_reference:
-        service: "BRP"
+        service: "RvIG"
         field: "has_partner"
         law: "wet_brp"
       temporal:

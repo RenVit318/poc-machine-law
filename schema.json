@@ -56,6 +56,24 @@
     "properties": {
       "type": "object",
       "properties": {
+        "parameters": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/dataField"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "required": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            ]
+          }
+        },
         "sources": {
           "type": "array",
           "items": {
@@ -219,6 +237,9 @@
             },
             "min": {
               "type": "number"
+            },
+            "max": {
+              "type": "number"
             }
           }
         },
@@ -273,6 +294,24 @@
             },
             "law": {
               "type": "string"
+            },
+            "parameters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "reference"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "reference": {
+                    "type": "string"
+                  }
+                }
+              }
             }
           }
         },
@@ -280,7 +319,6 @@
           "type": "object",
           "required": [
             "table",
-            "field",
             "select_on"
           ],
           "properties": {
@@ -289,6 +327,12 @@
             },
             "field": {
               "type": "string"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             },
             "select_on": {
               "type": "array",
@@ -308,11 +352,45 @@
                   },
                   "type": {
                     "type": "string"
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "operation",
+                          "values"
+                        ],
+                        "properties": {
+                          "operation": {
+                            "type": "string"
+                          },
+                          "values": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    ]
                   }
                 }
               }
             }
-          }
+          },
+          "oneOf": [
+            {
+              "required": [
+                "field"
+              ]
+            },
+            {
+              "required": [
+                "fields"
+              ]
+            }
+          ]
         }
       }
     }

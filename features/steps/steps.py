@@ -1,12 +1,12 @@
 import asyncio
 from typing import Any
+from unittest import TestCase
 
+import pandas as pd
 from behave import given
 from behave import when, then
 
 from service import Services
-
-from unittest import TestCase
 
 assertions = TestCase()
 
@@ -31,31 +31,21 @@ def parse_value(value: str) -> Any:
     return value
 
 
-@given('de volgende brongegevens')
-def step_impl(context):
-    """
-    Process source data table and set up overwrites in the Services instance
-    Table format:
-    | Service | Law | Table | Field | Value |
-    """
-    # Ensure we have a table
+@given('de volgende {service} {table} gegevens')
+def step_impl(context, service, table):
     if not context.table:
-        raise ValueError("No table provided for source data")
+        raise ValueError(f"No table provided for {table}")
 
-    # Process each row
+    # Convert table to DataFrame
+    data = []
     for row in context.table:
-        service = row['Service'].strip()
-        table = row['Table'].strip()
-        field = row['Field'].strip()
-        value = parse_value(row['Value'].strip())
+        processed_row = {k: v if k == 'bsn' else parse_value(v) for k, v in row.items()}
+        data.append(processed_row)
 
-        # Set the override in our services instance
-        context.services.set_source_value(
-            service=service,
-            table=table,
-            field=field,
-            value=value
-        )
+    df = pd.DataFrame(data)
+
+    # Set the DataFrame in services
+    context.services.set_source_dataframe(service, table, df)
 
 
 @given('de datum is "{date}"')
@@ -66,12 +56,12 @@ def step_impl(context, date):
 
 @given('een persoon met BSN "{bsn}"')
 def step_impl(context, bsn):
-    context.service_context['bsn'] = bsn
+    context.parameters['BSN'] = bsn
 
 
 @given('de persoon is "{age}" jaar oud')
 def step_impl(context, age):
-    context.test_data["@BRP.age"] = int(age)
+    context.test_data["@RvIG.age"] = int(age)
 
 
 @given('de persoon heeft een zorgverzekering')
@@ -81,7 +71,7 @@ def step_impl(context):
 
 @given('de persoon heeft geen toeslagpartner')
 def step_impl(context):
-    context.test_data["@BRP.has_partner"] = False
+    context.test_data["@RvIG.has_partner"] = False
 
 
 @given('de persoon heeft een inkomen van "{income}" euro')
@@ -106,7 +96,7 @@ def step_impl(context, law, service):
             service,
             law=law,
             reference_date=context.root_reference_date,
-            service_context=context.service_context,
+            parameters=context.parameters,
             overwrite_input=context.test_data
         )
     )
@@ -155,12 +145,22 @@ def step_impl(context, amount):
     )
 
 
-@then('is het toeslagbedrag "{amount}" euro')
-def step_impl(context, amount):
-    actual_amount = context.result.output['hoogte_toeslag']
+def compare_euro_amount(actual_amount, amount):
     expected_amount = int(float(amount) * 100)
     assertions.assertEqual(
         actual_amount,
         expected_amount,
-        f"Expected allowance amount to be {amount} euros, but was {actual_amount / 100:.2f} euros"
+        f"Expected amount to be {amount} euros, but was {actual_amount / 100:.2f} euros"
     )
+
+
+@then('is het toeslagbedrag "{amount}" euro')
+def step_impl(context, amount):
+    actual_amount = context.result.output['hoogte_toeslag']
+    compare_euro_amount(actual_amount, amount)
+
+
+@then('is het pensioen "{amount}" euro')
+def step_impl(context, amount):
+    actual_amount = context.result.output['pension_amount']
+    compare_euro_amount(actual_amount, amount)

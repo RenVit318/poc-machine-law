@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
+import pandas as pd
 
 from engine import RulesEngine, AbstractServiceProvider
 from logging_config import IndentLogger
@@ -45,7 +46,7 @@ class RuleService:
         self.services = services
         self.resolver = RuleResolver()
         self._engines: Dict[str, Dict[str, RulesEngine]] = {}
-        self.source_values = defaultdict(dict)
+        self.source_dataframes: Dict[str, pd.DataFrame] = {}
 
     def _get_engine(self, law: str, reference_date: str) -> RulesEngine:
         """Get or create RulesEngine instance for given law and date"""
@@ -74,7 +75,7 @@ class RuleService:
             self,
             law: str,
             reference_date: str,
-            service_context: Dict[str, Any],
+            parameters: Dict[str, Any],
             overwrite_input: Optional[Dict[str, Any]] = None,
             requested_output: str = None
     ) -> RuleResult:
@@ -84,17 +85,18 @@ class RuleService:
         Args:
             law: Name of the law (e.g. "zorgtoeslagwet")
             reference_date: Reference date for rule version (YYYY-MM-DD)
-            service_context: Context data for service provider
+            parameters: Context data for service provider
             overwrite_input: Optional overrides for input values
+            requested_output: Optional specific output field to calculate
 
         Returns:
             RuleResult containing outputs and metadata
         """
         engine = self._get_engine(law, reference_date)
         result = await engine.evaluate(
-            service_context=service_context,
+            parameters=parameters,
             overwrite_input=overwrite_input,
-            sources=self.source_values,
+            sources=self.source_dataframes,
             calculation_date=reference_date,
             requested_output=requested_output,
         )
@@ -118,9 +120,9 @@ class RuleService:
             return None
         return None
 
-    def set_source_value(self, table: str, field: str, value: Any):
-        """Set a source value override"""
-        self.source_values[table][field] = value
+    def set_source_dataframe(self, table: str, df: pd.DataFrame):
+        """Set a source DataFrame"""
+        self.source_dataframes[table] = df
 
 
 class Services(AbstractServiceProvider):
@@ -130,25 +132,25 @@ class Services(AbstractServiceProvider):
         self.services = {service: RuleService(service, self) for service in self.service_laws}
         self.root_reference_date = reference_date
 
-    def set_source_value(self, service: str, table: str, field: str, value: Any):
-        """Set a source value override"""
-        self.services[service].set_source_value(table, field, value)
+    def set_source_dataframe(self, service: str, table: str, df: pd.DataFrame):
+        """Set a source DataFrame for a service"""
+        self.services[service].set_source_dataframe(table, df)
 
     async def evaluate(
             self,
             service: str,
             law: str,
             reference_date: str,
-            service_context: Dict[str, Any],
+            parameters: Dict[str, Any],
             overwrite_input: Optional[Dict[str, Any]] = None,
             requested_output: str = None
     ) -> RuleResult:
-        with logger.indent_block(f"{service}: {law} ({reference_date} {service_context} {requested_output})",
+        with logger.indent_block(f"{service}: {law} ({reference_date} {parameters} {requested_output})",
                                  double_line=True):
             return await self.services[service].evaluate(
                 law=law,
                 reference_date=reference_date,
-                service_context=service_context,
+                parameters=parameters,
                 overwrite_input=overwrite_input,
                 requested_output=requested_output,
             )
