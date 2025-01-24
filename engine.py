@@ -94,6 +94,7 @@ class RuleContext:
     values_cache: Dict[str, Any] = field(default_factory=dict)
     path: List[PathNode] = field(default_factory=list)
     overwrite_input: Dict[str, Any] = field(default_factory=dict)
+    outputs: Dict[str, Any] = field(default_factory=dict)
     calculation_date: Optional[str] = None
 
     def track_access(self, path: str):
@@ -139,6 +140,11 @@ class RuleContext:
             if path in self.parameters:
                 logger.debug(f"Resolving from PARAMETERS: {self.parameters[path]}")
                 return self.parameters[path]
+
+            # Check outputs
+            if path in self.outputs:
+                logger.debug(f"Resolving from previous OUTPUT: {self.outputs[path]}")
+                return self.outputs[path]
 
             # Check cache
             if path in self.values_cache:
@@ -322,6 +328,7 @@ class RulesEngine:
                     logger.debug(f"Skipping action {output_name}")
                     continue
                 output_def, output_name = await self._evaluate_action(action, context)
+                context.outputs[output_name] = output_def['value']
                 output_values[output_name] = output_def
                 context.pop_path()
 
@@ -488,9 +495,9 @@ class RulesEngine:
         'SUBTRACT': lambda vals: functools.reduce(operator.sub, vals[1:], vals[0]),
         'DIVIDE': lambda vals: (
             functools.reduce(
-                lambda x, y: int(x / y) if y != 0 else 0,
+                lambda x, y: x / y if y != 0 else 0,
                 vals[1:],
-                vals[0]
+                float(vals[0])
             ) if 0 not in vals[1:] else 0
         )
     }

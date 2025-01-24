@@ -30,4 +30,4 @@ Feature: AOW Pension Calculation 2025
     Given de persoon is "67" jaar oud
     When de algemene_ouderdomswet wordt uitgevoerd door SVB
     Then is voldaan aan de voorwaarden
-    And is het pensioen "1104.70" euro
+    And is het pensioen "1324.80" euro
