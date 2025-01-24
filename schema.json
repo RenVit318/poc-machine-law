@@ -237,6 +237,9 @@
             },
             "min": {
               "type": "number"
+            },
+            "max": {
+              "type": "number"
             }
           }
         },
@@ -351,7 +354,26 @@
                     "type": "string"
                   },
                   "value": {
-                    "type": "string"
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "operation",
+                          "values"
+                        ],
+                        "properties": {
+                          "operation": {
+                            "type": "string"
+                          },
+                          "values": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    ]
                   }
                 }
               }

@@ -209,10 +209,18 @@ class RuleContext:
 
     async def _resolve_from_source(self, source_ref, table):
         df = self.sources[table]
+
         # Filter
         if 'select_on' in source_ref:
             for select_on in source_ref['select_on']:
-                df = df[df[select_on['name']] == await self.resolve_value(select_on['value'])]
+                value = await self.resolve_value(select_on['value'])
+
+                if isinstance(value, dict) and 'operation' in value and value['operation'] == 'IN':
+                    allowed_values = await self.resolve_value(value['values'])
+                    df = df[df[select_on['name']].isin(allowed_values)]
+                else:
+                    df = df[df[select_on['name']] == value]
+
         # Get specified fields
         fields = source_ref.get('fields', [])
         field = source_ref.get('field')
@@ -231,10 +239,12 @@ class RuleContext:
         else:
             result = df.to_dict('records')
 
+        if result is None:
+            return None
         if len(result) == 0:
-            result = None
+            return None
         if len(result) == 1:
-            result = result[0]
+            return result[0]
         return result
 
 
@@ -456,11 +466,16 @@ class RulesEngine:
 
     async def _evaluate_foreach(self, operation, context):
         """Handle FOREACH operation"""
+        combine = operation.get('combine')
 
         array_data = await self._evaluate_value(operation['subject'], context)
+        if not array_data:
+            logger.warning("No data found to run FOREACH on")
+            return self._evaluate_arithmetic(combine, [])
+
         if not isinstance(array_data, list):
             array_data = [array_data]
-        combine = operation.get('combine')
+
         with logger.indent_block(f"Foreach({combine})"):
             values = []
             for item in array_data:
@@ -506,6 +521,7 @@ class RulesEngine:
     def _evaluate_arithmetic(op: str, values: List[Any]) -> Union[int, float]:
         """Handle pure arithmetic operations"""
         if not values:
+            logger.warning(f"No values found, returning 0 for {op}")
             return 0
         result = RulesEngine.ARITHMETIC_OPS[op](values)
         logger.debug(f"Compute {op}({values}) = {result}")
