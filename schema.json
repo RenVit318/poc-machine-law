@@ -267,9 +267,8 @@
             "reference_date": {
               "type": "string",
               "enum": [
-                "january_first",
-                "calculation_date",
-                "birth"
+                "$january_first",
+                "$calculation_date"
               ]
             },
             "immutable_after": {
