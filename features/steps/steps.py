@@ -31,39 +31,6 @@ def parse_value(value: str) -> Any:
     return value
 
 
-@given('de volgende brongegevens')
-def step_impl(context):
-    """
-    Process source data table and set up overwrites in the Services instance
-    Table format:
-    | Service | Law | Table | Field | Value |
-    """
-    # Ensure we have a table
-    if not context.table:
-        raise ValueError("No table provided for source data")
-
-    # Process each row
-    for row in context.table:
-        service = row['Service'].strip()
-        table = row['Table'].strip()
-        field = row['Field'].strip()
-        bsn = row['BSN'].strip()
-        value = parse_value(row['Value'].strip())
-
-        # Set the override in our services instance
-        context.services.set_source_value(
-            service=service,
-            table=table,
-            field=field,
-            bsn=bsn,
-            value=value
-        )
-
-
-def process_table_data(context, table_name: str, service: str):
-    """Process a data table and convert to DataFrame"""
-
-
 @given('de volgende {service} {table} gegevens')
 def step_impl(context, service, table):
     if not context.table:
