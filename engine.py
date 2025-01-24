@@ -165,7 +165,6 @@ class RuleContext:
                 source_ref = spec.get('source_reference', {})
                 if source_ref and self.sources:
                     table = source_ref.get('table')
-
                     if table in self.sources:
                         result = await self._resolve_from_source(source_ref, table)
                         self.values_cache[path] = result
@@ -211,13 +210,21 @@ class RuleContext:
         # Get specified fields
         fields = source_ref.get('fields', [])
         field = source_ref.get('field')
+
         if fields:
-            result = df[fields].to_dict('records')
+            missing_fields = [f for f in fields if f not in df.columns]
+            if missing_fields:
+                logger.warning(f"Fields {missing_fields} not found in source for table {table}")
+            existing_fields = [f for f in fields if f in df.columns]
+            result = df[existing_fields].to_dict('records')
         elif field:
-            result = df[field].tolist()  # For single field, return list of values
+            if field not in df.columns:
+                logger.warning(f"Field {field} not found in source for table {table}")
+                return None
+            result = df[field].tolist()
         else:
-            # If no fields specified, get all
             result = df.to_dict('records')
+
         if len(result) == 0:
             result = None
         if len(result) == 1:
@@ -446,18 +453,19 @@ class RulesEngine:
         array_data = await self._evaluate_value(operation['subject'], context)
         if not isinstance(array_data, list):
             array_data = [array_data]
-
-        with logger.indent_block(f"Foreach"):
-            results = []
+        combine = operation.get('combine')
+        with logger.indent_block(f"Foreach({combine})"):
+            values = []
             for item in array_data:
                 with logger.indent_block(f"Item {item}"):
                     item_context = copy(context)
                     item_context.local = item
                     result = await self._evaluate_value(operation['value'][0], item_context)
-                    results.extend(result if isinstance(result, list) else [result])
-        logger.debug(f"Foreach result: {results}")
-
-        return results
+                    values.extend(result if isinstance(result, list) else [result])
+            logger.debug(f"Foreach values: {values}")
+            result = self._evaluate_arithmetic(combine, values)
+            logger.debug(f"Foreach result: {result}")
+        return result
 
     COMPARISON_OPS = {
         'EQUALS': operator.eq,
@@ -530,11 +538,11 @@ class RulesEngine:
                 result = delta.days
             elif unit == 'years':
                 result = (end_date.year - start_date.year -
-                         ((end_date.month, end_date.day) <
-                          (start_date.month, start_date.day)))
+                          ((end_date.month, end_date.day) <
+                           (start_date.month, start_date.day)))
             elif unit == 'months':
                 result = ((end_date.year - start_date.year) * 12 +
-                         end_date.month - start_date.month)
+                          end_date.month - start_date.month)
             else:
                 logger.warning(f"Warning: Unknown date unit {unit}")
             logger.debug(f"Compute {op}({values}, {unit}) = {result}")
@@ -587,11 +595,9 @@ class RulesEngine:
             result = await self._evaluate_if_operation(operation, context)
 
         elif op_type == 'FOREACH':
-            values = await self._evaluate_foreach(operation, context)
-            result = self._evaluate_arithmetic(operation.get('combine'), values)
+            result = await self._evaluate_foreach(operation, context)
             node.details.update({
                 'raw_values': operation['value'],
-                'evaluated_values': values,
                 'arithmetic_type': op_type
             })
 

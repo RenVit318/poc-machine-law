@@ -6,27 +6,36 @@ Feature: Healthcare Allowance Calculation 2025
   Background:
     Given de datum is "2024-02-01"
     And een persoon met BSN "999993653"
-    And de volgende brongegevens:
-      | Service         | Table                 | Field                  | BSN       | Value      |
-      | RvIG            | personen              | geboortedatum          | 999993653 | 1986-01-01 |
-      | RvIG            | personen              | verblijfsadres         | 999993653 | Amsterdam  |
-      | RvIG            | personen              | land_verblijf          | 999993653 | NEDERLAND  |
-      | RvIG            | relaties              | partnerschap_type      | 999993653 | GEEN       |
-      | RvIG            | relaties              | partner_bsn            | 999993653 | null       |
-      | DJI             | detenties             | status                 | 999993653 | VRIJ       |
-      | DJI             | detenties             | inrichting_type        | 999993653 | GEEN       |
-      | DJI             | forensische_zorg      | zorgtype               | 999993653 | GEEN       |
-      | DJI             | forensische_zorg      | juridische_titel       | 999993653 | GEEN       |
-      | RVZ             | verzekeringen         | polis_status           | 999993653 | ACTIEF     |
-      | RVZ             | verdragsverzekeringen | registratie.status     | 999993653 | INACTIEF   |
-      | BELASTINGDIENST | inkomen               | box1                   | 999993653 | 79547      |
-      | BELASTINGDIENST | inkomen               | box2                   | 999993653 | 0          |
-      | BELASTINGDIENST | inkomen               | box3                   | 999993653 | 0          |
-      | BELASTINGDIENST | inkomen               | buitenlands            | 999993653 | 0          |
-      | BELASTINGDIENST | vermogen              | bezittingen            | 999993653 | 1200000    |
-      | BELASTINGDIENST | vermogen              | schulden               | 999993653 | 0          |
-      | DUO             | studiefinanciering    | aantal_studerend_gezin | 999993653 | 0          |
-      | DUO             | inschrijvingen        | onderwijstype          | 999993653 | GEEN       |
+    And de volgende RvIG personen gegevens:
+      | bsn       | geboortedatum | verblijfsadres | land_verblijf |
+      | 999993653 | 1986-01-01    | Amsterdam      | NEDERLAND     |
+    And de volgende RvIG relaties gegevens:
+      | bsn       | partnerschap_type | partner_bsn |
+      | 999993653 | GEEN              | null        |
+    And de volgende DJI detenties gegevens:
+      | bsn       | status | inrichting_type |
+      | 999993653 | VRIJ   | GEEN            |
+    And de volgende DJI forensische_zorg gegevens:
+      | bsn       | zorgtype | juridische_titel |
+      | 999993653 | GEEN     | GEEN             |
+    And de volgende RVZ verzekeringen gegevens:
+      | bsn       | polis_status |
+      | 999993653 | ACTIEF       |
+    And de volgende RVZ verdragsverzekeringen gegevens:
+      | bsn       | registratie.status |
+      | 999993653 | INACTIEF           |
+    And de volgende BELASTINGDIENST inkomen gegevens:
+      | bsn       | box1  | box2 | box3 | buitenlands |
+      | 999993653 | 79547 | 0    | 0    | 0           |
+    And de volgende BELASTINGDIENST vermogen gegevens:
+      | bsn       | bezittingen | schulden |
+      | 999993653 | 1200000     | 0        |
+    And de volgende DUO studiefinanciering gegevens:
+      | bsn       | aantal_studerend_gezin |
+      | 999993653 | 0                      |
+    And de volgende DUO inschrijvingen gegevens:
+      | bsn       | onderwijstype |
+      | 999993653 | GEEN          |
 
   Scenario: Person under 18 is not eligible for healthcare allowance
     Given de persoon is "17" jaar oud
