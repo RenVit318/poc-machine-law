@@ -160,11 +160,9 @@ class Services(AbstractServiceProvider):
             service: str,
             law: str,
             field: str,
-            temporal: Dict[str, Any],
             context: Dict[str, Any],
-            overwrite_input: Dict[str, Any]) -> Any:
-        # reference_date = None
-        # if temporal['reference_date'] == "calculation_date":
-        reference_date = self.root_reference_date
+            overwrite_input: Dict[str, Any],
+            reference_date: str) -> Any:
+        # reference_date = self.root_reference_date
         result = await self.evaluate(service, law, reference_date, context, overwrite_input, requested_output=field)
         return result.output.get(field)

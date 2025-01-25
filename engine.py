@@ -65,8 +65,8 @@ class AbstractServiceProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_value(self, service: str, law: str, field: str, temporal: Dict[str, Any],
-                        context: Dict[str, Any], overwrite_input: Dict[str, Any]) -> Any:
+    async def get_value(self, service: str, law: str, field: str, context: Dict[str, Any],
+                        overwrite_input: Dict[str, Any], reference_date: str) -> Any:
         pass
 
 
@@ -123,9 +123,11 @@ class RuleContext:
             path = path[1:]  # Remove $ prefix
             self.track_access(path)
 
-            if path == "calculation_date":
-                return self.calculation_date
-            # TODO: other date expressions
+            # Resolve dates
+            value = await self._resolve_date(path)
+            if value is not None:
+                logger.debug(f"Resolved date ${path}: {value}")
+                return value
 
             # Check local scope first
             if path in self.local:
@@ -183,16 +185,31 @@ class RuleContext:
             logger.warning(f"Could not resolve value for {path}")
             return None
 
+    async def _resolve_date(self, path):
+        if path == "calculation_date":
+            return self.calculation_date
+        if path == "january_first":
+            calc_date = datetime.strptime(self.calculation_date, "%Y-%m-%d").date()
+            return calc_date.replace(month=1, day=1).isoformat()
+        if path == "prev_january_first":
+            calc_date = datetime.strptime(self.calculation_date, "%Y-%m-%d").date()
+            return calc_date.replace(month=1, day=1, year=calc_date.year - 1).isoformat()
+        return None
+
     async def _resolve_from_service(self, path, service_ref, spec):
         parameters = copy(self.parameters)
         if 'parameters' in service_ref:
             parameters.update({p['name']: await self.resolve_value(p['reference'])
                                for p in service_ref['parameters']})
 
+        reference_date = self.calculation_date
+        if 'temporal' in spec and 'reference' in spec['temporal']:
+            reference_date = await self.resolve_value(spec['temporal']['reference'])
+
         # Check cache
-        cache_key = f"{path}({",".join([f"{k}:{v}" for k, v in sorted(parameters.items())])})"
+        cache_key = f"{path}({",".join([f"{k}:{v}" for k, v in sorted(parameters.items())])},{reference_date})"
         if cache_key in self.values_cache:
-            logger.debug(f"Resolving from CACHE: {self.values_cache[cache_key]}")
+            logger.debug(f"Resolving from CACHE with key '{cache_key}': {self.values_cache[cache_key]}")
             return self.values_cache[cache_key]
 
         logger.debug(
@@ -202,9 +219,9 @@ class RuleContext:
             service_ref['service'],
             service_ref['law'],
             service_ref['field'],
-            spec['temporal'],
             parameters,
-            self.overwrite_input
+            self.overwrite_input,
+            reference_date,
         )
 
         self.values_cache[cache_key] = value

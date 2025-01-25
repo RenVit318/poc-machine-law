@@ -131,7 +131,7 @@ uv run behave features --no-capture -v --define log_level=DEBUG
 
 In willekeurige volgorde:
 
-- 📅 Implementatie van referentiedatums in bronnen
+- ~~📅 Implementatie van referentiedatums~~
 - ~~📚 Toevoegen van meer wetten naast de zorgtoeslagwet~~
 - ⚖️ Onderzoeken hoe algemene wetten (zoals bezwaarrecht) hierin passen
 - 🔧 Ontwikkelen van tools om wetten om te zetten

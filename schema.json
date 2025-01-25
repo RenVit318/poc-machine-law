@@ -268,6 +268,7 @@
               "type": "string",
               "enum": [
                 "$january_first",
+                "$prev_january_first",
                 "$calculation_date"
               ]
             },
