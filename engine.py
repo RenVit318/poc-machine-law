@@ -125,6 +125,7 @@ class RuleContext:
 
             if path == "calculation_date":
                 return self.calculation_date
+            # TODO: other date expressions
 
             # Check local scope first
             if path in self.local:

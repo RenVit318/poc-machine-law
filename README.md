@@ -1,27 +1,143 @@
-# Proof of Concept Machine Law
+# 🤖 Machine-leesbare Wetgeving
 
+> Een proof-of-concept voor het omzetten van Nederlandse wetgeving naar machine-leesbare specificaties
 
-## Law
-https://github.com/MinBZK/poc-machine-law/tree/main/law
+## 💡 Motivatie
 
-## Machine
-https://github.com/MinBZK/poc-machine-law/blob/main/engine.py
+Veel Nederlandse wetten zijn in essentie mechanische processen. Dit wordt duidelijk uit deze drie voorbeelden:
 
-## Running the Machine
+### 1. AOW-opbouw (Pensioenberekening)
 
-```shell
+[→ Algemene Ouderdomswet, Artikel 13, lid 1-3](https://wetten.overheid.nl/jci1.3:c:BWBR0002221&hoofdstuk=III&artikel=13)
+
+```
+1. De oppbouw van het ouderdomspensioen vindt plaats over een tijdvak van 50 jaren.
+2. Voor elk jaar wordt 2 percent van het ouderdomspensioen opgebouwd.
+3. Bij een korter tijdvak dan 50 jaren wordt het ouderdomspensioen evenredig verlaagd.
+```
+
+**Wat maakt dit mechanisch?**
+Dit is een pure rekenkundige formule: `uitkering = basispensioen × (opbouwjaren ÷ 50) × 0.02`. Elke variabele is exact
+gedefinieerd en de berekening is deterministisch.
+
+### 2. Huurtoeslag (Inkomensafhankelijke normhuur)
+
+[→ Wet op de Huurtoeslag, Artikel 19, lid 2-3](https://wetten.overheid.nl/jci1.3:c:BWBR0008659&hoofdstuk=3&paragraaf=1&artikel=19)
+
+```
+Voor elk rekeninkomen boven het minimum-inkomenspunt geldt de formule:
+(a x Y²) + (b x Y)
+
+waarbij:
+Y = het rekeninkomen
+a, b = factoren per type huishouden, vast te stellen bij ministeriële regeling
+
+De uitkomst wordt naar boven afgerond op hele eurocenten.
+```
+
+**Wat maakt dit mechanisch?**
+Dit is een pure wiskundige formule met kwadratische en lineaire termen. De wetgever heeft hier expliciet gekozen voor
+een algebraïsche notatie - inclusief variabelen, machten en constanten. Dit is één-op-één om te zetten naar code.
+
+### 3. Kostendelersnorm (Bijstandsberekening)
+
+[→ Participatiewet, Artikel 22a, lid 2-3](https://wetten.overheid.nl/jci1.3:c:BWBR0015703&hoofdstuk=3&paragraaf=3.2&artikel=22a)
+
+```
+De kostendelersnorm wordt berekend volgens de formule:
+(40% + A × 30%) × N
+waarbij:
+A = aantal kostendelende medebewoners
+N = gehuwdennorm genoemd in artikel 21, onderdeel b
+```
+
+**Wat maakt dit mechanisch?**
+Dit is letterlijk een wiskundige formule met variabelen, constanten en een exacte berekeningswijze. Het is een algoritme
+dat direct om te zetten is naar code.
+
+## 🔍 Het Probleem
+
+Deze wetten zijn algoritmes vermomd als tekst. Dit leidt tot drie problemen:
+
+1. 👩‍💻 **Interpretatie door programmeurs** zonder juridische achtergrond.
+    - **MERK OP**: wetten in deze PoC zijn _nu_ grotendeels door een programmeur (met behulp van een LLM) omgezet naar
+      `machine law`. Uiteindelijk zouden dit soort gegenereerde `machine law` interpretaties het startpunt kunnen zijn
+      voor juristen.
+2. 🤷 **Gebrek aan transparantie** voor burgers en ambtenaren ("computer says no")
+3. ⚠️ **Moeilijke kwaliteitscontrole** van implementaties
+
+## 🎯 De Oplossing
+
+Dit project stelt voor om mechanische wetten direct als machine-leesbare specificaties te schrijven:
+
+- Als 'bijsluiter' bij bestaande wetgeving
+- Als verplicht onderdeel van nieuwe wetgeving
+- Met tooling voor validatie en visualisatie
+
+## 🔄 Verschil met regels.overheid.nl
+
+Dit project biedt een fundamenteel andere aanpak dan [regels.overheid.nl](https://regels.overheid.nl/). Waar
+regels.overheid.nl zich richt op het documenteren en publiceren van wetten, gaan wij een stap verder:
+
+1. **Executeerbare Code**: Onze specificaties zijn geen documentatie, maar daadwerkelijk uitvoerbare code die direct
+   door computersystemen verwerkt kan worden
+2. **Ingebouwde Engine**: De specificaties komen met een engine die ze kan uitvoeren, valideren en testen
+3. **Formele Verificatie**: Door de exacte wiskundige specificatie kunnen we bewijzen dat implementaties correct zijn en
+   resolven.
+4. **Directe Implementatie**: Overheidsorganisaties kunnen (uiteindelijk) de specificaties direct in hun systemen
+   gebruiken.
+
+Dit maakt het mogelijk om wetten niet alleen te *beschrijven*, maar ook te *testen* en *valideren* voordat ze in
+productie gaan.
+
+## 📚 Geïmplementeerde Wetten
+
+Vooralsnog zijn deze wetten geïmplementeerd in `machine law` (met behulp van een LLM).
+
+### Zorgtoeslag
+
+- [Hoofdwet](law/zorgtoeslagwet/4d8c7237-b930-4f0f-aaa3-624ba035e449.yaml) - Berekening zorgtoeslag
+- [Verzekeringsstatus](law/zvw/8e7f6d5c-4321-4f0f-iiii-901234567890.yaml) - Bepaling verzekeringsstatus
+
+### AOW
+
+- [Hoofdwet](law/algemene_ouderdomswet/a70a061f-7a6d-404d-81f1-b77bbc7863a7.yaml) - Berekening AOW-uitkering
+- [Leeftijdsbepaling](law/algemene_ouderdomswet/leeftijdsbepaling/17bd2695-7805-49a4-8789-a8fe395022cd.yaml) - Bepaling
+  AOW-leeftijd
+
+### Ondersteunende Wetten
+
+- [Wet BRP](law/wet_brp/8f7e6d5c-4321-4f0f-bbbb-987654321abc.yaml) - Persoonsgegevens
+- [Wet Inkomstenbelasting](law/wet_inkomstenbelasting/5b4c3d2a-1098-4f0f-ffff-678901234567.yaml) - Toetsingsinkomen
+- [SUWI](law/wet_structuur_uitvoeringsorganisatie_werk_en_inkomen/85227351-03f1-4bd4-b19f-b563fbf8d5c8.yaml) -
+  Verzekerde jaren
+- [CBS](law/wet_op_het_centraal_bureau_voor_de_statistiek/7512d6f1-89d4-4c49-b999-480ac3a4a722.yaml) - Levensverwachting
+
+## 🚀 Aan de slag
+
+```bash
 git clone git@github.com:MinBZK/poc-machine-law.git
 cd poc-machine-law
 uv sync
-uv run behave features/zorgtoeslag.feature:38 --no-capture -v --define log_level=DEBUG
+uv run behave features --no-capture -v --define log_level=DEBUG
 ```
 
-## Todo
-In no particular order
+## 📂 Projectstructuur
 
-- implement passing on reference dates to sources (understand what `january_first` means)
-- add a second set of laws (next to zorgtoeslagwet)
-- how do general laws (right to appeal for instance) impact this? should we mark what can and cannot be appealed?
-- tooling to transform laws into machine law
-- detecting deadlocks/livelocks/loops
-- explaining runs of machine laws to a citizen
+- `/law` - Machine-leesbare wetspecificaties
+- `/engine.py` - De wetgevingsengine die specificaties uitvoert
+
+## 🛣️ Roadmap
+
+In willekeurige volgorde:
+
+- 📅 Implementatie van referentiedatums in bronnen
+- ~~📚 Toevoegen van meer wetten naast de zorgtoeslagwet~~
+- ⚖️ Onderzoeken hoe algemene wetten (zoals bezwaarrecht) hierin passen
+- 🔧 Ontwikkelen van tools om wetten om te zetten
+- 🔍 Detectie van deadlocks/loops in wetgeving
+- 👥 Verbeteren van uitlegbaarheid naar burgers
+
+## 🤝 Bijdragen
+
+Bijdragen zijn welkom! Zie de [issues](https://github.com/MinBZK/poc-machine-law/issues) voor openstaande punten.
