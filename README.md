@@ -66,24 +66,16 @@ Deze wetten zijn algoritmes vermomd als tekst. Dit leidt tot drie problemen:
 2. 🤷 **Gebrek aan transparantie** voor burgers en ambtenaren ("computer says no")
 3. ⚠️ **Moeilijke kwaliteitscontrole** van implementaties
 
-## 🎯 De Oplossing
+## 🔄 Voortbouwen op regels.overheid.nl
 
-Dit project stelt voor om mechanische wetten direct als machine-leesbare specificaties te schrijven:
+Dit experiment bouwt voort op [regels.overheid.nl](https://regels.overheid.nl/). Waar regels.overheid.nl zich vooral
+richt
+op het documenteren en publiceren van wetten, gaan wij een stap verder:
 
-- Als 'bijsluiter' bij bestaande wetgeving
-- Als verplicht onderdeel van nieuwe wetgeving
-- Met tooling voor validatie en visualisatie
-
-## 🔄 Verschil met regels.overheid.nl
-
-Dit project biedt een fundamenteel andere aanpak dan [regels.overheid.nl](https://regels.overheid.nl/). Waar
-regels.overheid.nl zich richt op het documenteren en publiceren van wetten, gaan wij een stap verder:
-
-1. **Executeerbare Code**: Onze specificaties zijn geen documentatie, maar daadwerkelijk uitvoerbare code die direct
-   door computersystemen verwerkt kan worden
+1. **Executeerbare Code**: regel specificaties zijn niet alleen documentatie, maar daadwerkelijk uitvoerbare code die
+   direct door computersystemen verwerkt kan worden
 2. **Ingebouwde Engine**: De specificaties komen met een engine die ze kan uitvoeren, valideren en testen
-3. **Formele Verificatie**: Door de exacte wiskundige specificatie kunnen we bewijzen dat implementaties correct zijn en
-   resolven.
+3. **Formele Verificatie**: Door de exacte specificatie kunnen we bewijzen dat implementaties correct zijn en resolven.
 4. **Directe Implementatie**: Overheidsorganisaties kunnen (uiteindelijk) de specificaties direct in hun systemen
    gebruiken.
 
@@ -122,7 +114,7 @@ uv sync
 uv run behave features --no-capture -v --define log_level=DEBUG
 ```
 
-## 📂 Projectstructuur
+## 📂 Repository structuur
 
 - `/law` - Machine-leesbare wetspecificaties
 - `/engine.py` - De wetgevingsengine die specificaties uitvoert
@@ -131,7 +123,7 @@ uv run behave features --no-capture -v --define log_level=DEBUG
 
 In willekeurige volgorde:
 
-- 📅 Implementatie van referentiedatums in bronnen
+- ~~📅 Implementatie van referentiedatums~~
 - ~~📚 Toevoegen van meer wetten naast de zorgtoeslagwet~~
 - ⚖️ Onderzoeken hoe algemene wetten (zoals bezwaarrecht) hierin passen
 - 🔧 Ontwikkelen van tools om wetten om te zetten
