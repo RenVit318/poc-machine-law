@@ -39,7 +39,7 @@ def step_impl(context, service, table):
     # Convert table to DataFrame
     data = []
     for row in context.table:
-        processed_row = {k: v if k == 'bsn' else parse_value(v) for k, v in row.items()}
+        processed_row = {k: v if k in {'bsn', 'partner_bsn', 'jaar'} else parse_value(v) for k, v in row.items()}
         data.append(processed_row)
 
     df = pd.DataFrame(data)
