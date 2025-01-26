@@ -88,22 +88,20 @@ Vooralsnog zijn deze wetten geïmplementeerd in `machine law` (met behulp van ee
 
 ### Zorgtoeslag
 
-- [Hoofdwet](law/zorgtoeslagwet/4d8c7237-b930-4f0f-aaa3-624ba035e449.yaml) - Berekening zorgtoeslag
-- [Verzekeringsstatus](law/zvw/8e7f6d5c-4321-4f0f-iiii-901234567890.yaml) - Bepaling verzekeringsstatus
+- [Hoofdwet](law/zorgtoeslagwet/TOESLAGEN-2025-01-01.yaml) - Berekening zorgtoeslag
+- [Verzekeringsstatus](law/zvw/RVZ-2024-01-01.yaml) - Bepaling verzekeringsstatus
 
 ### AOW
 
-- [Hoofdwet](law/algemene_ouderdomswet/a70a061f-7a6d-404d-81f1-b77bbc7863a7.yaml) - Berekening AOW-uitkering
-- [Leeftijdsbepaling](law/algemene_ouderdomswet/leeftijdsbepaling/17bd2695-7805-49a4-8789-a8fe395022cd.yaml) - Bepaling
-  AOW-leeftijd
+- [Hoofdwet](law/algemene_ouderdomswet/SVB-2024-01-01.yaml) - Berekening AOW-uitkering
+- [Leeftijdsbepaling](law/algemene_ouderdomswet/leeftijdsbepaling/SVB-2024-01-01.yaml) - Bepaling AOW-leeftijd
 
 ### Ondersteunende Wetten
 
-- [Wet BRP](law/wet_brp/8f7e6d5c-4321-4f0f-bbbb-987654321abc.yaml) - Persoonsgegevens
-- [Wet Inkomstenbelasting](law/wet_inkomstenbelasting/5b4c3d2a-1098-4f0f-ffff-678901234567.yaml) - Toetsingsinkomen
-- [SUWI](law/wet_structuur_uitvoeringsorganisatie_werk_en_inkomen/85227351-03f1-4bd4-b19f-b563fbf8d5c8.yaml) -
-  Verzekerde jaren
-- [CBS](law/wet_op_het_centraal_bureau_voor_de_statistiek/7512d6f1-89d4-4c49-b999-480ac3a4a722.yaml) - Levensverwachting
+- [Wet BRP](law/wet_brp/RvIG-2020-01-01.yaml) - Persoonsgegevens
+- [Wet Inkomstenbelasting](law/wet_inkomstenbelasting/UWV-2020-01-01.yaml) - Toetsingsinkomen
+- [SUWI](law/wet_structuur_uitvoeringsorganisatie_werk_en_inkomen/UWV-2024-01-01.yaml) - Verzekerde jaren
+- [CBS](law/wet_op_het_centraal_bureau_voor_de_statistiek/CBS-2024-01-01.yaml) - Levensverwachting
 
 ## 🚀 Aan de slag
 
