@@ -194,6 +194,8 @@ class RuleContext:
         if path == "prev_january_first":
             calc_date = datetime.strptime(self.calculation_date, "%Y-%m-%d").date()
             return calc_date.replace(month=1, day=1, year=calc_date.year - 1).isoformat()
+        if path == "year":
+            return self.calculation_date[:4]
         return None
 
     async def _resolve_from_service(self, path, service_ref, spec):
@@ -546,8 +548,8 @@ class RulesEngine:
     @staticmethod
     def _evaluate_arithmetic(op: str, values: List[Any]) -> Union[int, float]:
         """Handle pure arithmetic operations"""
-        if not values:
-            logger.warning(f"No values found, returning 0 for {op}")
+        if not values or any(v is None for v in values):
+            logger.warning(f"No values found or some where None, returning 0 for {op}({values})")
             return 0
         result = RulesEngine.ARITHMETIC_OPS[op](values)
         logger.debug(f"Compute {op}({values}) = {result}")
