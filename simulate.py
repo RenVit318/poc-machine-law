@@ -15,6 +15,14 @@ class LawSimulator:
         self.simulation_date = simulation_date
         self.services = Services(simulation_date)
         self.results = []
+        self.used_bsns = set()  # Track used BSNs
+
+    def generate_bsn(self):
+        while True:
+            bsn = f"999{random.randint(100000, 999999)}"
+            if bsn not in self.used_bsns:
+                self.used_bsns.add(bsn)
+                return bsn
 
     def generate_person(self, birth_year_range=(1940, 2007)):
         birth_date = date(
@@ -25,16 +33,16 @@ class LawSimulator:
         age = (datetime.strptime(self.simulation_date, "%Y-%m-%d").date() - birth_date).days // 365
 
         # Also store study status for consistency
-        is_student = age < 30 and random.random() < 0.4
+        is_student = age < 30 and random.random() < 0.6
 
         return {
-            "bsn": f"999{random.randint(100000, 999999)}",
+            "bsn": self.generate_bsn(),
             "birth_date": birth_date,
             "age": age,
-            "annual_income": min(max(int(np.random.lognormal(mean=10.5, sigma=0.5)), 0), 150000) * 100,
+            "annual_income": min(max(int(np.random.lognormal(mean=10.8, sigma=0.4)), 0), 200000) * 100,
             "net_worth": min(max(int(np.random.lognormal(mean=11, sigma=1)), 0), 1000000) * 100,
             "work_years": min(max(0, (age - 15) * random.uniform(0.5, 0.9)), 50),
-            "residence_years": min(max(0, (age - 15) * random.uniform(0.6, 0.95)), 50),
+            "residence_years": min(max(0, (age - 15) * random.uniform(0.8, 1.0)), 50),
             "is_student": is_student,
             "study_grant": random.randint(2000, 4500) * 100 if is_student else 0
         }
@@ -71,7 +79,7 @@ class LawSimulator:
         sources = {
             ('RvIG', 'personen'): [{
                 'bsn': p['bsn'],
-                'geboortedatum': p['birth_date'],
+                'geboortedatum': p['birth_date'].isoformat(),
                 'verblijfsadres': 'Amsterdam',
                 'land_verblijf': 'NEDERLAND'
             } for p in people],
@@ -202,21 +210,43 @@ async def main():
     results = await simulator.run_simulation(num_people=1000)
     results.to_csv('simulation_results.csv', index=False)
 
-    print("\nSimulation Statistics:")
-    print(f"Total people simulated: {len(results)}")
+    print("\nPopulation Statistics:")
+    print(f"Total people: {len(results)}")
     print(f"With partners: {(results['has_partner'].mean() * 100):.1f}%")
     print(f"Students: {(results['is_student'].mean() * 100):.1f}%")
+    print(f"Average age: {results['age'].mean():.1f} years")
+    print(f"Age range: {results['age'].min():.0f}-{results['age'].max():.0f} years")
+    print(f"\nIncome Statistics:")
+    print(f"Average income: €{results['income'].mean():.2f}")
+    print(f"Income percentiles:")
+    for p in [10, 25, 50, 75, 90]:
+        print(f"  {p}th: €{results['income'].quantile(p / 100):.2f}")
 
     print(f"\nZorgtoeslag Statistics:")
     eligible = results[results['zorgtoeslag_eligible']]
     print(f"Eligible: {(len(eligible) / len(results) * 100):.1f}%")
     print(f"Average amount: €{eligible['zorgtoeslag_amount'].mean():.2f}")
+    print(f"Amount range: €{eligible['zorgtoeslag_amount'].min():.2f}-€{eligible['zorgtoeslag_amount'].max():.2f}")
+    print(f"By income quartile (eligible %):")
+    for i, (lower, upper) in enumerate(zip(results['income'].quantile([0, 0.25, 0.5, 0.75]),
+                                           results['income'].quantile([0.25, 0.5, 0.75, 1.0]))):
+        quartile = results[(results['income'] >= lower) & (results['income'] < upper)]
+        pct = (quartile['zorgtoeslag_eligible'].mean() * 100)
+        print(f"  Q{i + 1} (€{lower:.0f}-€{upper:.0f}): {pct:.1f}%")
 
     print(f"\nAOW Statistics:")
     eligible = results[results['aow_eligible']]
     print(f"Eligible: {(len(eligible) / len(results) * 100):.1f}%")
     print(f"Average amount: €{eligible['aow_amount'].mean():.2f}")
     print(f"Average accrual: {(results['aow_accrual'].mean() * 100):.1f}%")
+    print(f"By age group (eligible %):")
+    age_bins = [0, 50, 60, 65, 67, 150]
+    age_labels = ['<50', '50-60', '60-65', '65-67', '67+']
+    for i, (lower, upper) in enumerate(zip(age_bins[:-1], age_bins[1:])):
+        group = results[(results['age'] >= lower) & (results['age'] < upper)]
+        if len(group) > 0:
+            pct = (group['aow_eligible'].mean() * 100)
+            print(f"  {age_labels[i]}: {pct:.1f}%")
 
 
 if __name__ == "__main__":
