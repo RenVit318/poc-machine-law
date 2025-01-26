@@ -1,12 +1,14 @@
-Feature: AOW Pension Calculation 2025
-  As a citizen approaching retirement age
-  I want to know if I am eligible for AOW pension
-  So that I can plan my retirement finances
+Feature: AOW Pensioen Berekening 2025
+  Als burger die de pensioenleeftijd nadert
+  Wil ik weten of ik recht heb op AOW pensioen
+  Zodat ik mijn pensioenfinanciën kan plannen
 
   Background:
     Given de datum is "2025-03-01"
     And een persoon met BSN "999993653"
-    And de volgende RvIG personen gegevens:
+
+  Scenario: Persoon met gemengde verzekeringsjaren ontvangt gedeeltelijk pensioen
+    Given de volgende RvIG personen gegevens:
       | bsn       | geboortedatum | verblijfsadres |
       | 999993653 | 1958-02-15    | Amsterdam      |
     And de volgende RvIG relaties gegevens:
@@ -25,9 +27,6 @@ Feature: AOW Pension Calculation 2025
     And de volgende CBS levensverwachting gegevens:
       | bsn       | verwachting_65 |
       | 999993653 | 20.5           |
-
-  Scenario: Person with mixed insurance years receives partial pension
-    Given de persoon is "67" jaar oud
     When de algemene_ouderdomswet wordt uitgevoerd door SVB
     Then is voldaan aan de voorwaarden
     And is het pensioen "1324.80" euro
