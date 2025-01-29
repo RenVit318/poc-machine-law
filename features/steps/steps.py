@@ -59,6 +59,11 @@ def step_impl(context, bsn):
     context.parameters['BSN'] = bsn
 
 
+@given('de datum van de verkiezingen is "{date}"')
+def step_impl(context, date):
+    context.parameters['ELECTION_DATE'] = date
+
+
 @when('de {law} wordt uitgevoerd door {service}')
 def step_impl(context, law, service):
     context.result = asyncio.run(
@@ -134,3 +139,79 @@ def step_impl(context, amount):
 def step_impl(context, amount):
     actual_amount = context.result.output['pension_amount']
     compare_euro_amount(actual_amount, amount)
+
+
+@given('een kandidaat met BSN "{bsn}"')
+def step_impl(context, bsn):
+    if not hasattr(context, 'parameters'):
+        context.parameters = {}
+    context.parameters['BSN'] = bsn
+
+
+@given('een partij met ID "{party_id}"')
+def step_impl(context, party_id):
+    if not hasattr(context, 'parameters'):
+        context.parameters = {}
+    context.parameters['PARTY_ID'] = party_id
+
+
+@then('is de kandidaatstelling geldig')
+def step_impl(context):
+    assertions.assertTrue(
+        context.result.requirements_met,
+        "Expected candidacy to be valid, but it was not"
+    )
+
+
+@then('is de kandidaatstelling niet geldig')
+def step_impl(context):
+    assertions.assertFalse(
+        context.result.requirements_met,
+        "Expected candidacy to be invalid, but it was valid"
+    )
+
+
+@then("heeft de persoon stemrecht")
+def step_impl(context):
+    assertions.assertTrue(
+        context.result.requirements_met,
+        "Expected the person to have voting rights"
+    )
+
+
+@then("heeft de persoon geen stemrecht")
+def step_impl(context):
+    assertions.assertFalse(
+        context.result.requirements_met,
+        "Expected the person not to have voting rights"
+    )
+
+
+@given('de volgende kandidaatgegevens')
+def step_impl(context):
+    if not context.table:
+        raise ValueError("No table provided for kandidaatgegevens")
+
+    # Convert table to DataFrame
+    data = []
+    for row in context.table:
+        processed_row = {
+            'kandidaat_bsn': row['kandidaat_bsn'],
+            'positie': int(row['positie']) if row['positie'] != '...' else None,
+            'acceptatie': parse_value(row['acceptatie'])
+        }
+        if processed_row['positie'] is not None:  # Skip the ... rows
+            data.append(processed_row)
+
+    df = pd.DataFrame(data)
+
+    # Set in test_data for user_input
+    if not hasattr(context, 'test_data'):
+        context.test_data = {}
+
+    # We need only kandidaat_bsn and positie for CANDIDATE_LIST
+    candidate_list_df = df[['kandidaat_bsn', 'positie']]
+    context.test_data['CANDIDATE_LIST'] = candidate_list_df
+
+    # Get the acceptatie for the main candidate
+    context.test_data['CANDIDATE_ACCEPTANCE'] = df['acceptatie'].iloc[0]

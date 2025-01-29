@@ -445,7 +445,7 @@ class RulesEngine:
                 else:
                     result = await self._evaluate_operation(req, context)
 
-            logger.debug(f"Requirement met" if {result} else f"Requirement NOT met")
+            logger.debug(f"Requirement met" if result else f"Requirement NOT met")
 
             node.result = result
             context.pop_path()
@@ -527,6 +527,8 @@ class RulesEngine:
     }
 
     ARITHMETIC_OPS = {
+        'OR': any,
+        'AND': all,
         'MIN': min,
         'MAX': max,
         'ADD': sum,
