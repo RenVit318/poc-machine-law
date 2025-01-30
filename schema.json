@@ -172,7 +172,8 @@
                     "number",
                     "object",
                     "array",
-                    "boolean"
+                    "boolean",
+                    "null"
                   ]
                 },
                 "else": {
@@ -181,7 +182,8 @@
                     "number",
                     "object",
                     "array",
-                    "boolean"
+                    "boolean",
+                    "null"
                   ]
                 }
               },

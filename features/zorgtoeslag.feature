@@ -1,4 +1,4 @@
-Feature: Berekening Zorgtoeslag 2025
+Feature: Berekening Zorgtoeslag
   Als burger
   Wil ik weten of ik recht heb op zorgtoeslag
   Zodat ik de juiste toeslag kan ontvangen
@@ -33,9 +33,15 @@ Feature: Berekening Zorgtoeslag 2025
     And de volgende RVZ verzekeringen gegevens:
       | bsn       | polis_status |
       | 999993653 | ACTIEF       |
-    And de volgende BELASTINGDIENST inkomen gegevens:
-      | bsn       | box1  | box2 | box3 | buitenlands |
-      | 999993653 | 79547 | 0    | 0    | 0           |
+    And de volgende BELASTINGDIENST box1 gegevens:
+      | bsn       | loon_uit_dienstbetrekking | uitkeringen_en_pensioenen | winst_uit_onderneming | resultaat_overige_werkzaamheden | eigen_woning |
+      | 999993653 | 79547                     | 0                         | 0                     | 0                               | 0           |
+    And de volgende BELASTINGDIENST box2 gegevens:
+      | bsn       | reguliere_voordelen | vervreemdingsvoordelen |
+      | 999993653 | 0                   | 0                      |
+    And de volgende BELASTINGDIENST box3 gegevens:
+      | bsn       | spaargeld | beleggingen | onroerend_goed | schulden |
+      | 999993653 | 0         | 0           | 0              | 0        |
     When de zorgtoeslagwet wordt uitgevoerd door TOESLAGEN
     Then is het toeslagbedrag "1782.34" euro
 
@@ -49,12 +55,12 @@ Feature: Berekening Zorgtoeslag 2025
     And de volgende RVZ verzekeringen gegevens:
       | bsn       | polis_status |
       | 999993653 | ACTIEF       |
-    And de volgende BELASTINGDIENST inkomen gegevens:
-      | bsn       | box1  | box2 | box3 | buitenlands |
-      | 999993653 | 20000 | 0    | 0    | 0           |
-    And de volgende BELASTINGDIENST vermogen gegevens:
-      | bsn       | bezittingen | schulden |
-      | 999993653 | 10000       | 0        |
+    And de volgende BELASTINGDIENST box1 gegevens:
+      | bsn       | loon_uit_dienstbetrekking | uitkeringen_en_pensioenen | winst_uit_onderneming | resultaat_overige_werkzaamheden | eigen_woning |
+      | 999993653 | 20000                     | 0                         | 0                     | 0                               | 0           |
+    And de volgende BELASTINGDIENST box3 gegevens:
+      | bsn       | spaargeld | beleggingen | onroerend_goed | schulden |
+      | 999993653 | 10000     | 0           | 0              | 0        |
     When de zorgtoeslagwet wordt uitgevoerd door TOESLAGEN
     Then heeft de persoon recht op zorgtoeslag
     And is het toeslagbedrag "1811.28" euro
@@ -69,9 +75,9 @@ Feature: Berekening Zorgtoeslag 2025
     And de volgende RVZ verzekeringen gegevens:
       | bsn       | polis_status |
       | 999993653 | ACTIEF       |
-    And de volgende BELASTINGDIENST inkomen gegevens:
-      | bsn       | box1  | box2 | box3 | buitenlands |
-      | 999993653 | 15000 | 0    | 0    | 0           |
+    And de volgende BELASTINGDIENST box1 gegevens:
+      | bsn       | loon_uit_dienstbetrekking | uitkeringen_en_pensioenen | winst_uit_onderneming | resultaat_overige_werkzaamheden | eigen_woning |
+      | 999993653 | 15000                     | 0                         | 0                     | 0                               | 0           |
     And de volgende DUO inschrijvingen gegevens:
       | bsn       | onderwijstype |
       | 999993653 | WO            |
