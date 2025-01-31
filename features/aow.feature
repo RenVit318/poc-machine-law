@@ -28,8 +28,8 @@ Feature: AOW Pensioen Berekening 2025
       | bsn       | start_date | end_date   | type |
       | 999993653 | 2012-01-01 | 2014-01-01 | WW   |
     And de volgende CBS levensverwachting gegevens:
-      | bsn       | verwachting_65 |
-      | 999993653 | 20.5           |
+      | jaar | verwachting_65 |
+      | 2025 | 20.5           |
     When de algemene_ouderdomswet wordt uitgevoerd door SVB
     Then is voldaan aan de voorwaarden
     And is het pensioen "1324.80" euro
@@ -86,4 +86,4 @@ Feature: AOW Pensioen Berekening 2025
       | bsn       | woonperiodes |
       | 999993653 | 50           |
     When de algemene_ouderdomswet wordt uitgevoerd door SVB
-    Then is het pensioen "952.00" euro
+    Then is het pensioen "1210.00" euro

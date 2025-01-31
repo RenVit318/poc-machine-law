@@ -2,11 +2,11 @@ import functools
 import logging
 import operator
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime, date
 from typing import Any, Dict, List, Optional, Set, Union, TypeVar
-from unittest import result
 
 import pandas as pd
 
@@ -20,6 +20,7 @@ T = TypeVar('T')
 @dataclass
 class TypeSpec:
     """Specification for value types"""
+    type: Optional[str] = None
     unit: Optional[str] = None
     precision: Optional[int] = None
     min: Optional[Union[int, float]] = None
@@ -27,7 +28,14 @@ class TypeSpec:
 
     def enforce(self, value: Any) -> Any:
         """Enforce type specifications on a value"""
+        if self.type == "string":
+            return str(value)
+
         if value is None:
+            if self.type == "int":
+                return 0
+            if self.type == "float":
+                return 0.0
             return value
 
         # Convert to numeric if needed
@@ -127,6 +135,18 @@ class RuleContext:
             value = await self._resolve_date(path)
             if value is not None:
                 logger.debug(f"Resolved date ${path}: {value}")
+                return value
+
+            if "." in path:
+                root, rest = path.split(".", 1)
+                value = await self.resolve_value(f"${root}")
+                for p in rest.split("."):
+                    if value is None:
+                        logger.warning(f"Could not resolve value ${path}: None")
+                        return None
+                    value = value.get(p)
+
+                logger.debug(f"Resolved value ${path}: {value}")
                 return value
 
             # Check local scope first
@@ -310,6 +330,7 @@ class RulesEngine:
             if 'name' in output:
                 type_spec = output.get('type_spec', {})
                 specs[output['name']] = TypeSpec(
+                    type=output.get('type'),
                     unit=type_spec.get('unit'),
                     precision=type_spec.get('precision'),
                     min=type_spec.get('min'),
@@ -322,6 +343,109 @@ class RulesEngine:
         if name in self.output_specs:
             return self.output_specs[name].enforce(value)
         return value
+
+    @staticmethod
+    def topological_sort(dependencies: Dict[str, set]) -> List[str]:
+        """
+        Perform topological sort on dependencies.
+        Returns outputs in order they should be calculated.
+        """
+        # First create complete set of all nodes including leaf nodes
+        all_nodes = set(dependencies.keys())
+        for deps in dependencies.values():
+            all_nodes.update(deps)
+
+        # Initialize complete dependency map
+        complete_dependencies = {node: set() for node in all_nodes}
+        complete_dependencies.update(dependencies)
+
+        # Build adjacency list
+        graph = defaultdict(set)
+        for output, deps in complete_dependencies.items():
+            for dep in deps:
+                graph[dep].add(output)
+
+        # Find nodes with no dependencies
+        ready = [node for node, deps in complete_dependencies.items() if not deps]
+        sorted_outputs = []
+
+        while ready:
+            node = ready.pop(0)
+            sorted_outputs.append(node)
+
+            # Remove this node as dependency
+            dependents = graph[node]
+            for dependent in list(dependents):
+                complete_dependencies[dependent].remove(node)
+                # If no more dependencies, add to ready
+                if not complete_dependencies[dependent]:
+                    ready.append(dependent)
+                dependents.remove(dependent)
+
+        if any(deps for deps in complete_dependencies.values()):
+            raise ValueError("Circular dependency detected")
+
+        return sorted_outputs
+
+    @staticmethod
+    def analyze_dependencies(action):
+        """Find all outputs this action depends on"""
+        deps = set()
+
+        def traverse(obj):
+            if isinstance(obj, str):
+                if obj.startswith('$'):
+                    value = obj[1:]  # Remove $ prefix
+                    if value.islower():  # Output reference
+                        deps.add(value)
+            elif isinstance(obj, dict):
+                for v in obj.values():
+                    traverse(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    traverse(item)
+
+        traverse(action)
+        return deps
+
+    @staticmethod
+    def get_required_actions(requested_output: str, actions: list) -> list:
+        """Get all actions needed to compute requested output in dependency order"""
+        if not requested_output:
+            return actions
+
+        # Build dependency graph
+        dependencies = {}
+        action_by_output = {}
+        for action in actions:
+            output = action['output']
+            action_by_output[output] = action
+            dependencies[output] = RulesEngine.analyze_dependencies(action)
+
+        # Find all required outputs
+        required = set()
+        to_process = {requested_output}
+
+        while to_process:
+            output = to_process.pop()
+            required.add(output)
+            # Add dependencies to processing queue
+            deps = dependencies.get(output, set())
+            to_process.update(deps - required)
+
+        # Get execution order via topological sort
+        ordered_outputs = RulesEngine.topological_sort({
+            output: deps
+            for output, deps in dependencies.items()
+            if output in required
+        })
+
+        # Return actions in dependency order
+        return [
+            action_by_output[output]
+            for output in ordered_outputs
+            if output in action_by_output
+        ]
 
     async def evaluate(self, parameters: Optional[Dict[str, Any]] = None,
                        overwrite_input: Optional[Dict[str, Any]] = None,
@@ -360,15 +484,17 @@ class RulesEngine:
         output_values = {}
 
         if requirements_met:
-            for action in self.actions:
-                output_name = action['output']
-                if requested_output and requested_output != output_name:
-                    logger.debug(f"Skipping action {output_name}")
-                    continue
+            # Get required actions including dependencies in order
+            required_actions = self.get_required_actions(requested_output, self.actions)
+
+            for action in required_actions:
                 output_def, output_name = await self._evaluate_action(action, context)
                 context.outputs[output_name] = output_def['value']
                 output_values[output_name] = output_def
                 context.pop_path()
+
+        if not output_values:
+            logger.warning(f"No output values computed for {calculation_date} {requested_output}")
 
         return {
             'input': input_values,
@@ -499,7 +625,7 @@ class RulesEngine:
         array_data = await self._evaluate_value(operation['subject'], context)
         if not array_data:
             logger.warning("No data found to run FOREACH on")
-            return self._evaluate_arithmetic(combine, [])
+            return self._evaluate_aggregate_ops(combine, [])
 
         if not isinstance(array_data, list):
             array_data = [array_data]
@@ -513,7 +639,7 @@ class RulesEngine:
                     result = await self._evaluate_value(operation['value'][0], item_context)
                     values.extend(result if isinstance(result, list) else [result])
             logger.debug(f"Foreach values: {values}")
-            result = self._evaluate_arithmetic(combine, values)
+            result = self._evaluate_aggregate_ops(combine, values)
             logger.debug(f"Foreach result: {result}")
         return result
 
@@ -526,14 +652,15 @@ class RulesEngine:
         'LESS_OR_EQUAL': operator.le,
     }
 
-    ARITHMETIC_OPS = {
+    AGGREGATE_OPS = {
         'OR': any,
         'AND': all,
         'MIN': min,
         'MAX': max,
         'ADD': sum,
+        'CONCAT': lambda vals: ''.join(str(x) for x in vals),
         'MULTIPLY': lambda vals: functools.reduce(
-            lambda x, y: int(x * y) if isinstance(y, float) and y < 1 else x * y,
+            lambda x, y: int(x * y) if isinstance(y, int) and y < 1 else x * y,
             vals[1:],
             vals[0]
         ),
@@ -548,13 +675,18 @@ class RulesEngine:
     }
 
     @staticmethod
-    def _evaluate_arithmetic(op: str, values: List[Any]) -> Union[int, float]:
-        """Handle pure arithmetic operations"""
-        if not values or any(v is None for v in values):
-            logger.warning(f"No values found or some where None, returning 0 for {op}({values})")
+    def _evaluate_aggregate_ops(op: str, values: List[Any]) -> Union[int, float, bool]:
+        """Handle aggregate operations"""
+        filtered_values = [v for v in values if v is not None]
+
+        if not filtered_values:
+            logger.warning(f"No values found (or they where None), returning 0 for {op}({values})")
             return 0
-        result = RulesEngine.ARITHMETIC_OPS[op](values)
-        logger.debug(f"Compute {op}({values}) = {result}")
+        elif len(filtered_values) < len(values):
+            logger.warning(f"Dropped {len(values) - len(filtered_values)} values because they where None")
+
+        result = RulesEngine.AGGREGATE_OPS[op](filtered_values)
+        logger.debug(f"Compute {op}({filtered_values}) = {result}")
         return result
 
     @staticmethod
@@ -569,7 +701,8 @@ class RulesEngine:
         logger.debug(f"Compute {op}({left}, {right}) = {result}")
         return result
 
-    def _evaluate_date_operation(self, op: str, values: List[Any], unit: str) -> int:
+    @staticmethod
+    def _evaluate_date_operation(op: str, values: List[Any], unit: str) -> int:
         """Handle date-specific operations"""
         result = None
         if op == 'SUBTRACT_DATE':
@@ -644,7 +777,11 @@ class RulesEngine:
         )
         context.add_to_path(node)
 
-        if op_type == 'IF':
+        if op_type is None:
+            logger.warning(f"Operation type is None (or missing).")
+            result = None
+
+        elif op_type == 'IF':
             result = await self._evaluate_if_operation(operation, context)
 
         elif op_type == 'FOREACH':
@@ -674,8 +811,13 @@ class RulesEngine:
 
         elif op_type == 'AND':
             with logger.indent_block(f"AND"):
-
-                values = [await self._evaluate_value(v, context) for v in operation['values']]
+                values = []
+                for v in operation['values']:
+                    r = await self._evaluate_value(v, context)
+                    values.append(r)
+                    if not bool(r):
+                        logger.debug(f"False value found in an AND, no need to compute the rest, breaking.")
+                        break
                 result = all(bool(v) for v in values)
 
             node.details['evaluated_values'] = values
@@ -683,8 +825,13 @@ class RulesEngine:
 
         elif op_type == 'OR':
             with logger.indent_block(f"OR"):
-
-                values = [await self._evaluate_value(v, context) for v in operation['values']]
+                values = []
+                for v in operation['values']:
+                    r = await self._evaluate_value(v, context)
+                    values.append(r)
+                    if bool(r):
+                        logger.debug(f"True value found in an OR, no need to compute the other, breaking.")
+                        break
                 result = any(bool(v) for v in values)
             node.details['evaluated_values'] = values
             logger.debug(f"Result {[v for v in values]} OR: {result}")
@@ -703,7 +850,6 @@ class RulesEngine:
             subject = None
             value = None
 
-            # Handle comparison conditions
             if 'subject' in operation:
                 subject = await self._evaluate_value(operation['subject'], context)
                 value = await self._evaluate_value(operation['value'], context)
@@ -723,10 +869,9 @@ class RulesEngine:
                 'comparison_type': op_type
             })
 
-        elif op_type in self.ARITHMETIC_OPS and 'values' in operation:
-            # Handle arithmetic operations
+        elif op_type in self.AGGREGATE_OPS and 'values' in operation:
             values = [await self._evaluate_value(v, context) for v in operation['values']]
-            result = self._evaluate_arithmetic(op_type, values)
+            result = self._evaluate_aggregate_ops(op_type, values)
             node.details.update({
                 'raw_values': operation['values'],
                 'evaluated_values': values,
