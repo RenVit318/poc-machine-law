@@ -215,3 +215,21 @@ def step_impl(context):
 
     # Get the acceptatie for the main candidate
     context.test_data['CANDIDATE_ACCEPTANCE'] = df['acceptatie'].iloc[0]
+
+
+@then('is het bijstandsuitkeringsbedrag "{amount}" euro')
+def step_impl(context, amount):
+    actual_amount = context.result.output['benefit_amount']
+    compare_euro_amount(actual_amount, amount)
+
+
+@then('is de woonkostentoeslag "{amount}" euro')
+def step_impl(context, amount):
+    actual_amount = context.result.output['housing_assistance']
+    compare_euro_amount(actual_amount, amount)
+
+
+@then('is het startkapitaal "{amount}" euro')
+def step_impl(context, amount):
+    actual_amount = context.result.output['startup_assistance']
+    compare_euro_amount(actual_amount, amount)
