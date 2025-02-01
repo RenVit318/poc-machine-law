@@ -1,4 +1,5 @@
 # 🤖 Machine-leesbare Wetgeving
+![GitHub License](https://img.shields.io/github/license/minbzk/poc-machine-law)
 
 > Een proof-of-concept voor het omzetten van Nederlandse wetgeving naar machine-leesbare specificaties
 
@@ -105,12 +106,23 @@ Vooralsnog zijn deze wetten geïmplementeerd in `machine law` (met behulp van ee
 
 ## 🚀 Aan de slag
 
+Installeer eerst [uv](https://github.com/astral-sh/uv?tab=readme-ov-file#installation), installeer dan dependencies:
 ```bash
 git clone git@github.com:MinBZK/poc-machine-law.git
 cd poc-machine-law
 uv sync
+```
+
+Run features:
+```bash
 uv run behave features --no-capture -v --define log_level=DEBUG
 ```
+
+Run simulaties:
+```bash
+uv run simulate.py
+```
+
 
 ## 📂 Repository structuur
 
