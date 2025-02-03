@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Set, Union, TypeVar
 
 import pandas as pd
 
-from logging_config import IndentLogger
+from .logging_config import IndentLogger
 
 logger = IndentLogger(logging.getLogger('service'))
 
@@ -104,6 +104,7 @@ class RuleContext:
     overwrite_input: Dict[str, Any] = field(default_factory=dict)
     outputs: Dict[str, Any] = field(default_factory=dict)
     calculation_date: Optional[str] = None
+    resolved_paths: Dict[str, Any] = field(default_factory=dict)
 
     def track_access(self, path: str):
         """Track accessed data paths"""
@@ -121,6 +122,12 @@ class RuleContext:
             self.path.pop()
 
     async def resolve_value(self, path: str) -> Any:
+        value = await self._resolve_value(path)
+        if isinstance(path, str):
+            self.resolved_paths[path] = value
+        return value
+
+    async def _resolve_value(self, path: str) -> Any:
         """Resolve a value from definitions, services, or sources"""
 
         with logger.indent_block(f"Resolving {path}"):
@@ -296,7 +303,7 @@ class RulesEngine:
     def __init__(self, spec: Dict[str, Any], service_provider: Optional[AbstractServiceProvider] = None):
         self.spec = spec
         self.service_name = spec.get('service')
-        self.law = spec.get('law')
+        self.law = spec.get('../law')
         self.requirements = spec.get('requirements', [])
         self.actions = spec.get('actions', [])
         self.parameter_specs = spec.get('properties', {}).get('parameters', {})
@@ -480,9 +487,7 @@ class RulesEngine:
         requirements_node.result = requirements_met
         context.pop_path()
 
-        input_values = dict(context.values_cache)
         output_values = {}
-
         if requirements_met:
             # Get required actions including dependencies in order
             required_actions = self.get_required_actions(requested_output, self.actions)
@@ -497,7 +502,7 @@ class RulesEngine:
             logger.warning(f"No output values computed for {calculation_date} {requested_output}")
 
         return {
-            'input': input_values,
+            'input': context.resolved_paths,
             'output': output_values,
             'requirements_met': requirements_met,
             'path': root
@@ -690,15 +695,20 @@ class RulesEngine:
         return result
 
     @staticmethod
-    def _evaluate_comparison(op: str, left: Any, right: Any) -> bool:
+    def _evaluate_comparison(op: str, left: Any, right: Any) -> bool | None:
         """Handle comparison operations"""
         if isinstance(left, date) and isinstance(right, str):
             right = datetime.strptime(right, "%Y-%m-%d").date()
         elif isinstance(right, date) and isinstance(left, str):
             left = datetime.strptime(left, "%Y-%m-%d").date()
 
-        result = RulesEngine.COMPARISON_OPS[op](left, right)
-        logger.debug(f"Compute {op}({left}, {right}) = {result}")
+        try:
+            result = RulesEngine.COMPARISON_OPS[op](left, right)
+            logger.debug(f"Compute {op}({left}, {right}) = {result}")
+        except TypeError as e:
+            logger.warning(f"Error computing {op}({left}, {right}): {e}")
+            result = None
+
         return result
 
     @staticmethod

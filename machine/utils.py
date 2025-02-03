@@ -1,12 +1,11 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 from typing import Optional, List
 
 import yaml
 
-# BASE_URL = "https://gitlab.com/ai-validation/regelspraak/-/raw/master/rules"
 BASE_DIR = "law"
 
 
@@ -18,6 +17,7 @@ class RuleSpec:
     law: str
     valid_from: datetime
     service: str
+    discoverable: str
 
     @classmethod
     def from_yaml(cls, path: str) -> 'RuleSpec':
@@ -30,6 +30,7 @@ class RuleSpec:
             uuid=data.get('uuid', ''),
             name=data.get('name', ''),
             law=data.get('law', ''),
+            discoverable=data.get('discoverable', ''),
             valid_from=data.get('valid_from') if isinstance(data.get('valid_from'), datetime) else datetime.combine(
                 data.get('valid_from'), datetime.min.time()),
             service=data.get('service', '')
@@ -55,11 +56,17 @@ class RuleResolver:
                 print(f"Error loading rule from {path}: {e}")
 
         self.laws_by_service = defaultdict(set)
+        self.discoverable_laws_by_service = defaultdict(lambda: defaultdict(set))
         for rule in self.rules:
             self.laws_by_service[rule.service].add(rule.law)
+            if rule.discoverable:
+                self.discoverable_laws_by_service[rule.discoverable][rule.service].add(rule.law)
 
     def get_service_laws(self):
         return self.laws_by_service
+
+    def get_discoverable_service_laws(self, discoverable_by="CITIZEN"):
+        return self.discoverable_laws_by_service[discoverable_by]
 
     def find_rule(self, law: str, reference_date: str, service: str = None) -> Optional[RuleSpec]:
         """Find the applicable rule for a given law and reference date"""

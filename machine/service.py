@@ -1,12 +1,13 @@
 import logging
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
+
 import pandas as pd
 
-from engine import RulesEngine, AbstractServiceProvider
-from logging_config import IndentLogger
-from utils import RuleResolver
+from claims.application import ClaimsManager
+from .engine import RulesEngine, AbstractServiceProvider
+from .logging_config import IndentLogger
+from .utils import RuleResolver
 
 logger = IndentLogger(logging.getLogger('service'))
 
@@ -126,11 +127,14 @@ class RuleService:
 
 
 class Services(AbstractServiceProvider):
-    def __init__(self, reference_date: str):
+    def __init__(self, reference_date: str, manager: ClaimsManager = None):
         self.resolver = RuleResolver()
-        self.service_laws = self.resolver.get_service_laws()
-        self.services = {service: RuleService(service, self) for service in self.service_laws}
+        self.services = {service: RuleService(service, self) for service in self.resolver.get_service_laws()}
         self.root_reference_date = reference_date
+        self.manager = manager
+
+    def get_discoverable_service_laws(self):
+        return self.resolver.get_discoverable_service_laws()
 
     def set_source_dataframe(self, service: str, table: str, df: pd.DataFrame):
         """Set a source DataFrame for a service"""

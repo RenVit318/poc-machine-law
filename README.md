@@ -126,8 +126,8 @@ uv run simulate.py
 
 ## 📂 Repository structuur
 
-- `/law` - Machine-leesbare wetspecificaties
-- `/engine.py` - De wetgevingsengine die specificaties uitvoert
+- [law](law) - Machine-leesbare wetspecificaties
+- [engine.py](machine/engine.py) - De wetgevingsengine die specificaties uitvoert
 
 ## 🛣️ Roadmap
 
