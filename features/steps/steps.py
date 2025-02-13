@@ -329,3 +329,14 @@ def step_impl(context, reason):
         case.objection_status.get("not_possible_reason"),
         "Expected reasons to match",
     )
+
+
+@then("kan de burger in beroep gaan bij {competent_court}")
+def step_impl(context, competent_court):
+    case = context.services.manager.get_case_by_id(context.case_id)
+    assertions.assertTrue(case.can_appeal(), "Expected to be able to appeal")
+    assertions.assertEqual(
+        competent_court,
+        case.appeal_status.get("competent_court"),
+        "Expected another competent court",
+    )
