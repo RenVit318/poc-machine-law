@@ -2,7 +2,8 @@ import json
 from urllib.parse import unquote
 
 import pandas as pd
-from fastapi import APIRouter, Request, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from jinja2 import TemplateNotFound
 
 from explain.llm_service import llm_service
 from machine.service import Services
@@ -22,7 +23,7 @@ def get_tile_template(service: str, law: str) -> str:
     try:
         templates.get_template(specific_template)
         return specific_template
-    except:
+    except TemplateNotFound:
         return "partials/tiles/fallback_tile.html"
 
 
@@ -51,17 +52,17 @@ async def evaluate_law(bsn: str, law: str, service: str, services: Services):
 
 @router.get("/execute")
 async def execute_law(
-        request: Request,
-        service: str,
-        law: str,
-        bsn: str,
-        services: Services = Depends(get_services)
+    request: Request,
+    service: str,
+    law: str,
+    bsn: str,
+    services: Services = Depends(get_services),
 ):
     """Execute a law and render its result"""
     try:
         law = unquote(law)
         law, result, rule_spec = await evaluate_law(bsn, law, service, services)
-    except Exception as e:
+    except Exception:
         return templates.TemplateResponse(
             get_tile_template(service, law),
             {
@@ -69,9 +70,9 @@ async def execute_law(
                 "bsn": bsn,
                 "law": law,
                 "service": service,
-                "rule_spec": {"name": law.split('/')[-1].replace('_', ' ').title()},
-                "error": True
-            }
+                "rule_spec": {"name": law.split("/")[-1].replace("_", " ").title()},
+                "error": True,
+            },
         )
 
     # Check if there's an existing case
@@ -91,18 +92,18 @@ async def execute_law(
             "result": result.output,
             "input": result.input,
             "requirements_met": result.requirements_met,
-            "current_case": existing_case
-        }
+            "current_case": existing_case,
+        },
     )
 
 
 @router.post("/submit-case")
 async def submit_case(
-        request: Request,
-        service: str,
-        law: str,
-        bsn: str,
-        services: Services = Depends(get_services)
+    request: Request,
+    service: str,
+    law: str,
+    bsn: str,
+    services: Services = Depends(get_services),
 ):
     """Submit a new case"""
     law = unquote(law)
@@ -115,7 +116,7 @@ async def submit_case(
         service_type=service,
         law=law,
         parameters=result.input,
-        claimed_result=result.output  # The citizen claims the calculated result
+        claimed_result=result.output,  # The citizen claims the calculated result
     )
     case = services.manager.get_case_by_id(case_id)
 
@@ -132,19 +133,19 @@ async def submit_case(
             "input": result.input,
             "requirements_met": result.requirements_met,
             "current_case": case,
-        }
+        },
     )
 
 
 @router.post("/objection-case")
 async def objection_case(
-        request: Request,
-        case_id: str,
-        service: str,
-        law: str,
-        bsn: str,
-        reason: str = Form(...),  # Changed this line to use Form
-        services: Services = Depends(get_services)
+    request: Request,
+    case_id: str,
+    service: str,
+    law: str,
+    bsn: str,
+    reason: str = Form(...),  # Changed this line to use Form
+    services: Services = Depends(get_services),
 ):
     """Submit an objection for an existing case"""
     # First calculate the new result with disputed parameters
@@ -171,8 +172,8 @@ async def objection_case(
             "result": result.output,
             "input": result.input,
             "requirements_met": result.requirements_met,
-            "current_case": services.manager.get_case_by_id(case_id)
-        }
+            "current_case": services.manager.get_case_by_id(case_id),
+        },
     )
 
 
@@ -185,17 +186,17 @@ def node_to_dict(node):
         "name": node.name,
         "result": str(node.result),
         "details": {k: str(v) for k, v in node.details.items()},
-        "children": [node_to_dict(child) for child in node.children]
+        "children": [node_to_dict(child) for child in node.children],
     }
 
 
 @router.get("/explain-path")
 async def explain_path(
-        request: Request,
-        service: str,
-        law: str,
-        bsn: str,
-        services: Services = Depends(get_services)
+    request: Request,
+    service: str,
+    law: str,
+    bsn: str,
+    services: Services = Depends(get_services),
 ):
     """Get a citizen-friendly explanation of the rule evaluation path"""
     try:
@@ -214,7 +215,7 @@ async def explain_path(
                 "input": rule_spec.get("properties", {}).get("input", []),
                 "output": rule_spec.get("properties", {}).get("output", []),
                 "parameters": rule_spec.get("properties", {}).get("parameters", []),
-                "definitions": rule_spec.get("properties", {}).get("definitions", [])
+                "definitions": rule_spec.get("properties", {}).get("definitions", []),
             },
             "requirements": rule_spec.get("requirements"),
             "actions": rule_spec.get("actions"),
@@ -234,8 +235,8 @@ async def explain_path(
                 "rule_spec": rule_spec,
                 "input": result.input,
                 "result": result.output,
-                "requirements_met": result.requirements_met
-            }
+                "requirements_met": result.requirements_met,
+            },
         )
     except Exception as e:
         print(f"Error in explain_path: {e}")
@@ -245,6 +246,6 @@ async def explain_path(
                 "request": request,
                 "error": "Er is een fout opgetreden bij het genereren van de uitleg. Probeer het later opnieuw.",
                 "service": service,
-                "law": law
-            }
+                "law": law,
+            },
         )

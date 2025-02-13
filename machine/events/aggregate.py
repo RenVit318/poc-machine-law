@@ -1,6 +1,4 @@
 from enum import Enum
-from enum import Enum
-from typing import Dict, List, Optional
 
 from eventsourcing.domain import Aggregate, event
 from eventsourcing.persistence import Transcoding
@@ -16,7 +14,7 @@ class CaseStatus(str, Enum):
 class ClaimStatusTranscoding(Transcoding):
     @staticmethod
     def can_handle(obj: object) -> bool:
-        return isinstance(obj, (CaseStatus, str))
+        return isinstance(obj, CaseStatus | str)
 
     @staticmethod
     def encode(obj: CaseStatus) -> str:
@@ -43,14 +41,16 @@ def get_status_value(status) -> str:
 
 
 class ServiceCase(Aggregate):
-    @event('Submitted')
-    def __init__(self,
-                 bsn: str,
-                 service_type: str,
-                 law: str,
-                 parameters: Dict,
-                 claimed_result: Dict,
-                 rulespec_uuid: str):
+    @event("Submitted")
+    def __init__(
+        self,
+        bsn: str,
+        service_type: str,
+        law: str,
+        parameters: dict,
+        claimed_result: dict,
+        rulespec_uuid: str,
+    ) -> None:
         self.bsn = bsn
         self.service = service_type
         self.law = law
@@ -68,11 +68,8 @@ class ServiceCase(Aggregate):
         self.approved = None
         self.status = CaseStatus.SUBMITTED
 
-    @event('AutomaticallyDecided')
-    def decide_automatically(self,
-                             verified_result: Dict,
-                             parameters: Dict,
-                             approved: bool):
+    @event("AutomaticallyDecided")
+    def decide_automatically(self, verified_result: dict, parameters: dict, approved: bool) -> None:
         if self.status not in [CaseStatus.SUBMITTED, CaseStatus.OBJECTED]:
             raise ValueError("Can only automatically decide on submitted cases or objections")
         self.verified_result = verified_result
@@ -80,12 +77,10 @@ class ServiceCase(Aggregate):
         self.status = CaseStatus.DECIDED
         self.approved = approved
 
-    @event('AddedToManualReview')
-    def select_for_manual_review(self,
-                                 verifier_id: str,
-                                 reason: str,
-                                 claimed_result: Dict,
-                                 verified_result: Dict):
+    @event("AddedToManualReview")
+    def select_for_manual_review(
+        self, verifier_id: str, reason: str, claimed_result: dict, verified_result: dict
+    ) -> None:
         if self.status not in [CaseStatus.SUBMITTED, CaseStatus.OBJECTED]:
             raise ValueError("Can only add to review from submitted status or objection")
         self.status = CaseStatus.IN_REVIEW
@@ -94,11 +89,8 @@ class ServiceCase(Aggregate):
         self.reason = reason
         self.verifier_id = verifier_id
 
-    @event('Decided')
-    def decide(self,
-               verified_result: Dict,
-               reason: str,
-               verifier_id: str, approved: bool):
+    @event("Decided")
+    def decide(self, verified_result: dict, reason: str, verifier_id: str, approved: bool) -> None:
         if self.status not in [CaseStatus.IN_REVIEW, CaseStatus.OBJECTED]:
             raise ValueError("Can only manually decide on cases in review or objections")
         self.status = CaseStatus.DECIDED
@@ -107,23 +99,24 @@ class ServiceCase(Aggregate):
         self.verified_result = verified_result
         self.verifier_id = verifier_id
 
-    @event('Objected')
-    def object(self,
-               reason: str):
+    @event("Objected")
+    def object(self, reason: str) -> None:
         if self.status != CaseStatus.DECIDED:
             raise ValueError("Can only objection decided cases")
         self.status = CaseStatus.OBJECTED
         self.reason = reason
 
-    @event('ObjectionStatusDetermined')
-    def determine_objection_status(self,
-                                   possible: Optional[bool] = None,  # bezwaar_mogelijk
-                                   not_possible_reason: Optional[str] = None,  # reden_niet_mogelijk
-                                   objection_period: Optional[int] = None,  # bezwaartermijn in weeks
-                                   decision_period: Optional[int] = None,  # beslistermijn in weeks
-                                   extension_period: Optional[int] = None):  # verdagingstermijn in weeks
+    @event("ObjectionStatusDetermined")
+    def determine_objection_status(
+        self,
+        possible: bool | None = None,  # bezwaar_mogelijk
+        not_possible_reason: str | None = None,  # reden_niet_mogelijk
+        objection_period: int | None = None,  # bezwaartermijn in weeks
+        decision_period: int | None = None,  # beslistermijn in weeks
+        extension_period: int | None = None,
+    ) -> None:  # verdagingstermijn in weeks
         """Determine the objection status and periods"""
-        if not hasattr(self, 'objection_status') or self.objection_status is None:
+        if not hasattr(self, "objection_status") or self.objection_status is None:
             self.objection_status = {}
 
         updates = {}
@@ -140,10 +133,10 @@ class ServiceCase(Aggregate):
 
         self.objection_status.update(updates)
 
-    @event('ObjectionAdmissibilityDetermined')
-    def determine_objection_admissibility(self, admissible: Optional[bool] = None):
+    @event("ObjectionAdmissibilityDetermined")
+    def determine_objection_admissibility(self, admissible: bool | None = None) -> None:
         """Determine whether an objection is admissible (ontvankelijk)"""
-        if not hasattr(self, 'objection_status') or self.objection_status is None:
+        if not hasattr(self, "objection_status") or self.objection_status is None:
             self.objection_status = {}
 
         if admissible is not None:
@@ -157,6 +150,6 @@ class ServiceCase(Aggregate):
         - possible flag is not set
         - possible flag is explicitly set to False
         """
-        if not hasattr(self, 'objection_status') or self.objection_status is None:
+        if not hasattr(self, "objection_status") or self.objection_status is None:
             return False
-        return bool(self.objection_status.get('possible', False))
+        return bool(self.objection_status.get("possible", False))
