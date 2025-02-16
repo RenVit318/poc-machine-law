@@ -71,6 +71,61 @@ class PathNode:
     children: list["PathNode"] = field(default_factory=list)
 
 
+def flatten_path_nodes(root):
+    def is_path_node(obj):
+        return isinstance(obj, PathNode)
+
+    # Iterative flattening approach
+    flattened = {}
+    stack = [(root, None)]
+
+    while stack:
+        node, service_parent = stack.pop()
+
+        if not is_path_node(node):
+            continue
+
+        path = node.details.get("path")
+        if isinstance(path, str) and path.startswith("$"):
+            path = path[1:]
+
+        # Handle resolve nodes
+        if node.type == "resolve" and path and isinstance(path, str):
+            resolve_entry = {
+                "result": node.result,
+            }
+
+            if service_parent and path not in service_parent.setdefault("children", {}):
+                service_parent.setdefault("children", {})[path] = resolve_entry
+            elif path not in flattened:
+                flattened[path] = resolve_entry
+
+        # Handle service_evaluation nodes
+        elif node.type == "service_evaluation" and path and isinstance(path, str):
+            service_entry = {
+                "result": node.result,
+                "service": node.details.get("service"),
+                "law": node.details.get("law"),
+                "children": {},
+            }
+
+            if service_parent:
+                service_parent.setdefault("children", {})[path] = service_entry
+            else:
+                flattened[path] = service_entry
+
+            # Prepare to process children with this service_evaluation as parent
+            for child in reversed(node.children):
+                stack.append((child, service_entry))
+            continue
+
+        # Add children to the stack for further processing
+        for child in reversed(node.children):
+            stack.append((child, service_parent))
+
+    return flattened
+
+
 @dataclass
 class RuleContext:
     """Context for rule evaluation"""
@@ -269,18 +324,42 @@ class RuleContext:
 
         logger.debug(f"Resolving from {service_ref['service']} field {service_ref['field']} ({parameters})")
 
-        result = await self.service_provider.evaluate(
-            service_ref["service"],
-            service_ref["law"],
-            parameters,
-            reference_date,
-            self.overwrite_input,
-            requested_output=service_ref["field"],
+        # Create service evaluation node
+        service_node = PathNode(
+            type="service_evaluation",
+            name=f"Service call: {service_ref['service']}.{service_ref['law']}",
+            result=None,
+            details={
+                "service": service_ref["service"],
+                "law": service_ref["law"],
+                "field": service_ref["field"],
+                "reference_date": reference_date,
+                "parameters": parameters,
+                "path": path,
+            },
         )
+        self.add_to_path(service_node)
 
-        value = result.output.get(service_ref["field"])
-        self.values_cache[cache_key] = value
-        return value
+        try:
+            result = await self.service_provider.evaluate(
+                service_ref["service"],
+                service_ref["law"],
+                parameters,
+                reference_date,
+                self.overwrite_input,
+                requested_output=service_ref["field"],
+            )
+
+            value = result.output.get(service_ref["field"])
+            self.values_cache[cache_key] = value
+
+            # Update the service node with the result and add child path
+            service_node.result = value
+            service_node.children.append(result.path)
+
+            return value
+        finally:
+            self.pop_path()
 
     async def _resolve_from_source(self, source_ref, table, df):
         if "select_on" in source_ref:
