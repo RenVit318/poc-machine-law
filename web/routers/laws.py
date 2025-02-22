@@ -47,7 +47,7 @@ async def evaluate_law(bsn: str, law: str, service: str, services: Services):
             services.set_source_dataframe(service_name, table_name, df)
 
     # Execute the law
-    result = await services.evaluate(service, law=law, parameters={"BSN": bsn}, reference_date=TODAY)
+    result = await services.evaluate(service, law=law, parameters={"BSN": bsn}, reference_date=TODAY, approved=True)
     return law, result, rule_spec
 
 
@@ -206,6 +206,9 @@ async def explain_panel(
         flat_path = flatten_path_nodes(result.path)
         existing_case = services.case_manager.get_case(bsn, service, law)
 
+        claims = services.claim_manager.get_claims_by_bsn(bsn, include_rejected=True)
+        claim_map = {(claim.service, claim.law, claim.key): claim for claim in claims}
+
         return templates.TemplateResponse(
             "partials/tiles/components/explanation_panel.html",
             {
@@ -219,6 +222,7 @@ async def explain_panel(
                 "path": flat_path,
                 "bsn": bsn,
                 "current_case": existing_case,
+                "claim_map": claim_map,
             },
         )
     except Exception as e:

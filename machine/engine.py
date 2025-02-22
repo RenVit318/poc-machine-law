@@ -168,6 +168,7 @@ class RulesEngine:
         sources: dict[str, pd.DataFrame] | None = None,
         calculation_date=None,
         requested_output: str | None = None,
+        approved: bool = False,
     ) -> dict[str, Any]:
         """Evaluate rules using service context and sources"""
         parameters = parameters or {}
@@ -181,7 +182,9 @@ class RulesEngine:
         claims = None
         if "BSN" in parameters:
             bsn = parameters["BSN"]
-            claims = self.service_provider.claim_manager.get_claim_by_bsn_service_law(bsn, self.service_name, self.law)
+            claims = self.service_provider.claim_manager.get_claim_by_bsn_service_law(
+                bsn, self.service_name, self.law, approved=approved
+            )
 
         context = RuleContext(
             definitions=self.definitions,
