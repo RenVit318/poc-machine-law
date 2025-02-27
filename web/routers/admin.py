@@ -1,3 +1,5 @@
+import os
+import sys
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -28,6 +30,26 @@ async def admin_redirect(request: Request, services: Services = Depends(get_serv
     discoverable_laws = services.get_discoverable_service_laws()
     available_services = list(discoverable_laws.keys())
     return RedirectResponse(f"/admin/{available_services[0]}")
+
+
+@router.get("/reset")
+async def reset(request: Request, services: Services = Depends(get_services)):
+    """Show a button to reset the state of the application"""
+
+    return templates.TemplateResponse(
+        "admin/reset.html",
+        {
+            "request": request,
+        },
+    )
+
+
+@router.post("/reset")
+async def post_reset(request: Request, services: Services = Depends(get_services)):
+    """Reset the state of the application"""
+
+    # Restart the application. Note: the state of the application is stored in such a complicated way in memory that it is easier to just restart the application
+    os.execl(sys.executable, sys.executable, *sys.argv)
 
 
 @router.get("/{service}")
