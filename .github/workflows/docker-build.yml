@@ -1,0 +1,24 @@
+name: Docker Build Validation with Kaniko
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Kaniko build
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: amd64
+
+    - name: Run Kaniko build
+      uses: int128/kaniko-action@v1
+      with:
+        push: false
+        dockerfile: Dockerfile
+        context: .
