@@ -149,9 +149,18 @@ Installeer alle dependencies:
 uv sync
 ```
 
-Run features:
+Run behavior tests:
 ```bash
-uv run behave features --no-capture -v --define log_level=DEBUG
+script/test-behaviour
+```
+
+Run UI tests
+```bash
+# Install Playwright
+playwright install
+
+# Run tests
+script/test-ui
 ```
 
 Run simulaties:
