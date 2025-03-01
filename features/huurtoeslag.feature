@@ -14,7 +14,6 @@ Feature: Berekening Huurtoeslag
     And de volgende RvIG relaties gegevens:
       | bsn       | partnerschap_type | partner_bsn |
       | 111111111 | GEEN              | null        |
-    And met een kale huur 500 en servicekosten 40 waarvan 40 meetellen
     When de wet_op_de_huurtoeslag wordt uitgevoerd door TOESLAGEN
     Then is niet voldaan aan de voorwaarden
 
@@ -29,9 +28,17 @@ Feature: Berekening Huurtoeslag
     And de volgende BELASTINGDIENST box1 gegevens:
       | bsn       | loon_uit_dienstbetrekking |
       | 222222222 | 1400000                   |
-    And met een kale huur 720 en servicekosten 50 waarvan 48 meetellen
-    When de wet_op_de_huurtoeslag wordt uitgevoerd door TOESLAGEN
-    Then heeft de persoon recht op huurtoeslag
+    When de wet_op_de_huurtoeslag wordt uitgevoerd door TOESLAGEN met wijzigingen
+    Then ontbreken er verplichte gegevens
+    And is niet voldaan aan de voorwaarden
+    When de burger deze gegevens indient:
+      | service   | law                   | key                    | nieuwe_waarde | reden               | bewijs |
+      | TOESLAGEN | wet_op_de_huurtoeslag | RENT_AMOUNT            | 72000         | verplichte gegevens |        |
+      | TOESLAGEN | wet_op_de_huurtoeslag | SERVICE_COSTS          | 5000          | verplichte gegevens |        |
+      | TOESLAGEN | wet_op_de_huurtoeslag | ELIGIBLE_SERVICE_COSTS | 4800          | verplichte gegevens |        |
+    When de wet_op_de_huurtoeslag wordt uitgevoerd door TOESLAGEN met wijzigingen
+    Then ontbreken er geen verplichte gegevens
+    And heeft de persoon recht op huurtoeslag
     And is de huurtoeslag "89.60" euro
 
   Scenario: Te hoog inkomen voor huurtoeslag
@@ -45,6 +52,10 @@ Feature: Berekening Huurtoeslag
     And de volgende BELASTINGDIENST box1 gegevens:
       | bsn       | loon_uit_dienstbetrekking |
       | 333333333 | 4500000                   |
-    And met een kale huur 650 en servicekosten 50 waarvan 48 meetellen
-    When de wet_op_de_huurtoeslag wordt uitgevoerd door TOESLAGEN
+    When de burger deze gegevens indient:
+      | service   | law                   | key                    | nieuwe_waarde | reden               | bewijs |
+      | TOESLAGEN | wet_op_de_huurtoeslag | RENT_AMOUNT            | 65000         | verplichte gegevens |        |
+      | TOESLAGEN | wet_op_de_huurtoeslag | SERVICE_COSTS          | 5000          | verplichte gegevens |        |
+      | TOESLAGEN | wet_op_de_huurtoeslag | ELIGIBLE_SERVICE_COSTS | 4800          | verplichte gegevens |        |
+    When de wet_op_de_huurtoeslag wordt uitgevoerd door TOESLAGEN met wijzigingen
     Then is niet voldaan aan de voorwaarden

@@ -219,6 +219,14 @@ class RulesEngine:
                 output_def, output_name = await self._evaluate_action(action, context)
                 context.outputs[output_name] = output_def["value"]
                 output_values[output_name] = output_def
+                if context.missing_required:
+                    logger.warning("Missing required values, breaking")
+                    break
+
+        if context.missing_required:
+            logger.warning("Missing required values, requirements not met, setting outputs to empty.")
+            output_values = {}
+            requirements_met = False
 
         if not output_values:
             logger.warning(f"No output values computed for {calculation_date} {requested_output}")
@@ -297,12 +305,24 @@ class RulesEngine:
                     for r in req["all"]:
                         result = await self._evaluate_requirements([r], context)
                         results.append(result)
+                        if not bool(result):
+                            logger.debug("False value found in an ALL, no need to compute the rest, breaking.")
+                            break
+                        if context.missing_required:
+                            logger.warning("Missing required values, breaking")
+                            break
                     result = all(results)
                 elif "or" in req:
                     results = []
                     for r in req["or"]:
                         result = await self._evaluate_requirements([r], context)
                         results.append(result)
+                        if bool(result):
+                            logger.debug("True value found in an OR, no need to compute the rest, breaking.")
+                            break
+                        if context.missing_required:
+                            logger.warning("Missing required values, breaking")
+                            break
                     result = any(results)
                 else:
                     result = await self._evaluate_operation(req, context)
