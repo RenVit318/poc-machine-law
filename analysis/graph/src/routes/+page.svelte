@@ -219,6 +219,8 @@ This means that the parent container needs a height to render the flow.
 </div>
 
 <style lang="postcss">
+  @reference "tailwindcss/theme";
+
   :global(.root) {
     @apply bg-blue-50;
   }
