@@ -1,7 +1,7 @@
 # 🤖 Machine-leesbare Wetgeving
 ![GitHub License](https://img.shields.io/github/license/minbzk/poc-machine-law)
 
-> Een proof-of-concept voor het omzetten van Nederlandse wetgeving naar machine-leesbare specificaties
+> Een proof-of-concept voor het uitvoeren van machine-leesbare specificaties vanNederlandse wetgeving.  
 
 ## 💡 Motivatie
 
@@ -69,7 +69,7 @@ Deze wetten zijn algoritmes vermomd als tekst. Dit leidt tot drie problemen:
 
 ## 🔄 Voortbouwen op regels.overheid.nl
 
-Dit experiment bouwt voort op [regels.overheid.nl](https://regels.overheid.nl/). Waar regels.overheid.nl zich vooral
+Dit project bouwt voort op [regels.overheid.nl](https://regels.overheid.nl/). Waar regels.overheid.nl zich vooral
 richt
 op het documenteren en publiceren van wetten, gaan wij een stap verder:
 
