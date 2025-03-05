@@ -15,6 +15,17 @@
   // Import the styles for Svelte Flow to work
   import '@xyflow/svelte/dist/style.css';
 
+  type Law = {
+    uuid: string;
+    name: string;
+    service: string;
+    properties: {
+      sources?: { name: string }[];
+      input?: { name: string; service_reference?: { service: string; field: string } }[];
+      output?: { name: string }[];
+    };
+  };
+
   // Define the paths to the YAML files
   const filePaths = [
     '/law/wet_inkomstenbelasting/BELASTINGDIENST-2001-01-01.yaml',
@@ -39,18 +50,38 @@
       // Initialize a Set to store unique service names
       const uniqueServices = new Set<string>();
 
-      for (const filePath of filePaths) {
-        // Read the file content
-        const fileContent = await fetch(filePath).then((response) => response.text());
+      const laws: Law[] = await Promise.all(
+        filePaths.map(async (filePath) => {
+          // Read the file content
+          const fileContent = await fetch(filePath).then((response) => response.text());
 
-        // Parse the YAML content
-        const data = yaml.parse(fileContent);
+          // Parse the YAML content
+          const law = yaml.parse(fileContent) as Law;
 
-        // console.log('data', data);
+          // Add the service name to the Set of unique services
+          uniqueServices.add(law.service);
 
-        // Add the service name to the Set of unique services
-        uniqueServices.add(data.service);
+          return law;
+        }),
+      );
 
+      // Sort the laws (topological sort)
+      laws.sort((a, b) => {
+        return (
+          (
+            a.properties.input?.filter((input) =>
+              uniqueServices.has(input.service_reference?.service as string),
+            ) || []
+          ).length -
+          (
+            b.properties.input?.filter((input) =>
+              uniqueServices.has(input.service_reference?.service as string),
+            ) || []
+          ).length
+        );
+      });
+
+      for (const data of laws) {
         const lawID = data.uuid;
 
         // Add parent nodes
@@ -62,10 +93,10 @@
           width: 340,
           height:
             Math.max(
-              ((data.properties.sources?.length || 0) + (data.properties.input?.length || 0)) * 50 + 70,
+              ((data.properties.sources?.length || 0) + (data.properties.input?.length || 0)) * 50 +
+                70,
               (data.properties.output?.length || 0) * 50,
-            ) +
-            120,
+            ) + 120,
           class: 'root',
         });
 
