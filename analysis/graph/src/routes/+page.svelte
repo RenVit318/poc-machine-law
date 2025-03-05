@@ -47,8 +47,8 @@
       const ns: Node[] = [];
       const es: Edge[] = [];
 
-      // Initialize a Set to store unique service names
-      const uniqueServices = new Set<string>();
+      // Initialize a map of service names to their UUIDs
+      const serviceToUUIDsMap = new Map<string, string[]>();
 
       const laws: Law[] = await Promise.all(
         filePaths.map(async (filePath) => {
@@ -58,8 +58,13 @@
           // Parse the YAML content
           const law = yaml.parse(fileContent) as Law;
 
-          // Add the service name to the Set of unique services
-          uniqueServices.add(law.service);
+          // Populate the map with the service names and their corresponding UUIDs
+          const current = serviceToUUIDsMap.get(law.service);
+          if (current) {
+            serviceToUUIDsMap.set(law.service, [...current, law.uuid]);
+          } else {
+            serviceToUUIDsMap.set(law.service, [law.uuid]);
+          }
 
           return law;
         }),
@@ -70,12 +75,12 @@
         return (
           (
             a.properties.input?.filter((input) =>
-              uniqueServices.has(input.service_reference?.service as string),
+              serviceToUUIDsMap.has(input.service_reference?.service as string),
             ) || []
           ).length -
           (
             b.properties.input?.filter((input) =>
-              uniqueServices.has(input.service_reference?.service as string),
+              serviceToUUIDsMap.has(input.service_reference?.service as string),
             ) || []
           ).length
         );
@@ -101,7 +106,7 @@
         });
 
         // Sources
-        const sourcesID = `${data.service}-sources`;
+        const sourcesID = `${data.uuid}-sources`;
 
         ns.push({
           id: sourcesID,
@@ -120,7 +125,7 @@
 
         for (const source of data.properties.sources || []) {
           ns.push({
-            id: `${data.service}-source-${source.name}`,
+            id: `${data.uuid}-source-${source.name}`,
             type: 'input',
             data: { label: source.name },
             position: { x: 10, y: (j++ + 1) * 50 },
@@ -132,7 +137,7 @@
         }
 
         // Input
-        const inputsID = `${data.service}-input`;
+        const inputsID = `${data.uuid}-input`;
 
         ns.push({
           id: inputsID,
@@ -150,7 +155,7 @@
         j = 0;
 
         for (const input of data.properties.input || []) {
-          const inputID = `${data.service}-input-${input.name};`;
+          const inputID = `${data.uuid}-input-${input.name};`;
 
           ns.push({
             id: inputID,
@@ -166,23 +171,25 @@
           // If the input has a service reference, show it with an edge
           const ref = input.service_reference;
           if (ref) {
-            const target = `${ref.service}-output-${ref.field}`;
-            es.push({
-              id: `${inputID}-${target}`,
-              source: inputID,
-              target: target,
-              data: { refersToService: ref.service },
-              type: 'bezier',
-              markerEnd: {
-                type: MarkerType.ArrowClosed,
-              },
-              zIndex: 1,
-            });
+            for (const uuid of serviceToUUIDsMap.get(ref.service) || []) {
+              const target = `${uuid}-output-${ref.field}`;
+              es.push({
+                id: `${inputID}-${target}`,
+                source: inputID,
+                target: target,
+                data: { refersToService: ref.service },
+                type: 'bezier',
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                },
+                zIndex: 1,
+              });
+            }
           }
         }
 
         // Output
-        const outputsID = `${data.service}-output`;
+        const outputsID = `${data.uuid}-output`;
 
         ns.push({
           id: outputsID,
@@ -201,7 +208,7 @@
 
         for (const output of data.properties.output || []) {
           ns.push({
-            id: `${data.service}-output-${output.name}`,
+            id: `${data.uuid}-output-${output.name}`,
             type: 'output',
             data: { label: output.name },
             position: { x: 10, y: (j++ + 1) * 50 },
@@ -216,8 +223,8 @@
       // Add the nodes to the graph
       $nodes = ns;
 
-      // Add the edges to the graph, but only those that refer to services that are in the Set of unique services
-      $edges = es.filter((edge) => uniqueServices.has(edge.data!.refersToService as string));
+      // Add the edges to the graph
+      $edges = es;
     } catch (error) {
       console.error('Error reading file', error);
     }
