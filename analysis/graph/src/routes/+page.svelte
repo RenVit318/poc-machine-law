@@ -28,13 +28,28 @@
 
   // Define the paths to the YAML files
   const filePaths = [
-    '/law/wet_inkomstenbelasting/BELASTINGDIENST-2001-01-01.yaml',
-    '/law/wet_brp/RvIG-2020-01-01.yaml',
-    '/law/zvw/RVZ-2024-01-01.yaml',
-    '/law/wet_inkomstenbelasting/UWV-2020-01-01.yaml',
+    '/law/algemene_ouderdomswet/SVB-2024-01-01.yaml',
+    '/law/algemene_ouderdomswet/leeftijdsbepaling/SVB-2024-01-01.yaml',
+    '/law/awb/beroep/JenV-2024-01-01.yaml',
+    '/law/awb/bezwaar/JenV-2024-01-01.yaml',
+    '/law/handelsregisterwet/KVK-2024-01-01.yaml',
+    '/law/kieswet/KIESRAAD-2024-01-01.yaml',
+    '/law/participatiewet/bijstand/SZW-2023-01-01.yaml',
+    '/law/participatiewet/bijstand/gemeenten/GEMEENTE_AMSTERDAM-2023-01-01.yaml',
     '/law/penitentiaire_beginselenwet/DJI-2022-01-01.yaml',
+    '/law/vreemdelingenwet/IND-2024-01-01.yaml',
+    '/law/wet_brp/RvIG-2020-01-01.yaml',
     '/law/wet_forensische_zorg/DJI-2022-01-01.yaml',
+    '/law/wet_inkomstenbelasting/BELASTINGDIENST-2001-01-01.yaml',
+    '/law/wet_inkomstenbelasting/UWV-2020-01-01.yaml',
+    '/law/wet_op_de_huurtoeslag/TOESLAGEN-2025-01-01.yaml',
+    '/law/wet_op_het_centraal_bureau_voor_de_statistiek/CBS-2024-01-01.yaml',
+    '/law/wet_structuur_uitvoeringsorganisatie_werk_en_inkomen/UWV-2024-01-01.yaml',
+    '/law/wet_studiefinanciering/DUO-2024-01-01.yaml',
+    '/law/wetboek_van_strafrecht/JUSTID-2023-01-01.yaml',
+    '/law/zorgtoeslagwet/TOESLAGEN-2024-01-01.yaml',
     '/law/zorgtoeslagwet/TOESLAGEN-2025-01-01.yaml',
+    '/law/zvw/RVZ-2024-01-01.yaml',
   ];
 
   const nodes = writable<Node[]>([]);
@@ -248,7 +263,7 @@ This means that the parent container needs a height to render the flow.
     proOptions={{
       hideAttribution: true,
     }}
-    minZoom={0.2}
+    minZoom={0.1}
   >
     <Controls showLock={false} />
     <Background variant={BackgroundVariant.Dots} />
