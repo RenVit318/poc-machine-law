@@ -1,6 +1,7 @@
 <script lang="ts">
   import { writable } from 'svelte/store';
   import yaml from 'yaml';
+  import { base } from '$app/paths';
   import {
     MarkerType,
     SvelteFlow,
@@ -27,29 +28,29 @@
   };
 
   // Define the paths to the YAML files
-  const filePaths = [
-    '/law/algemene_ouderdomswet/SVB-2024-01-01.yaml',
-    '/law/algemene_ouderdomswet/leeftijdsbepaling/SVB-2024-01-01.yaml',
-    '/law/awb/beroep/JenV-2024-01-01.yaml',
-    '/law/awb/bezwaar/JenV-2024-01-01.yaml',
-    '/law/handelsregisterwet/KVK-2024-01-01.yaml',
-    '/law/kieswet/KIESRAAD-2024-01-01.yaml',
-    '/law/participatiewet/bijstand/SZW-2023-01-01.yaml',
-    '/law/participatiewet/bijstand/gemeenten/GEMEENTE_AMSTERDAM-2023-01-01.yaml',
-    '/law/penitentiaire_beginselenwet/DJI-2022-01-01.yaml',
-    '/law/vreemdelingenwet/IND-2024-01-01.yaml',
-    '/law/wet_brp/RvIG-2020-01-01.yaml',
-    '/law/wet_forensische_zorg/DJI-2022-01-01.yaml',
-    '/law/wet_inkomstenbelasting/BELASTINGDIENST-2001-01-01.yaml',
-    '/law/wet_inkomstenbelasting/UWV-2020-01-01.yaml',
-    '/law/wet_op_de_huurtoeslag/TOESLAGEN-2025-01-01.yaml',
-    '/law/wet_op_het_centraal_bureau_voor_de_statistiek/CBS-2024-01-01.yaml',
-    '/law/wet_structuur_uitvoeringsorganisatie_werk_en_inkomen/UWV-2024-01-01.yaml',
-    '/law/wet_studiefinanciering/DUO-2024-01-01.yaml',
-    '/law/wetboek_van_strafrecht/JUSTID-2023-01-01.yaml',
-    '/law/zorgtoeslagwet/TOESLAGEN-2024-01-01.yaml',
-    '/law/zorgtoeslagwet/TOESLAGEN-2025-01-01.yaml',
-    '/law/zvw/RVZ-2024-01-01.yaml',
+  let filePaths: string[] = [
+    'algemene_ouderdomswet/SVB-2024-01-01.yaml',
+    'algemene_ouderdomswet/leeftijdsbepaling/SVB-2024-01-01.yaml',
+    'awb/beroep/JenV-2024-01-01.yaml',
+    'awb/bezwaar/JenV-2024-01-01.yaml',
+    'handelsregisterwet/KVK-2024-01-01.yaml',
+    'kieswet/KIESRAAD-2024-01-01.yaml',
+    'participatiewet/bijstand/SZW-2023-01-01.yaml',
+    'participatiewet/bijstand/gemeenten/GEMEENTE_AMSTERDAM-2023-01-01.yaml',
+    'penitentiaire_beginselenwet/DJI-2022-01-01.yaml',
+    'vreemdelingenwet/IND-2024-01-01.yaml',
+    'wet_brp/RvIG-2020-01-01.yaml',
+    'wet_forensische_zorg/DJI-2022-01-01.yaml',
+    'wet_inkomstenbelasting/BELASTINGDIENST-2001-01-01.yaml',
+    'wet_inkomstenbelasting/UWV-2020-01-01.yaml',
+    'wet_op_de_huurtoeslag/TOESLAGEN-2025-01-01.yaml',
+    'wet_op_het_centraal_bureau_voor_de_statistiek/CBS-2024-01-01.yaml',
+    'wet_structuur_uitvoeringsorganisatie_werk_en_inkomen/UWV-2024-01-01.yaml',
+    'wet_studiefinanciering/DUO-2024-01-01.yaml',
+    'wetboek_van_strafrecht/JUSTID-2023-01-01.yaml',
+    'zorgtoeslagwet/TOESLAGEN-2024-01-01.yaml',
+    'zorgtoeslagwet/TOESLAGEN-2025-01-01.yaml',
+    'zvw/RVZ-2024-01-01.yaml',
   ];
 
   const nodes = writable<Node[]>([]);
@@ -57,6 +58,10 @@
 
   (async () => {
     try {
+      // Fetch the available laws from the backend
+      const response = await fetch('/laws/list');
+      filePaths = await response.json();
+
       let i = 0;
 
       const ns: Node[] = [];
@@ -68,7 +73,7 @@
       const laws: Law[] = await Promise.all(
         filePaths.map(async (filePath) => {
           // Read the file content
-          const fileContent = await fetch(filePath).then((response) => response.text());
+          const fileContent = await fetch(`${base}/law/${filePath}`).then((response) => response.text());
 
           // Parse the YAML content
           const law = yaml.parse(fileContent) as Law;
