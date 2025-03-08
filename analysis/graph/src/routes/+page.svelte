@@ -12,6 +12,7 @@
     type Node,
     type Edge,
   } from '@xyflow/svelte';
+  import LawNode from './LawNode.svelte';
 
   // Import the styles for Svelte Flow to work
   import '@xyflow/svelte/dist/style.css';
@@ -28,33 +29,14 @@
   };
 
   // Define the paths to the YAML files
-  let filePaths: string[] = [
-    'algemene_ouderdomswet/SVB-2024-01-01.yaml',
-    'algemene_ouderdomswet/leeftijdsbepaling/SVB-2024-01-01.yaml',
-    'awb/beroep/JenV-2024-01-01.yaml',
-    'awb/bezwaar/JenV-2024-01-01.yaml',
-    'handelsregisterwet/KVK-2024-01-01.yaml',
-    'kieswet/KIESRAAD-2024-01-01.yaml',
-    'participatiewet/bijstand/SZW-2023-01-01.yaml',
-    'participatiewet/bijstand/gemeenten/GEMEENTE_AMSTERDAM-2023-01-01.yaml',
-    'penitentiaire_beginselenwet/DJI-2022-01-01.yaml',
-    'vreemdelingenwet/IND-2024-01-01.yaml',
-    'wet_brp/RvIG-2020-01-01.yaml',
-    'wet_forensische_zorg/DJI-2022-01-01.yaml',
-    'wet_inkomstenbelasting/BELASTINGDIENST-2001-01-01.yaml',
-    'wet_inkomstenbelasting/UWV-2020-01-01.yaml',
-    'wet_op_de_huurtoeslag/TOESLAGEN-2025-01-01.yaml',
-    'wet_op_het_centraal_bureau_voor_de_statistiek/CBS-2024-01-01.yaml',
-    'wet_structuur_uitvoeringsorganisatie_werk_en_inkomen/UWV-2024-01-01.yaml',
-    'wet_studiefinanciering/DUO-2024-01-01.yaml',
-    'wetboek_van_strafrecht/JUSTID-2023-01-01.yaml',
-    'zorgtoeslagwet/TOESLAGEN-2024-01-01.yaml',
-    'zorgtoeslagwet/TOESLAGEN-2025-01-01.yaml',
-    'zvw/RVZ-2024-01-01.yaml',
-  ];
+  let filePaths: string[] = [];
 
   const nodes = writable<Node[]>([]);
   const edges = writable<Edge[]>([]);
+
+  const nodeTypes = {
+    'law': LawNode,
+  };
 
   (async () => {
     try {
@@ -73,7 +55,9 @@
       const laws: Law[] = await Promise.all(
         filePaths.map(async (filePath) => {
           // Read the file content
-          const fileContent = await fetch(`${base}/law/${filePath}`).then((response) => response.text());
+          const fileContent = await fetch(`${base}/law/${filePath}`).then((response) =>
+            response.text(),
+          );
 
           // Parse the YAML content
           const law = yaml.parse(fileContent) as Law;
@@ -112,7 +96,7 @@
         // Add parent nodes
         ns.push({
           id: lawID,
-          type: 'default',
+          type: 'law',
           data: { label: data.name }, // Algorithm name
           position: { x: i++ * 400, y: 0 },
           width: 340,
@@ -263,6 +247,7 @@ This means that the parent container needs a height to render the flow.
   <SvelteFlow
     {nodes}
     {edges}
+    {nodeTypes}
     fitView
     nodesConnectable={false}
     proOptions={{
@@ -278,10 +263,6 @@ This means that the parent container needs a height to render the flow.
 
 <style lang="postcss">
   @reference "tailwindcss/theme";
-
-  :global(.root) {
-    @apply bg-blue-50;
-  }
 
   :global(.property-group) {
     @apply bg-blue-100;
