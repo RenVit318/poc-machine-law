@@ -23,11 +23,15 @@ app.include_router(laws.router)
 app.include_router(admin.router)
 app.include_router(edit.router)
 app.mount("/analysis/graph/law", StaticFiles(directory="law"))
-app.mount("/analysis/graph", StaticFiles(
-    # directory=f"{os.path.dirname(os.path.realpath(__file__))}/../analysis/graph/build",  # Note: absolute path is required when follow_symlink=True
-    directory="analysis/graph/build",
-    html=True,
-))
+app.mount(
+    "/analysis/graph",
+    StaticFiles(
+        # directory=f"{os.path.dirname(os.path.realpath(__file__))}/../analysis/graph/build",  # Note: absolute path is required when follow_symlink=True
+        directory="analysis/graph/build",
+        html=True,
+    ),
+)
+
 
 @app.get("/")
 async def root(request: Request, bsn: str = "999993653", services: Services = Depends(get_services)):
