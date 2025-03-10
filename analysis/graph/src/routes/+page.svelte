@@ -34,8 +34,8 @@
   const nodes = writable<Node[]>([]);
   const edges = writable<Edge[]>([]);
 
-  const nodeTypes = {
-    'law': LawNode,
+  const nodeTypes: any = {
+    law: LawNode,
   };
 
   (async () => {
@@ -233,6 +233,19 @@
       console.error('Error reading file', error);
     }
   })();
+
+  function handleNodeClick(event: CustomEvent<{ event: MouseEvent | TouchEvent; node: Node }>) {
+    // If the click is on a button.close, remove the node. IMPROVE: remove the child nodes first
+    if ((event.detail.event.target as HTMLElement).closest('.close')) {
+      const node = event.detail.node;
+
+      // Remove the node and all its children (using ID prefix matching)
+      $nodes = $nodes.filter((n) => !n.id.startsWith(node.id));
+
+      // Remove all edges connected to the removed nodes
+      $edges = $edges.filter((e) => !e.source.startsWith(node.id) && !e.target.startsWith(node.id));
+    }
+  }
 </script>
 
 <svelte:head>
@@ -248,6 +261,7 @@ This means that the parent container needs a height to render the flow.
     {nodes}
     {edges}
     {nodeTypes}
+    on:nodeclick={handleNodeClick}
     fitView
     nodesConnectable={false}
     proOptions={{
