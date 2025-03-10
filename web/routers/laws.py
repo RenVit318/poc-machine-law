@@ -1,16 +1,16 @@
 import json
+import os
 from urllib.parse import unquote
 
 import pandas as pd
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import JSONResponse
 from jinja2 import TemplateNotFound
 
 from explain.llm_service import llm_service
 from machine.service import Services
 from web.dependencies import TODAY, get_services, templates
 from web.services.profiles import get_profile_data
-import os
-from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/laws", tags=["laws"])
 
