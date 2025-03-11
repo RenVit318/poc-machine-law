@@ -1,8 +1,10 @@
 import json
+import os
 from urllib.parse import unquote
 
 import pandas as pd
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import JSONResponse
 from jinja2 import TemplateNotFound
 
 from explain.llm_service import llm_service
@@ -50,6 +52,20 @@ async def evaluate_law(bsn: str, law: str, service: str, services: Services, app
     # Execute the law
     result = await services.evaluate(service, law=law, parameters=parameters, reference_date=TODAY, approved=approved)
     return law, result, rule_spec, parameters
+
+
+@router.get("/list")
+async def list_laws():
+    """List all available law files"""
+
+    laws_dir = os.path.join(os.path.dirname(__file__), "../../law")
+    law_files = []
+    for root, _, files in os.walk(laws_dir):
+        for file in files:
+            if file.endswith(".yaml"):  # Return only YAML files
+                law_files.append(os.path.relpath(os.path.join(root, file), laws_dir))
+
+    return JSONResponse(content=law_files)
 
 
 @router.get("/execute")
