@@ -18,9 +18,10 @@
     timestamp: Date;
   };
 
-  let apiKey = '';
+  let anthropicApiKey = '';
+  let tavilyApiKey = '';
   let apiFormIsShown = true;
-  let apiKeyInput: HTMLInputElement | undefined;
+  let anthropicApiKeyInput: HTMLInputElement | undefined;
 
   let messages: Message[] = [];
   let input = '';
@@ -31,7 +32,8 @@
 
   function handleKeySubmit() {
     if (browser) {
-      localStorage.setItem('api-key', apiKey);
+      localStorage.setItem('anthropic-api-key', anthropicApiKey);
+      localStorage.setItem('tavily-api-key', tavilyApiKey);
     }
 
     apiFormIsShown = false;
@@ -110,35 +112,55 @@
   {#if apiFormIsShown}
     <form
       on:submit|preventDefault={handleKeySubmit}
-      class="mb-5 rounded-md border border-gray-300 bg-gray-50 p-4"
+      class="mb-5 grid grid-cols-5 gap-4 rounded-md border border-gray-300 bg-gray-50 p-4"
     >
-      <label class="mb-2 inline-block font-medium" for="api-key">Claude / Anthropic API key</label>
+      <div class="col-span-2 flex flex-col">
+        <label class="mb-2 inline-block font-medium" for="api-key">Claude / Anthropic API key</label
+        >
 
-      <div class="mb-1 flex">
         <input
-          bind:value={apiKey}
-          bind:this={apiKeyInput}
+          bind:value={anthropicApiKey}
+          bind:this={anthropicApiKeyInput}
           placeholder="sk-…"
           id="api-key"
           type="text"
-          class="mr-2 block w-full rounded-md border border-gray-300 bg-white px-2.5 py-2 focus:border-blue-500 focus:ring-blue-500"
+          class="mt-auto block w-full rounded-md border border-gray-300 bg-white px-2.5 py-2 focus:border-blue-500 focus:ring-blue-500"
           autocomplete="off"
         />
-
-        <button
-          type="submit"
-          class="cursor-pointer rounded-md border border-blue-600 bg-blue-600 px-4 py-2 text-white transition duration-200 hover:border-blue-700 hover:bg-blue-700"
-        >
-          Gebruiken
-        </button>
       </div>
 
-      <small class="text-sm text-gray-600"
-        >Verplicht, wordt niet opgeslagen, alleen in de browser. <a
+      <div class="col-span-2 flex flex-col">
+        <label class="mb-2 inline-block font-medium" for="tavily-api-key">Tavily API key</label>
+
+        <input
+          bind:value={tavilyApiKey}
+          placeholder="tvly-…"
+          id="tavily-api-key"
+          type="text"
+          class="mt-auto block w-full rounded-md border border-gray-300 bg-white px-2.5 py-2 focus:border-blue-500 focus:ring-blue-500"
+          autocomplete="off"
+        />
+      </div>
+
+      <button
+        type="submit"
+        class="mt-auto cursor-pointer rounded-md border border-blue-600 bg-blue-600 px-4 py-2 text-white transition duration-200 hover:border-blue-700 hover:bg-blue-700"
+      >
+        Gebruiken
+      </button>
+
+      <small class="col-span-5 text-sm text-gray-600"
+        >Verplicht, worden niet opgeslagen, alleen in de browser. Meer informatie: <a
           class="text-blue-700 underline hover:no-underline"
           href="https://console.anthropic.com/"
           target="_blank"
-          rel="nofollow">Meer informatie</a
+          rel="nofollow">Anthropic</a
+        >,
+        <a
+          class="text-blue-700 underline hover:no-underline"
+          href="https://tavily.com/#faq"
+          target="_blank"
+          rel="nofollow">Tavily</a
         ></small
       >
     </form>
@@ -159,13 +181,13 @@
           ><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0" /><path d="m9 12l2 2l4-4" /></g
         ></svg
       >
-      Claude / Anthropic API ingesteld
+      Claude / Anthropic en Tavily API keys ingesteld
 
       <button
         on:click={async () => {
           apiFormIsShown = true;
           await tick();
-          apiKeyInput?.focus();
+          anthropicApiKeyInput?.focus();
         }}
         type="button"
         class="ml-3 cursor-pointer rounded-md border border-blue-600 bg-blue-600 px-2 py-1 text-sm text-white transition duration-200 hover:border-blue-700 hover:bg-blue-700"
