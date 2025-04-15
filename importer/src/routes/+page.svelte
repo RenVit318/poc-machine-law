@@ -30,6 +30,8 @@
 
   let quickReplies: string[] = [];
 
+  let progress = 0;
+
   function handleKeySubmit() {
     if (browser) {
       localStorage.setItem('anthropic-api-key', anthropicApiKey);
@@ -255,92 +257,149 @@
       <ol class="relative ml-4 border-s border-gray-200 text-gray-500">
         <li class="mb-10 ms-6">
           <span
-            class="absolute -start-4 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-white"
+            class="absolute -start-4 flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-white {progress >=
+            1
+              ? 'bg-emerald-100 text-emerald-600'
+              : 'bg-gray-100 text-gray-600'}"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5 text-emerald-600"
-              viewBox="0 0 24 24"
-              ><path
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="m5 12l5 5L20 7"
-              /></svg
-            >
+            {#if progress >= 1}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24"
+                ><path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="m5 12l5 5L20 7"
+                /></svg
+              >
+            {:else}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24"
+                ><path
+                  fill="currentColor"
+                  d="m12.999 2l-.001 1.278l5 1.668l3.633-1.21l.632 1.896l-3.031 1.011l3.095 8.512A5.98 5.98 0 0 1 17.998 17a5.98 5.98 0 0 1-4.328-1.845l3.094-8.512l-3.766-1.256V19h4v2h-10v-2h4V5.387L7.232 6.643l3.095 8.512A5.98 5.98 0 0 1 6 17a5.98 5.98 0 0 1-4.33-1.845l3.095-8.512l-3.03-1.01l.632-1.898L6 4.945l4.999-1.667V2zm5 7.103l-1.959 5.386a4 4 0 0 0 1.959.511c.7 0 1.37-.18 1.958-.51zm-12 0L4.04 14.489A4 4 0 0 0 5.999 15c.7 0 1.37-.18 1.958-.51z"
+                /></svg
+              >
+            {/if}
           </span>
           <h3 class="font-medium leading-tight">Wetnaam</h3>
           <p class="text-sm">Identificatie van de wet</p>
         </li>
         <li class="mb-10 ms-6">
           <span
-            class="absolute -start-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 ring-4 ring-white"
+            class="absolute -start-4 flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-white {progress >=
+            2
+              ? 'bg-emerald-100 text-emerald-600'
+              : 'bg-gray-100 text-gray-600'}"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5 text-gray-500"
-              viewBox="0 0 24 24"
-              ><path
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="m9 15l6-6m-4-3l.463-.536a5 5 0 0 1 7.071 7.072L18 13m-5 5l-.397.534a5.07 5.07 0 0 1-7.127 0a4.97 4.97 0 0 1 0-7.071L6 11"
-              /></svg
-            >
+            {#if progress >= 2}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24"
+                ><path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="m5 12l5 5L20 7"
+                /></svg
+              >
+            {:else}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 text-gray-500"
+                viewBox="0 0 24 24"
+                ><path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="m9 15l6-6m-4-3l.463-.536a5 5 0 0 1 7.071 7.072L18 13m-5 5l-.397.534a5.07 5.07 0 0 1-7.127 0a4.97 4.97 0 0 1 0-7.071L6 11"
+                /></svg
+              >
+            {/if}
           </span>
           <h3 class="font-medium leading-tight">Wet URL</h3>
           <p class="text-sm">Plek waar de wet online staat</p>
         </li>
         <li class="mb-10 ms-6">
           <span
-            class="absolute -start-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 ring-4 ring-white"
+            class="absolute -start-4 flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-white {progress >=
+            3
+              ? 'bg-emerald-100 text-emerald-600'
+              : 'bg-gray-100 text-gray-600'}"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5 text-gray-500"
-              viewBox="0 0 24 24"
-              ><g
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
+            {#if progress >= 3}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24"
                 ><path
-                  d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"
-                /><path
-                  d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2m0 9h.01M9 17h.01M12 16l1 1l3-3"
-                /></g
-              ></svg
-            >
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="m5 12l5 5L20 7"
+                /></svg
+              >
+            {:else}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 text-gray-500"
+                viewBox="0 0 24 24"
+                ><g
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  ><path
+                    d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"
+                  /><path
+                    d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2m0 9h.01M9 17h.01M12 16l1 1l3-3"
+                  /></g
+                ></svg
+              >
+            {/if}
           </span>
           <h3 class="font-medium leading-tight">Controle</h3>
           <p class="text-sm">Controle of de output voldoet</p>
         </li>
         <li class="ms-6">
           <span
-            class="absolute -start-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 ring-4 ring-white"
+            class="absolute -start-4 flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-white {progress >=
+            4
+              ? 'bg-emerald-100 text-emerald-600'
+              : 'bg-gray-100 text-gray-600'}"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5 text-gray-500"
-              viewBox="0 0 24 24"
-              ><g
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
+            {#if progress >= 4}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24"
                 ><path
-                  d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"
-                /><path
-                  d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2m0 9l2 2l4-4"
-                /></g
-              ></svg
-            >
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="m5 12l5 5L20 7"
+                /></svg
+              >
+            {:else}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 text-gray-500"
+                viewBox="0 0 24 24"
+                ><g
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  ><path
+                    d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"
+                  /><path
+                    d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2m0 9l2 2l4-4"
+                  /></g
+                ></svg
+              >
+            {/if}
           </span>
           <h3 class="font-medium leading-tight">Output</h3>
           <p class="text-sm">Model van de wet in YAML-formaat</p>
