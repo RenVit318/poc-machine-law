@@ -1,0 +1,117 @@
+from typing import Any
+from uuid import UUID
+
+from machine.service import Services
+
+from ..case_manager_interface import CaseManagerInterface
+from ..models import Case, Event
+
+
+class CaseManager(CaseManagerInterface):
+    """
+    Implementation of CaseManagerInterface that uses the embedded Python machine.service library.
+    """
+
+    def __init__(self, services: Services):
+        self.services = services
+        self.case_manager = services.case_manager
+
+    async def get_case(self, bsn: str, service: str, law: str) -> Case | None:
+        """
+        Retrieves case information using the embedded Python machine.service library.
+
+        Args:
+            bsn: BSN identifier for the individual
+            service: Service provider code (e.g., "TOESLAGEN")
+            law: Law identifier (e.g., "zorgtoeslagwet")
+
+        Returns:
+            Case object if found, None otherwise
+        """
+        case = self.case_manager.get_case(bsn, service, law)
+        if case is not None:
+            return to_case(case)
+
+        return None
+
+    async def get_case_by_id(self, id: UUID) -> Case:
+        case = self.case_manager.get_case_by_id(id)
+        if case is not None:
+            return to_case(case)
+
+        return None
+
+    async def get_cases_by_law(self, service: str, law: str) -> list[Case]:
+        cases = self.case_manager.get_cases_by_law(service, law)
+        return to_cases(cases)
+
+    async def submit_case(
+        self,
+        bsn: str,
+        service: str,
+        law: str,
+        parameters: dict[str, Any],
+        claimed_result: dict[str, Any],
+        approved_claims_only: bool,
+    ) -> UUID:
+        return await self.case_manager.submit_case(
+            bsn=bsn,
+            service_type=service,
+            law=law,
+            parameters=parameters,
+            claimed_result=claimed_result,
+            approved_claims_only=approved_claims_only,
+        )
+
+    async def complete_manual_review(
+        self,
+        case_id: UUID,
+        verifier_id: str,
+        approved: bool,
+        reason: str,
+    ) -> UUID:
+        return await self.case_manager.complete_manual_review(
+            case_id=case_id,
+            verifier_id=verifier_id,
+            approved=approved,
+            reason=reason,
+        )
+
+    async def get_events(
+        self,
+        case_id: UUID | None = None,
+    ) -> list[dict[str, Any]]:
+        events = self.case_manager.get_events(case_id)
+        return to_events(events)
+
+
+def to_case(case) -> Case:
+    return Case(
+        id=case.id,
+        bsn=case.bsn,
+        service=case.service,
+        law=case.law,
+        parameters=case.parameters,
+        claimed_result=case.claimed_result,
+        verified_result=case.verified_result,
+        rulespec_uuid=case.rulespec_uuid,
+        approved_claims_only=case.approved_claims_only,
+        status=case.status,
+        approved=case.approved,
+    )
+
+
+def to_cases(cases: list[Any]) -> list[Case]:
+    return [to_case(item) for item in cases]
+
+
+def to_event(event) -> Event:
+    return Event(
+        event_type=event.event_type,
+        timestamp=event.timestamp,
+        data=event.data,
+    )
+
+
+def to_events(events: list[Any]) -> list[Event]:
+    return [to_event(item) for item in events]

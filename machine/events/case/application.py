@@ -102,6 +102,7 @@ class CaseManager(Application):
                 rulespec_uuid=result.rulespec_uuid,
                 approved_claims_only=approved_claims_only,
             )
+
             needs_manual_review = random.random() < self.SAMPLE_RATE
         else:
             # Reset existing case with new parameters and results
@@ -305,11 +306,15 @@ class CaseManager(Application):
                     cases.append(case)
         return cases
 
-    def get_case_by_id(self, case_id: str | None) -> Case | None:
+    def get_case_by_id(self, case_id: str | UUID | None) -> Case | None:
         """Get case by ID"""
         if not case_id:
             return None
-        return self.repository.get(UUID(case_id))
+
+        if isinstance(case_id, str):
+            case_id = UUID(case_id)
+
+        return self.repository.get(case_id)
 
     def get_cases_by_law(self, law: str, service_type: str) -> list[Case]:
         """Get all cases for a specific law and service combination"""
