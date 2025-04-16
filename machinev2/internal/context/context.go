@@ -69,7 +69,7 @@ func (ts *TypeSpec) Enforce(value any) any {
 	// Apply precision
 	if ts.Precision != nil {
 		if *ts.Precision == 0 {
-			return int(floatVal)
+			return int(math.Round(floatVal))
 		}
 
 		factor := math.Pow(10, float64(*ts.Precision))
@@ -78,7 +78,7 @@ func (ts *TypeSpec) Enforce(value any) any {
 
 	// Convert to int for cent units
 	if ts.Unit == "eurocent" {
-		return int(floatVal)
+		return int(math.Round(floatVal))
 	}
 
 	return floatVal
