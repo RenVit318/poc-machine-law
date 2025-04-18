@@ -52,7 +52,18 @@
   // Listen for messages
   socket.addEventListener('message', function (event) {
     // Parse the event data
-    const data = JSON.parse(event.data) as { id: string; content: string; quick_replies: string[] };
+    const data = JSON.parse(event.data) as {
+      id: string;
+      type?: string;
+      content: string | number;
+      quick_replies: string[];
+    };
+
+    // If the message is a progress update, update the progress
+    if (data.type === 'progress') {
+      progress = data.content as number;
+      return;
+    }
 
     // If the message ID equals the ID of the previous message, append it to the previous message
     if (messages.length && messages[messages.length - 1].id === data.id) {
@@ -63,7 +74,7 @@
         ...messages,
         {
           id: data.id,
-          content: data.content,
+          content: data.content as string,
           isOwn: false,
           timestamp: new Date(),
         },
@@ -209,7 +220,10 @@
           <div class="message own">{message.content}</div>
         {:else}
           <div class="message">
-            <Markdown md={message.content} plugins={[highlightPlugin, copyButtonPlugin]} />
+            <Markdown
+              md={message.content as string}
+              plugins={[highlightPlugin, copyButtonPlugin]}
+            />
           </div>
         {/if}
       {/each}

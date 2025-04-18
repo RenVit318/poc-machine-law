@@ -45,7 +45,8 @@ class State(TypedDict):
 
 class WebSocketMessage(TypedDict):
     id: str
-    content: str
+    type: str  # E.g. "progress". Default: chunk
+    content: str | int
     quick_replies: list[str]
 
 
@@ -87,8 +88,9 @@ def check_law_input(state: State, config: dict) -> dict:
 
     resp = interrupt("check_law_input")
 
+    thread_id = config["configurable"]["thread_id"]
+
     if len(resp) < 4:
-        thread_id = config["configurable"]["thread_id"]
         loop.run_until_complete(
             manager.send_message(
                 WebSocketMessage(
@@ -99,6 +101,18 @@ def check_law_input(state: State, config: dict) -> dict:
             )
         )
         return {"should_retry": True, "law": resp}
+    
+    # Send a mesage to the frontend to update the progress to the next step
+    loop.run_until_complete(
+        manager.send_message(
+            WebSocketMessage(
+                id=str(uuid.uuid4()),
+                type="progress",
+                content=1,
+            ),
+            thread_id,
+        )
+    )
 
     return {"should_retry": False, "law": resp}
 
@@ -134,8 +148,9 @@ def ask_law_confirmation(state: State, config: dict) -> dict:
 def handle_law_confirmation(state: State, config: dict) -> dict:
     print("----> handle_law_confirmation")
 
+    thread_id = config["configurable"]["thread_id"]
+
     if state["law_url"] is None:
-        thread_id = config["configurable"]["thread_id"]
         loop.run_until_complete(
             manager.send_message(
                 WebSocketMessage(
@@ -153,6 +168,18 @@ def handle_law_confirmation(state: State, config: dict) -> dict:
     is_approved = False
     if resp.lower() in ("ja", "j"):
         is_approved = True
+
+        # Send a mesage to the frontend to update the progress to the next step
+        loop.run_until_complete(
+            manager.send_message(
+                WebSocketMessage(
+                    id=str(uuid.uuid4()),
+                    type="progress",
+                    content=2,
+                ),
+                thread_id,
+            )
+        )
 
     return {"law_url_approved": is_approved}
 
@@ -253,6 +280,18 @@ def process_law(state: State, config: dict) -> dict:
         )
     )
 
+    # Send a mesage to the frontend to update the progress to the next step
+    loop.run_until_complete(
+        manager.send_message(
+            WebSocketMessage(
+                id=str(uuid.uuid4()),
+                type="progress",
+                content=3,
+            ),
+            thread_id,
+        )
+    )
+
     return {"messages": [result]}
 
 
@@ -288,6 +327,18 @@ def process_law_feedback(state: State, config: dict) -> dict:
             user_input = "De YAML output lijkt correct."  # IMPROVE: validate agains the Girkin tables
 
     thread_id = config["configurable"]["thread_id"]
+
+    # Send a mesage to the frontend to update the progress to the next step
+    loop.run_until_complete(
+        manager.send_message(
+            WebSocketMessage(
+                id=str(uuid.uuid4()),
+                type="progress",
+                content=4,
+            ),
+            thread_id,
+        )
+    )
 
     loop.run_until_complete(
         manager.send_message(
