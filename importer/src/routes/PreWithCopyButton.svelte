@@ -22,6 +22,6 @@
     > Kopiëren
   </button>
   <pre
-    class="clear-right overflow-x-auto rounded-sm rounded-tr-none bg-gray-900 px-3 py-2 text-sm text-white"
+    class="clear-right overflow-x-auto whitespace-pre-wrap rounded-sm rounded-tr-none bg-gray-900 px-3 py-2 text-sm text-white"
     bind:this={pre}><slot /></pre>
 </div>
