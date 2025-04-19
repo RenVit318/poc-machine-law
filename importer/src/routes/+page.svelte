@@ -210,7 +210,7 @@
     </div>
   {/if}
 
-  <div class="grid flex-grow grid-cols-3 gap-4">
+  <div class="grid min-h-0 flex-grow grid-cols-3 gap-4">
     <div
       bind:this={messagesContainer}
       class="col-span-2 mb-2 flex flex-col overflow-y-auto scroll-smooth rounded-md bg-gray-100 p-4"
