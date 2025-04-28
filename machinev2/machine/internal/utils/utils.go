@@ -285,13 +285,13 @@ func (r *RuleResolver) GetRuleSpec(law, referenceDate string, service string) (m
 
 	data, err := os.ReadFile(rule.Path)
 	if err != nil {
-		return nil, fmt.Errorf("error reading rule file: %v", err)
+		return nil, fmt.Errorf("error reading rule file: %w", err)
 	}
 
 	var result map[string]any
 	err = yaml.Unmarshal(data, &result)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing rule YAML: %v", err)
+		return nil, fmt.Errorf("error parsing rule YAML: %w", err)
 	}
 
 	return result, nil

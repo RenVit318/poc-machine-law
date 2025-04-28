@@ -17,8 +17,8 @@ type Event struct {
 func (e Event) ToMap() map[string]any {
 	return map[string]any{
 		"case_id":    e.CaseID,
-		"timestamp":  e.CaseID,
-		"event_type": e.CaseID,
+		"timestamp":  e.Timestamp,
+		"event_type": e.EventType,
 		"data":       e.Data,
 	}
 }

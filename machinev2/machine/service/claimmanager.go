@@ -198,8 +198,7 @@ func (cm *ClaimManager) RejectClaim(ctx context.Context, claimID uuid.UUID, reje
 		return err
 	}
 
-	err = claim.Reject(rejectedBy, rejectionReason)
-	if err != nil {
+	if err := claim.Reject(rejectedBy, rejectionReason); err != nil {
 		return err
 	}
 

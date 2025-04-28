@@ -83,14 +83,14 @@ func NewCase(
 }
 
 // EntityID implements the EntityID method of the eventhorizon.Entity interface.
-func (i *Case) EntityID() uuid.UUID {
-	return i.ID
+func (c *Case) EntityID() uuid.UUID {
+	return c.ID
 }
 
 // AggregateVersion implements the AggregateVersion method of the
 // eventhorizon.Versionable interface.
-func (i *Case) AggregateVersion() int {
-	return i.Version
+func (c *Case) AggregateVersion() int {
+	return c.Version
 }
 
 // Reset resets a case with new parameters and results

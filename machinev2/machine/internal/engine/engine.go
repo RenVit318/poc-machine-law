@@ -937,13 +937,8 @@ func (re *RulesEngine) evaluateForeach(
 
 // Comparison operators
 var comparisonOps = map[string]func(a, b any) (bool, error){
-	"EQUALS": func(a, b any) (bool, error) {
-		return utils.Equal(a, b)
-
-	},
-	"NOT_EQUALS": func(a, b any) (bool, error) {
-		return utils.NotEqual(a, b)
-	},
+	"EQUALS":     utils.Equal,
+	"NOT_EQUALS": utils.NotEqual,
 	"GREATER_THAN": func(a, b any) (bool, error) {
 		c, err := utils.Compare(a, b)
 		if err != nil {

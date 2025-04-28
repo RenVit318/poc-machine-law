@@ -34,7 +34,8 @@ func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: InitializeScenario,
 		Options: &godog.Options{
-			Format:   "pretty",
+			Format: "pretty", // pretty, progress, cucumber, events, junit
+			// ShowStepDefinitions: false,
 			Paths:    []string{"."},
 			TestingT: t, // Testing instance that will run subtests.
 		},

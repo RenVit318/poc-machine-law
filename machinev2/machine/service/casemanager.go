@@ -27,7 +27,7 @@ type CaseManager struct {
 	logger      logging.Logger
 	Services    *Services
 	caseIndex   map[string]uuid.UUID // Maps (bsn:service:law) -> case_id
-	events      []*model.Event
+	events      []model.Event
 	SampleRate  float64
 	mu          sync.RWMutex
 	commandBus  eh.CommandHandler
@@ -74,7 +74,7 @@ func NewCaseManager(logger logging.Logger, services *Services) *CaseManager {
 
 	// Set up the case manager
 	ctx := context.Background()
-	if err := casemanager.Setup(ctx, eventStore, eventBus, eventBus, commandBus, caseRepo); err != nil {
+	if err := casemanager.Setup(ctx, logger, eventStore, eventBus, eventBus, commandBus, caseRepo); err != nil {
 		log.Fatalf("could not set up case manager: %s", err)
 	}
 
@@ -82,7 +82,7 @@ func NewCaseManager(logger logging.Logger, services *Services) *CaseManager {
 		logger:      logger.WithName("case_manager"),
 		Services:    services,
 		caseIndex:   make(map[string]uuid.UUID),
-		events:      make([]*model.Event, 0),
+		events:      make([]model.Event, 0),
 		SampleRate:  0.10, // 10% sample rate
 		commandBus:  commandBus,
 		caseRepo:    caseRepo,
@@ -108,7 +108,7 @@ func (cm *CaseManager) recordEvent(caseID uuid.UUID, eventType string, data map[
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	event := &model.Event{
+	event := model.Event{
 		CaseID:    caseID,
 		Timestamp: time.Now(),
 		EventType: eventType,
@@ -652,29 +652,22 @@ func (cm *CaseManager) GetCasesByLaw(ctx context.Context, service, law string) (
 	defer cm.mu.RUnlock()
 
 	var result []*casemanager.Case
-	fmt.Printf("cm.caseIndex: %v\n", len(cm.caseIndex))
 	for _, caseID := range cm.caseIndex {
 		c, err := casemanager.FindCase(ctx, cm.caseRepo, caseID)
 		if err != nil {
 			continue
 		}
 
-		fmt.Printf("c.Law: %v\n", c.Law)
-		fmt.Printf("law: %v\n", law)
-		fmt.Printf("c.Service: %v\n", c.Service)
-		fmt.Printf("serviceType: %v\n", service)
 		if c.Law == law && c.Service == service {
 			result = append(result, c)
 		}
 	}
 
-	fmt.Printf("result: %v\n", len(result))
-
 	return result, nil
 }
 
 // GetEventsByUUID gets events, optionally filtered by case ID
-func (cm *CaseManager) GetEventsByUUID(caseID uuid.UUID) []*model.Event {
+func (cm *CaseManager) GetEventsByUUID(caseID uuid.UUID) []model.Event {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
@@ -684,7 +677,7 @@ func (cm *CaseManager) GetEventsByUUID(caseID uuid.UUID) []*model.Event {
 	}
 
 	// Filter events by case ID
-	var filteredEvents []*model.Event
+	var filteredEvents []model.Event
 	for _, event := range cm.events {
 		if event.CaseID == caseID {
 			filteredEvents = append(filteredEvents, event)
@@ -696,11 +689,11 @@ func (cm *CaseManager) GetEventsByUUID(caseID uuid.UUID) []*model.Event {
 
 // GetEvents implements the CaseManagerAccessor interface
 // Converts internal event model to map format for use by dataframe
-func (cm *CaseManager) GetEvents(caseID any) []*model.Event {
+func (cm *CaseManager) GetEvents(caseID any) []model.Event {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
-	var events []*model.Event
+	var events []model.Event
 
 	// Convert any case ID to UUID if provided
 	if caseID != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/looplab/eventhorizon/commandhandler/bus"
 	"github.com/looplab/eventhorizon/eventhandler/projector"
 	"github.com/looplab/eventhorizon/middleware/eventhandler/observer"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/internal/logging"
 )
 
 var registerSync sync.Once
@@ -26,6 +27,7 @@ type HandlerAdder interface {
 // Setup sets up the case manager with all required components.
 func Setup(
 	ctx context.Context,
+	logger logging.Logger,
 	eventStore eh.EventStore,
 	local, global HandlerAdder,
 	commandBus *bus.CommandHandler,
@@ -54,7 +56,7 @@ func Setup(
 	}
 
 	// Apply logging middleware to the command handler
-	commandHandler := eh.UseCommandHandlerMiddleware(caseHandler, LoggingMiddleware)
+	commandHandler := eh.UseCommandHandlerMiddleware(caseHandler, LoggingMiddleware(logger))
 
 	// Register all commands with the command bus
 	for _, cmd := range []eh.CommandType{
@@ -92,7 +94,7 @@ func Setup(
 	}
 
 	// Add a logger as an observer
-	if err := local.AddHandler(ctx, eh.MatchAll{}, eh.UseEventHandlerMiddleware(&Logger{}, observer.Middleware)); err != nil {
+	if err := local.AddHandler(ctx, eh.MatchAll{}, eh.UseEventHandlerMiddleware(NewLogger(logger), observer.Middleware)); err != nil {
 		return fmt.Errorf("could not add logger to event bus: %w", err)
 	}
 
@@ -318,20 +320,15 @@ func FindCase(
 	repo eh.ReadRepo,
 	id uuid.UUID,
 ) (*Case, error) {
-	fmt.Printf("id: %v\n", id)
 	entity, err := repo.Find(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("could not find case: %w", err)
 	}
 
-	fmt.Printf("entity: %v\n", entity)
-
 	case_, ok := entity.(*Case)
 	if !ok {
 		return nil, fmt.Errorf("invalid entity type: %T", entity)
 	}
-
-	fmt.Printf("case_: %v\n", case_)
 
 	return case_, nil
 }

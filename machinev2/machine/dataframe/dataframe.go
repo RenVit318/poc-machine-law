@@ -16,7 +16,6 @@ type SimpleDataFrame struct {
 
 // Append implements model.DataFrame.
 func (df *SimpleDataFrame) Append(other model.DataFrame) (model.DataFrame, error) {
-	// return other, nil
 	// Get the data from the other dataframe
 	otherData := other.ToRecords()
 	if len(otherData) == 0 {
@@ -104,6 +103,10 @@ func (df *SimpleDataFrame) Filter(column, operator string, value any) (model.Dat
 
 		if v, ok := value.(fmt.Stringer); ok {
 			value = v.String()
+		}
+
+		if v, ok := colValue.(fmt.Stringer); ok {
+			colValue = v.String()
 		}
 
 		var match bool

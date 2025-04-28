@@ -14,7 +14,7 @@ import (
 func TestLogger(t *testing.T) {
 	var logger logging.Logger = logging.New("test", os.Stdout, logrus.DebugLevel)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	logger.Debug(ctx, "HI")
 
@@ -38,7 +38,7 @@ func TestRace(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			// Access the shared resource
-			test(logger, context.Background(), "test", 2)
+			test(logger, t.Context(), "test", 2)
 		}()
 	}
 

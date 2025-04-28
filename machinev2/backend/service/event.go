@@ -22,7 +22,7 @@ func (service *Service) CaseEventList(ctx context.Context, caseID uuid.UUID) ([]
 	return ToEvents(events), nil
 }
 
-func ToEvent(event *machinemodel.Event) model.Event {
+func ToEvent(event machinemodel.Event) model.Event {
 	return model.Event{
 		EventType: event.EventType,
 		Timestamp: event.Timestamp,
@@ -30,7 +30,7 @@ func ToEvent(event *machinemodel.Event) model.Event {
 	}
 }
 
-func ToEvents(events []*machinemodel.Event) []model.Event {
+func ToEvents(events []machinemodel.Event) []model.Event {
 	items := make([]model.Event, 0, len(events))
 
 	for idx := range events {

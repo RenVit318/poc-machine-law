@@ -29,7 +29,7 @@ type Services struct {
 // NewServices creates a new services instance
 func NewServices(referenceDate time.Time) *Services {
 	s := &Services{
-		logger:            logging.New("service", os.Stdout, logrus.DebugLevel),
+		logger:            logging.New("service", os.Stdout, logrus.WarnLevel),
 		Resolver:          utils.NewRuleResolver(),
 		services:          make(map[string]*RuleService),
 		RootReferenceDate: referenceDate.Format("2006-01-02"),
@@ -236,7 +236,7 @@ func (s *Services) ExtractValueTree(root *model.PathNode) map[string]any {
 }
 
 // ApplyRules applies rules in response to events
-func (s *Services) ApplyRules(ctx context.Context, event *model.Event) error {
+func (s *Services) ApplyRules(ctx context.Context, event model.Event) error {
 	for _, rule := range s.Resolver.Rules {
 		applies, ok := rule.Properties["applies"].([]any)
 		if !ok {
@@ -404,7 +404,7 @@ func (s *Services) ApplyRules(ctx context.Context, event *model.Event) error {
 }
 
 // matchesEvent checks if an event matches the applies spec
-func (s *Services) matchesEvent(event *model.Event, applies map[string]any) bool {
+func (s *Services) matchesEvent(event model.Event, applies map[string]any) bool {
 	// In a real implementation, we would match event types and filters
 	// For simplicity, we'll just do a very basic check
 

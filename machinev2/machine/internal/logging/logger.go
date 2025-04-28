@@ -45,6 +45,13 @@ type Field struct {
 	Value interface{}
 }
 
+func NewField(key string, value any) Field {
+	return Field{
+		Key:   key,
+		Value: value,
+	}
+}
+
 // LoggerImpl is the concrete implementation of Logger
 type LoggerImpl struct {
 	logger     *logrus.Logger
@@ -224,7 +231,9 @@ func (l *LoggerImpl) WithIndentValue(v int) Logger {
 // IndentBlock executes a function within an indented logging block
 func (l *LoggerImpl) IndentBlock(ctx context.Context, msg string, fn func(context.Context) error, options ...Options) error {
 	for _, option := range options {
-		option(l)
+		if err := option(l); err != nil {
+			return fmt.Errorf("could not apply option: %v", option)
+		}
 	}
 
 	if msg != "" {

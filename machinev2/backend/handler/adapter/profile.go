@@ -27,7 +27,6 @@ func FromProfiles(profiles []model.Profile) []api.Profile {
 func FromSource(source model.Source) api.Source {
 	s := api.Source{}
 
-	// fmt.Printf("source: %#v\n", source)
 	for k, v := range source {
 		s[k] = v
 	}

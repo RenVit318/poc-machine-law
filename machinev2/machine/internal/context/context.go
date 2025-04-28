@@ -98,7 +98,7 @@ type ServiceResolverProvider interface {
 
 // CaseManagerAccessor interface for accessing case manager events
 type CaseManagerAccessor interface {
-	GetEvents(caseID any) []*model.Event
+	GetEvents(caseID any) []model.Event
 }
 
 // CaseManagerProvider interface extends ServiceProvider with access to case manager
@@ -311,7 +311,7 @@ func (rc *RuleContext) resolveValueInternal(ctx context.Context, path any) (any,
 
 					typ := rValue.Type()
 					// Iterate through all fields of the struct
-					for i := 0; i < rValue.NumField(); i++ {
+					for i := range rValue.NumField() {
 						f := typ.Field(i)
 
 						// Get the json tag value
@@ -423,7 +423,7 @@ func (rc *RuleContext) resolveValueInternal(ctx context.Context, path any) (any,
 		if sourceRef, ok := spec["source_reference"].(map[string]any); ok {
 			value, err := rc.resolveFromSource(ctx, sourceRef, spec)
 			if err != nil {
-				logger.Debugf(ctx, "Resolving from source: %s", err)
+				logger.Debugf(ctx, "resolving from source: %s", err)
 			}
 
 			if err == nil && value != nil {
