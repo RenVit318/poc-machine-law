@@ -9,12 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"slices"
+
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
-	"github.com/minbzk/poc-machine-law/machinev2/casemanager"
-	"github.com/minbzk/poc-machine-law/machinev2/dataframe"
-	"github.com/minbzk/poc-machine-law/machinev2/model"
-	"github.com/minbzk/poc-machine-law/machinev2/service"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/casemanager"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/dataframe"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/model"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/service"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,7 +34,8 @@ func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: InitializeScenario,
 		Options: &godog.Options{
-			Format:   "pretty",
+			Format: "pretty", // pretty, progress, cucumber, events, junit
+			// ShowStepDefinitions: false,
 			Paths:    []string{"."},
 			TestingT: t, // Testing instance that will run subtests.
 		},
@@ -110,6 +113,8 @@ func evaluateLaw(ctx context.Context, svc, law string, approved bool) (context.C
 		return ctx, fmt.Errorf("services not set")
 	}
 
+	services.Reset()
+
 	inputs := ctx.Value(inputCtxKey{}).([]input)
 	for _, input := range inputs {
 		services.SetSourceDataFrame(input.Service, input.Table, input.DF)
@@ -133,13 +138,7 @@ type input struct {
 }
 
 func doParseValue(key string) bool {
-	for _, v := range []string{"bsn", "partner_bsn", "jaar", "kind_bsn"} {
-		if v == key {
-			return false
-		}
-	}
-
-	return true
+	return !slices.Contains([]string{"bsn", "partner_bsn", "jaar", "kind_bsn"}, key)
 }
 
 func parseValue(value string) any {
