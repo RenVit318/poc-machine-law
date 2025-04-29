@@ -706,9 +706,25 @@ components:
         approved:
           type: boolean
         objectionStatus:
-          additionalProperties: true
+          $ref: "#/components/schemas/CaseObjectionStatus"
         appealStatus:
           additionalProperties: true
+    CaseObjectionStatus:
+      description: Parameters to set the objection status
+      type: object
+      properties:
+        possible:
+          type: boolean
+        notPossibleReason:
+          type: string
+        objectionPeriod:
+          type: integer
+        decisionPeriod:
+          type: integer
+        extensionPeriod:
+          type: integer
+        admissable:
+          type: boolean
     CaseList:
       description: List of all cases
       type: array

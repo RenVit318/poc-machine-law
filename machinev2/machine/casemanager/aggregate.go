@@ -176,10 +176,6 @@ func (aggregate *CaseAggregate) HandleCommand(ctx context.Context, cmd eh.Comman
 			return fmt.Errorf("case does not exist")
 		}
 
-		if aggregate.c.ObjectionStatus == nil {
-			aggregate.c.ObjectionStatus = make(map[string]any)
-		}
-
 		aggregate.AppendEvent(
 			ObjectionStatusDeterminedEvent,
 			&ObjectionStatusDetermined{
@@ -198,10 +194,6 @@ func (aggregate *CaseAggregate) HandleCommand(ctx context.Context, cmd eh.Comman
 			return fmt.Errorf("case does not exist")
 		}
 
-		if aggregate.c.ObjectionStatus == nil {
-			aggregate.c.ObjectionStatus = make(map[string]any)
-		}
-
 		aggregate.AppendEvent(
 			ObjectionAdmissibilityDeterminedEvent,
 			&ObjectionAdmissibilityDetermined{
@@ -214,10 +206,6 @@ func (aggregate *CaseAggregate) HandleCommand(ctx context.Context, cmd eh.Comman
 	case SetAppealStatusCommand:
 		if aggregate.c == nil {
 			return fmt.Errorf("case does not exist")
-		}
-
-		if aggregate.c.ObjectionStatus == nil {
-			aggregate.c.ObjectionStatus = make(map[string]any)
 		}
 
 		aggregate.AppendEvent(

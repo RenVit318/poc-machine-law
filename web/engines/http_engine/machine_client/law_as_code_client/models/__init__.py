@@ -1,6 +1,7 @@
 """Contains all the data models used in inputs/outputs"""
 
 from .case import Case
+from .case_objection_status import CaseObjectionStatus
 from .case_review import CaseReview
 from .case_review_body import CaseReviewBody
 from .case_review_response_200 import CaseReviewResponse200
@@ -95,6 +96,7 @@ from .source_additional_property_item import SourceAdditionalPropertyItem
 
 __all__ = (
     "Case",
+    "CaseObjectionStatus",
     "CaseReview",
     "CaseReviewBody",
     "CaseReviewResponse200",

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,12 +83,20 @@ func getString(data map[string]any, key string) string {
 	return ""
 }
 
+var (
+	ruleSpec                  []*RuleSpec
+	lawsByService             map[string]map[string]struct{}
+	discoverableLawsByService map[string]map[string]map[string]struct{}
+	once                      sync.Once
+)
+
 // RuleResolver handles rule resolution and lookup
 type RuleResolver struct {
 	RulesDir                  string
 	Rules                     []*RuleSpec
 	LawsByService             map[string]map[string]struct{}
 	DiscoverableLawsByService map[string]map[string]map[string]struct{}
+	RuleSpecCache             *RuleSpecCache
 	mu                        sync.RWMutex
 }
 
@@ -98,34 +107,42 @@ func NewRuleResolver() *RuleResolver {
 		Rules:                     make([]*RuleSpec, 0),
 		LawsByService:             make(map[string]map[string]struct{}),
 		DiscoverableLawsByService: make(map[string]map[string]map[string]struct{}),
+		RuleSpecCache:             NewRuleSpecCache(),
 	}
 
-	err := resolver.LoadRules()
-	if err != nil {
-		fmt.Printf("Error loading rules: %v\n", err)
-	}
+	once.Do(func() {
+		a, b, c, err := LoadRules(BaseDir)
+		if err != nil {
+			log.Fatalf("Could not process load rules: %v", err)
+		}
+
+		ruleSpec = a
+		lawsByService = b
+		discoverableLawsByService = c
+	})
+
+	resolver.Rules = ruleSpec
+	resolver.LawsByService = lawsByService
+	resolver.DiscoverableLawsByService = discoverableLawsByService
 
 	return resolver
 }
 
-// LoadRules loads all rule specifications from the rules directory
-func (r *RuleResolver) LoadRules() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func LoadRules(dir string) ([]*RuleSpec, map[string]map[string]struct{}, map[string]map[string]map[string]struct{}, error) {
 
 	// Clear existing data
-	r.Rules = make([]*RuleSpec, 0)
-	r.LawsByService = make(map[string]map[string]struct{})
-	r.DiscoverableLawsByService = make(map[string]map[string]map[string]struct{})
+	rules := make([]*RuleSpec, 0)
+	lawsByService := make(map[string]map[string]struct{})
+	lawsByServiceWithDiscoverable := make(map[string]map[string]map[string]struct{})
 
 	// Find all .yaml and .yml files recursively
 	var yamlFiles []string
 
 	err := func() error {
 		// First, evaluate the symlink to get the actual path
-		realPath, err := filepath.EvalSymlinks(r.RulesDir)
+		realPath, err := filepath.EvalSymlinks(dir)
 		if err != nil {
-			return fmt.Errorf("failed to evaluate symlink %s: %w", r.RulesDir, err)
+			return fmt.Errorf("failed to evaluate symlink %s: %w", dir, err)
 		}
 
 		// Now walk the real path
@@ -146,7 +163,7 @@ func (r *RuleResolver) LoadRules() error {
 	}()
 
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 
 	// Load each rule file
@@ -164,31 +181,31 @@ func (r *RuleResolver) LoadRules() error {
 			continue
 		}
 
-		r.Rules = append(r.Rules, rule)
+		rules = append(rules, rule)
 
 		// Index by service and law
 		if rule.Service != "" {
-			if _, exists := r.LawsByService[rule.Service]; !exists {
-				r.LawsByService[rule.Service] = make(map[string]struct{})
+			if _, exists := lawsByService[rule.Service]; !exists {
+				lawsByService[rule.Service] = make(map[string]struct{})
 			}
-			r.LawsByService[rule.Service][rule.Law] = struct{}{}
+			lawsByService[rule.Service][rule.Law] = struct{}{}
 
 			// Index discoverable laws
 			if rule.Discoverable != "" {
-				if _, exists := r.DiscoverableLawsByService[rule.Discoverable]; !exists {
-					r.DiscoverableLawsByService[rule.Discoverable] = make(map[string]map[string]struct{})
+				if _, exists := lawsByServiceWithDiscoverable[rule.Discoverable]; !exists {
+					lawsByServiceWithDiscoverable[rule.Discoverable] = make(map[string]map[string]struct{})
 				}
 
-				if _, exists := r.DiscoverableLawsByService[rule.Discoverable][rule.Service]; !exists {
-					r.DiscoverableLawsByService[rule.Discoverable][rule.Service] = make(map[string]struct{})
+				if _, exists := lawsByServiceWithDiscoverable[rule.Discoverable][rule.Service]; !exists {
+					lawsByServiceWithDiscoverable[rule.Discoverable][rule.Service] = make(map[string]struct{})
 				}
 
-				r.DiscoverableLawsByService[rule.Discoverable][rule.Service][rule.Law] = struct{}{}
+				lawsByServiceWithDiscoverable[rule.Discoverable][rule.Service][rule.Law] = struct{}{}
 			}
 		}
 	}
 
-	return nil
+	return rules, lawsByService, lawsByServiceWithDiscoverable, nil
 }
 
 // GetServiceLaws returns a map of services to their laws
@@ -283,16 +300,23 @@ func (r *RuleResolver) GetRuleSpec(law, referenceDate string, service string) (m
 		return nil, err
 	}
 
+	if data, ok := r.RuleSpecCache.Get(rule.Path); ok {
+		return data, nil
+	}
+
+	// Read the rule spec
 	data, err := os.ReadFile(rule.Path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading rule file: %w", err)
 	}
 
+	// Parse to map
 	var result map[string]any
-	err = yaml.Unmarshal(data, &result)
-	if err != nil {
+	if err := yaml.Unmarshal(data, &result); err != nil {
 		return nil, fmt.Errorf("error parsing rule YAML: %w", err)
 	}
+
+	r.RuleSpecCache.Set(rule.Path, result)
 
 	return result, nil
 }

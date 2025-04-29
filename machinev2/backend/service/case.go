@@ -87,7 +87,7 @@ func ToCase(case_ *casemanager.Case) model.Case {
 		Parameters:         case_.Parameters,
 		RuleSpecID:         case_.RulespecID,
 		AppealStatus:       &case_.AppealStatus,
-		ObjectionStatus:    &case_.ObjectionStatus,
+		ObjectionStatus:    ToCaseObjectionStatus(case_.ObjectionStatus),
 	}
 }
 
@@ -99,4 +99,15 @@ func ToCases(cases []*casemanager.Case) []model.Case {
 	}
 
 	return cs
+}
+
+func ToCaseObjectionStatus(objection casemanager.CaseObjectionStatus) model.CaseObjectionStatus {
+	return model.CaseObjectionStatus{
+		Possible:          objection.Possible,
+		NotPossibleReason: objection.NotPossibleReason,
+		ObjectionPeriod:   objection.ObjectionPeriod,
+		DecisionPeriod:    objection.DecisionPeriod,
+		ExtensionPeriod:   objection.ExtensionPeriod,
+		Admissable:        objection.Admissable,
+	}
 }
