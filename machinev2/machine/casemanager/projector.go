@@ -121,28 +121,25 @@ func (p *CaseProjector) Project(ctx context.Context, event eh.Event, entity eh.E
 		if !ok {
 			return nil, fmt.Errorf("projector: invalid event data type: %v", event.Data())
 		}
-		if c.ObjectionStatus == nil {
-			c.ObjectionStatus = make(map[string]any)
-		}
 
 		if data.Possible != nil {
-			c.ObjectionStatus["possible"] = *data.Possible
+			c.ObjectionStatus.Possible = data.Possible
 		}
 
 		if data.NotPossibleReason != nil {
-			c.ObjectionStatus["not_possible_reason"] = *data.NotPossibleReason
+			c.ObjectionStatus.NotPossibleReason = data.NotPossibleReason
 		}
 
 		if data.ObjectionPeriod != nil {
-			c.ObjectionStatus["objection_period"] = *data.ObjectionPeriod
+			c.ObjectionStatus.ObjectionPeriod = data.ObjectionPeriod
 		}
 
 		if data.DecisionPeriod != nil {
-			c.ObjectionStatus["decision_period"] = *data.DecisionPeriod
+			c.ObjectionStatus.DecisionPeriod = data.DecisionPeriod
 		}
 
 		if data.ExtensionPeriod != nil {
-			c.ObjectionStatus["extension_period"] = *data.ExtensionPeriod
+			c.ObjectionStatus.ExtensionPeriod = data.ExtensionPeriod
 		}
 
 		c.UpdatedAt = time.Now()
@@ -152,12 +149,9 @@ func (p *CaseProjector) Project(ctx context.Context, event eh.Event, entity eh.E
 		if !ok {
 			return nil, fmt.Errorf("projector: invalid event data type: %v", event.Data())
 		}
-		if c.ObjectionStatus == nil {
-			c.ObjectionStatus = make(map[string]any)
-		}
 
 		if data.Admissible != nil {
-			c.ObjectionStatus["admissible"] = *data.Admissible
+			c.ObjectionStatus.Admissable = data.Admissible
 		}
 
 		c.UpdatedAt = time.Now()

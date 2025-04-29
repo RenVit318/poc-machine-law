@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -7,6 +7,10 @@ from attrs import field as _attrs_field
 
 from ..models.case_status import CaseStatus
 from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.case_objection_status import CaseObjectionStatus
+
 
 T = TypeVar("T", bound="Case")
 
@@ -27,7 +31,7 @@ class Case:
         rulespec_id (UUID): Identifier of the rulespec
         status (CaseStatus):
         approved (Union[Unset, bool]):
-        objection_status (Union[Unset, Any]):
+        objection_status (Union[Unset, CaseObjectionStatus]): Parameters to set the objection status
         appeal_status (Union[Unset, Any]):
     """
 
@@ -42,7 +46,7 @@ class Case:
     rulespec_id: UUID
     status: CaseStatus
     approved: Union[Unset, bool] = UNSET
-    objection_status: Union[Unset, Any] = UNSET
+    objection_status: Union[Unset, "CaseObjectionStatus"] = UNSET
     appeal_status: Union[Unset, Any] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -69,7 +73,9 @@ class Case:
 
         approved = self.approved
 
-        objection_status = self.objection_status
+        objection_status: Union[Unset, dict[str, Any]] = UNSET
+        if not isinstance(self.objection_status, Unset):
+            objection_status = self.objection_status.to_dict()
 
         appeal_status = self.appeal_status
 
@@ -100,6 +106,8 @@ class Case:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.case_objection_status import CaseObjectionStatus
+
         d = dict(src_dict)
         id = UUID(d.pop("id"))
 
@@ -123,7 +131,12 @@ class Case:
 
         approved = d.pop("approved", UNSET)
 
-        objection_status = d.pop("objectionStatus", UNSET)
+        _objection_status = d.pop("objectionStatus", UNSET)
+        objection_status: Union[Unset, CaseObjectionStatus]
+        if isinstance(_objection_status, Unset):
+            objection_status = UNSET
+        else:
+            objection_status = CaseObjectionStatus.from_dict(_objection_status)
 
         appeal_status = d.pop("appealStatus", UNSET)
 

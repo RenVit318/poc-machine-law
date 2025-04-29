@@ -4,7 +4,7 @@ from uuid import UUID
 from machine.service import Services
 
 from ..case_manager_interface import CaseManagerInterface
-from ..models import Case, Event
+from ..models import Case, CaseObjectionStatus, Event
 
 
 class CaseManager(CaseManagerInterface):
@@ -98,11 +98,27 @@ def to_case(case) -> Case:
         approved_claims_only=case.approved_claims_only,
         status=case.status,
         approved=case.approved,
+        objection_status=to_objection_status(getattr(case, "objection_status", None)),
+        appeal_status=getattr(case, "appeal_status", None),
     )
 
 
 def to_cases(cases: list[Any]) -> list[Case]:
     return [to_case(item) for item in cases]
+
+
+def to_objection_status(objection) -> CaseObjectionStatus:
+    if objection is None:
+        return None
+
+    return CaseObjectionStatus(
+        possible=objection.get("possible", None),
+        not_possible_reason=objection.get("not_possible_reason", None),
+        objection_period=objection.get("objection_period", None),
+        decision_period=objection.get("decision_period", None),
+        extension_period=objection.get("extension_period", None),
+        admissable=objection.get("admissable", None),
+    )
 
 
 def to_event(event) -> Event:

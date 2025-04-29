@@ -29,7 +29,7 @@ type Services struct {
 // NewServices creates a new services instance
 func NewServices(referenceDate time.Time) *Services {
 	s := &Services{
-		logger:            logging.New("service", os.Stdout, logrus.WarnLevel),
+		logger:            logging.New("service", os.Stdout, logrus.ErrorLevel),
 		Resolver:          utils.NewRuleResolver(),
 		services:          make(map[string]*RuleService),
 		RootReferenceDate: referenceDate.Format("2006-01-02"),

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"maps"
 
@@ -54,13 +55,14 @@ func NewField(key string, value any) Field {
 
 // LoggerImpl is the concrete implementation of Logger
 type LoggerImpl struct {
-	logger     *logrus.Logger
-	name       string
-	service    string
-	law        string
-	fields     logrus.Fields
-	indentLvl  int
-	doubleLine bool
+	logger          *logrus.Logger
+	name            string
+	service         string
+	law             string
+	fields          logrus.Fields
+	indentLvl       int
+	doubleLine      bool
+	cachedBaseEntry *logrus.Entry
 }
 
 // New creates a new logger instance
@@ -93,28 +95,29 @@ func (l *LoggerImpl) getIndent(ctx context.Context) string {
 		return ""
 	}
 
-	var indent string
+	var sb strings.Builder
+	sb.Grow(total * 3)
 
 	for i := range total {
 		if l.doubleLine {
 
 			if i == total-1 {
-				indent += string(BranchDouble)
+				sb.WriteString(string(BranchDouble))
 			} else {
-				indent += string(PipeDouble)
+				sb.WriteString(string(PipeDouble))
 			}
 		}
 
 		if i == total-1 {
-			indent += string(BranchSingle)
+			sb.WriteString(string(BranchSingle))
 		} else {
-			indent += string(PipeSingle)
+			sb.WriteString(string(PipeSingle))
 		}
 
-		indent += " "
+		sb.WriteString(" ")
 	}
 
-	return indent
+	return sb.String()
 }
 
 // Debug logs a debug message with indentation
@@ -247,16 +250,32 @@ func (l *LoggerImpl) IndentBlock(ctx context.Context, msg string, fn func(contex
 
 // createEntry creates a logrus entry with all fields and context values
 func (l *LoggerImpl) createEntry(fields ...Field) *logrus.Entry {
-	allFields := make(logrus.Fields, len(l.fields)+len(fields)+1)
+	// If no immediate fields, use/create cached base entry
+	if len(fields) == 0 {
+		if l.cachedBaseEntry == nil {
+			baseFields := make(logrus.Fields, len(l.fields)+3)
+			maps.Copy(baseFields, l.fields)
+			baseFields["component"] = l.name
+			if l.service != "" {
+				baseFields["service"] = l.service
+			}
+			if l.law != "" {
+				baseFields["law"] = l.law
+			}
+			l.cachedBaseEntry = l.logger.WithFields(baseFields)
+		}
+		return l.cachedBaseEntry
+	}
+
+	// For cases with fields, create a comprehensive map
+	allFields := make(logrus.Fields, len(l.fields)+len(fields)+3)
 	maps.Copy(allFields, l.fields)
 
-	// Add component name
+	// Add component name and optional fields
 	allFields["component"] = l.name
-
 	if l.service != "" {
 		allFields["service"] = l.service
 	}
-
 	if l.law != "" {
 		allFields["law"] = l.law
 	}

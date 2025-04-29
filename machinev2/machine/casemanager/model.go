@@ -32,25 +32,44 @@ var _ = eh.Versionable(&Case{})
 type Case struct {
 	ID                 uuid.UUID `json:"id"`
 	Version            int
-	ClaimIDs           []uuid.UUID    `json:"claim_ids,omitempty"`
-	BSN                string         `json:"bsn"`
-	Service            string         `json:"service"`
-	Law                string         `json:"law"`
-	RulespecID         uuid.UUID      `json:"rulespec_uuid"`
-	ApprovedClaimsOnly bool           `json:"approved_claims_only"`
-	ClaimedResult      map[string]any `json:"claimed_result"`
-	VerifiedResult     map[string]any `json:"verified_result"`
-	Parameters         map[string]any `json:"parameters"`
-	DisputedParameters map[string]any `json:"disputed_parameters,omitempty"`
-	Evidence           string         `json:"evidence,omitempty"`
-	Reason             string         `json:"reason,omitempty"`
-	VerifierID         string         `json:"verifier_id,omitempty"`
-	ObjectionStatus    map[string]any `json:"objection_status,omitempty"`
-	AppealStatus       map[string]any `json:"appeal_status,omitempty"`
-	Approved           *bool          `json:"approved,omitempty"`
-	Status             CaseStatus     `json:"status"`
-	CreatedAt          time.Time      `json:"created_at"`
-	UpdatedAt          time.Time      `json:"updated_at"`
+	ClaimIDs           []uuid.UUID         `json:"claim_ids,omitempty"`
+	BSN                string              `json:"bsn"`
+	Service            string              `json:"service"`
+	Law                string              `json:"law"`
+	RulespecID         uuid.UUID           `json:"rulespec_uuid"`
+	ApprovedClaimsOnly bool                `json:"approved_claims_only"`
+	ClaimedResult      map[string]any      `json:"claimed_result"`
+	VerifiedResult     map[string]any      `json:"verified_result"`
+	Parameters         map[string]any      `json:"parameters"`
+	DisputedParameters map[string]any      `json:"disputed_parameters,omitempty"`
+	Evidence           string              `json:"evidence,omitempty"`
+	Reason             string              `json:"reason,omitempty"`
+	VerifierID         string              `json:"verifier_id,omitempty"`
+	ObjectionStatus    CaseObjectionStatus `json:"objection_status,omitempty"`
+	AppealStatus       map[string]any      `json:"appeal_status,omitempty"`
+	Approved           *bool               `json:"approved,omitempty"`
+	Status             CaseStatus          `json:"status"`
+	CreatedAt          time.Time           `json:"created_at"`
+	UpdatedAt          time.Time           `json:"updated_at"`
+}
+
+type CaseObjectionStatus struct {
+	Possible          *bool
+	NotPossibleReason *string
+	ObjectionPeriod   *int
+	DecisionPeriod    *int
+	ExtensionPeriod   *int
+	Admissable        *bool
+}
+
+type CaseAppealStatus struct {
+	Possible           *bool
+	NotPossibleReason  *string
+	AppealPeriod       *int
+	DirectAppeal       *int
+	DirectAppealReason *string
+	CompetenCourt      *string
+	CourtType          *string
 }
 
 // NewCase creates a new Case
@@ -192,28 +211,24 @@ func (c *Case) DetermineObjectionStatus(
 	decisionPeriod *int,
 	extensionPeriod *int,
 ) error {
-	if c.ObjectionStatus == nil {
-		c.ObjectionStatus = make(map[string]any)
-	}
-
 	if possible != nil {
-		c.ObjectionStatus["possible"] = *possible
+		c.ObjectionStatus.Possible = possible
 	}
 
 	if notPossibleReason != nil {
-		c.ObjectionStatus["not_possible_reason"] = notPossibleReason
+		c.ObjectionStatus.NotPossibleReason = notPossibleReason
 	}
 
 	if objectionPeriod != nil {
-		c.ObjectionStatus["objection_period"] = *objectionPeriod
+		c.ObjectionStatus.ObjectionPeriod = objectionPeriod
 	}
 
 	if decisionPeriod != nil {
-		c.ObjectionStatus["decision_period"] = *decisionPeriod
+		c.ObjectionStatus.DecisionPeriod = decisionPeriod
 	}
 
 	if extensionPeriod != nil {
-		c.ObjectionStatus["extension_period"] = *extensionPeriod
+		c.ObjectionStatus.ExtensionPeriod = extensionPeriod
 	}
 
 	c.UpdatedAt = time.Now()
@@ -222,12 +237,9 @@ func (c *Case) DetermineObjectionStatus(
 
 // DetermineObjectionAdmissibility determines whether an objection is admissible
 func (c *Case) DetermineObjectionAdmissibility(admissible *bool) error {
-	if c.ObjectionStatus == nil {
-		c.ObjectionStatus = make(map[string]any)
-	}
 
 	if admissible != nil {
-		c.ObjectionStatus["admissible"] = *admissible
+		c.ObjectionStatus.Admissable = admissible
 	}
 
 	c.UpdatedAt = time.Now()
@@ -236,12 +248,7 @@ func (c *Case) DetermineObjectionAdmissibility(admissible *bool) error {
 
 // CanObject checks if objection is possible for this case
 func (c *Case) CanObject() bool {
-	if c.ObjectionStatus == nil {
-		return false
-	}
-
-	possible, ok := c.ObjectionStatus["possible"].(bool)
-	return ok && possible
+	return c.ObjectionStatus.Possible != nil && *c.ObjectionStatus.Possible
 }
 
 // DetermineAppealStatus sets appeal status and parameters

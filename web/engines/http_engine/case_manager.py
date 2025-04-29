@@ -5,7 +5,7 @@ from uuid import UUID
 import httpx
 
 from ..case_manager_interface import CaseManagerInterface
-from ..models import Case, Event
+from ..models import Case, CaseObjectionStatus, Event
 from .machine_client.law_as_code_client import Client
 from .machine_client.law_as_code_client.api.case import (
     case_review,
@@ -192,11 +192,27 @@ def to_case(case) -> Case:
         approved_claims_only=case.approved_claims_only,
         status=case.status,
         approved=get_value(case.approved),
+        objection_status=to_objection_status(case.objection_status),
+        appeal_status=case.appeal_status,
     )
 
 
 def to_cases(cases: list[Any]) -> list[Case]:
     return [to_case(item) for item in cases]
+
+
+def to_objection_status(objection) -> CaseObjectionStatus:
+    if objection is None:
+        return None
+
+    return CaseObjectionStatus(
+        possible=objection.possible,
+        not_possible_reason=objection.not_possible_reason,
+        objection_period=objection.objection_period,
+        decision_period=objection.decision_period,
+        extension_period=objection.extension_period,
+        admissable=objection.admissable,
+    )
 
 
 def to_event(event) -> Event:
