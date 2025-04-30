@@ -21,7 +21,7 @@ from .machine_client.law_as_code_client.models import (
 from .machine_client.law_as_code_client.types import UNSET
 
 
-class GoMachineService(EngineInterface):
+class MachineService(EngineInterface):
     """
     Implementation of EngineInterface using HTTP calls to the Go backend service.
     """

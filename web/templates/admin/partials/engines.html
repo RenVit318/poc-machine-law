@@ -23,7 +23,7 @@
                         <td class="py-3 px-4">{{ engine.name }}</td>
                         <td class="py-3 px-4">{{ engine.description }}</td>
                         <td class="py-3 px-4">
-                            {% if engine.active %}
+                            {% if engine.id == current_engine_id %}
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                     Active
                                 </span>
@@ -35,9 +35,9 @@
                         </td>
                         <td class="py-3 px-4">
                             <input type="radio"
-                                   name="selected_engine"
-                                   value="{{ engine.id.value }}"
-                                   {% if engine.active %}checked{% endif %}
+                                   name="engine_id"
+                                   value="{{ engine.id }}"
+                                   {% if engine.id == current_engine_id %}checked{% endif %}
                                    class="form-radio h-4 w-4 text-blue-600">
                         </td>
                     </tr>
