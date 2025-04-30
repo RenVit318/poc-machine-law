@@ -8,16 +8,20 @@ from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 
 from machine.events.case.aggregate import CaseStatus
+from web.config_loader import ConfigLoader
 from web.dependencies import (
     get_case_manager,
     get_claim_manager,
-    get_engine_type,
+    get_engine_id,
     get_machine_service,
-    set_engine_type,
+    set_engine_id,
     templates,
 )
 from web.engines import CaseManagerInterface, ClaimManagerInterface, EngineInterface
 from web.routers.laws import evaluate_law
+
+config_loader = ConfigLoader()
+
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -31,19 +35,7 @@ class Engine(BaseModel):
 
 
 def get_engines() -> list[Engine]:
-    engines = [
-        Engine(id=MachineType.PYTHON, name="Python Engine", description="Default processing engine"),
-        Engine(id=MachineType.GO, name="Go Engine", description="Typed engine"),
-    ]
-
-    current = get_engine_type()
-
-    # Set active to True if engine id matches current
-    for engine in engines:
-        if engine.id == current:
-            engine.active = True
-
-    return engines
+    return config_loader.config.get_engines()
 
 
 def group_cases_by_status(cases):
@@ -76,31 +68,25 @@ async def control(request: Request, services: EngineInterface = Depends(get_mach
 
     return templates.TemplateResponse(
         "admin/control.html",
-        {
-            "request": request,
-            "engines": get_engines(),
-        },
+        {"request": request, "engines": get_engines(), "current_engine_id": get_engine_id()},
     )
 
 
 @router.post("/set-engine")
 async def post_set_engine(
-    request: Request, selected_engine: MachineType = Form(...), services: EngineInterface = Depends(get_machine_service)
+    request: Request, engine_id: str = Form(...), services: EngineInterface = Depends(get_machine_service)
 ):
     # Validate engine exists
-    engine_exists = any(engine.id == selected_engine for engine in get_engines())
+    engine_exists = any(engine.get("id") == engine_id for engine in get_engines())
     if not engine_exists:
-        raise HTTPException(status_code=400, detail="Invalid engine selection")
+        raise HTTPException(status_code=404, detail="Selected engine not found")
 
-    set_engine_type(selected_engine)
+    set_engine_id(engine_id)
 
     # Redirect back to admin dashboard
     return templates.TemplateResponse(
         "/admin/partials/engines.html",
-        {
-            "request": request,
-            "engines": get_engines(),
-        },
+        {"request": request, "engines": get_engines(), "current_engine_id": get_engine_id()},
     )
 
 

@@ -1,13 +1,14 @@
 import locale
-import os
 from datetime import datetime
 from pathlib import Path
 
+from config_loader import ConfigLoader
 from engines import CaseManagerInterface, ClaimManagerInterface, EngineInterface
-from engines.factory import CaseManagerFactory, ClaimManagerFactory, MachineFactory, MachineType
+from engines.factory import CaseManagerFactory, ClaimManagerFactory, MachineFactory
 from fastapi.templating import Jinja2Templates
 
-from machine.service import Services
+# Load configuration
+config_loader = ConfigLoader()
 
 # Set Dutch locale
 try:
@@ -37,32 +38,6 @@ BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
-# Configure default services
-services = Services(TODAY)
-
-# Determine which machine implementation to use based on environment variable
-MACHINE_TYPE = os.environ.get("MACHINE_TYPE", "python").lower()
-GO_API_URL = os.environ.get("GO_API_URL", "http://localhost:8081/v0")
-
-# Determine which implementation to use
-machine_type = MachineType.GO if MACHINE_TYPE == "go" else MachineType.PYTHON
-
-
-# Create case manager based on configuration
-case_manager = CaseManagerFactory.create_case_manager(
-    machine_type=machine_type, services=services, go_api_url=GO_API_URL
-)
-
-# Create machine service based on configuration
-machine_service = MachineFactory.create_machine_service(
-    machine_type=machine_type, services=services, go_api_url=GO_API_URL
-)
-
-# Create machine service based on configuration
-claim_manager = ClaimManagerFactory.create_claim_manager(
-    machine_type=machine_type, services=services, go_api_url=GO_API_URL
-)
-
 
 async def get_case_manager() -> CaseManagerInterface:
     """Dependency to get CaseManager instance"""
@@ -79,31 +54,32 @@ async def get_machine_service() -> EngineInterface:
     return machine_service
 
 
-def set_engine_type(m: MachineType):
-    global machine_type
+def set_engine_id(id: str):
+    global engine_id
     global case_manager
     global machine_service
     global claim_manager
-    machine_type = m
+    engine_id = id
 
     # Create case manager based on configuration
-    case_manager = CaseManagerFactory.create_case_manager(
-        machine_type=machine_type, services=services, go_api_url=GO_API_URL
-    )
+    case_manager = CaseManagerFactory.create_case_manager(engine_id=engine_id)
 
     # Create machine service based on configuration
-    machine_service = MachineFactory.create_machine_service(
-        machine_type=machine_type, services=services, go_api_url=GO_API_URL
-    )
+    machine_service = MachineFactory.create_machine_service(engine_id=engine_id)
 
     # Create machine service based on configuration
-    claim_manager = ClaimManagerFactory.create_claim_manager(
-        machine_type=machine_type, services=services, go_api_url=GO_API_URL
-    )
+    claim_manager = ClaimManagerFactory.create_claim_manager(engine_id=engine_id)
 
 
-def get_engine_type() -> str:
-    return machine_type
+engine = config_loader.config.get_default_engine()
+if engine is None:
+    raise ValueError("Default engine not set")
+
+set_engine_id(engine.get("id"))
+
+
+def get_engine_id() -> str:
+    return engine_id
 
 
 def setup_jinja_env(directory: str) -> Jinja2Templates:

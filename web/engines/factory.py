@@ -1,13 +1,15 @@
+from datetime import datetime
 from enum import Enum
 
 from machine.service import Services
+from web.config_loader import ConfigLoader
 
 from .case_manager_interface import CaseManagerInterface
 from .claim_manager_interface import ClaimManagerInterface
 from .engine_interface import EngineInterface
-from .http_engine import CaseManager as GoCaseManager
-from .http_engine import ClaimManager as GoClaimManager
-from .http_engine import GoMachineService
+from .http_engine import CaseManager as HTTPCaseManager
+from .http_engine import ClaimManager as HTTPClaimManager
+from .http_engine import MachineService as HTTPMachineService
 from .py_engine import CaseManager as PythonCaseManager
 from .py_engine import ClaimManager as PythonClaimManager
 from .py_engine import PythonMachineService
@@ -16,17 +18,21 @@ from .py_engine import PythonMachineService
 class MachineType(Enum):
     """Enum to specify which machine implementation to use."""
 
-    PYTHON = "python"
-    GO = "go"
+    INTERNAL = "internal"
+    HTTP = "http"
+
+
+config_loader = ConfigLoader()
+
+# Configure service for the internal engine
+services = Services(datetime.today().strftime("%Y-%m-%d"))
 
 
 class MachineFactory:
     """Factory for creating Machine service instances."""
 
     @staticmethod
-    def create_machine_service(
-        machine_type: MachineType, services: Services | None = None, go_api_url: str = "http://localhost:8081/v0"
-    ) -> EngineInterface:
+    def create_machine_service(engine_id: str) -> EngineInterface:
         """
         Create a machine service of the specified type.
 
@@ -41,23 +47,25 @@ class MachineFactory:
         Raises:
             ValueError: If machine_type is PYTHON and services is None
         """
-        if machine_type == MachineType.PYTHON:
+
+        engine = config_loader.get_engine(engine_id)
+        engine_type = MachineType(engine.get("type"))
+
+        if engine_type == MachineType.INTERNAL:
             if services is None:
-                raise ValueError("Services instance is required for Python implementation")
+                raise ValueError("Services instance is required for internal Python implementation")
             return PythonMachineService(services)
-        elif machine_type == MachineType.GO:
-            return GoMachineService(base_url=go_api_url)
+        elif engine_type == MachineType.HTTP:
+            return HTTPMachineService(base_url=engine.get("domain"))
         else:
-            raise ValueError(f"Unknown machine type: {machine_type}")
+            raise ValueError(f"Unknown machine type: {engine_type}")
 
 
 class CaseManagerFactory:
     """Factory for creating CaseManager instances."""
 
     @staticmethod
-    def create_case_manager(
-        machine_type: MachineType, services: Services | None = None, go_api_url: str = "http://localhost:8081/v0"
-    ) -> CaseManagerInterface:
+    def create_case_manager(engine_id: str) -> CaseManagerInterface:
         """
         Create a case manager of the specified type.
 
@@ -72,23 +80,25 @@ class CaseManagerFactory:
         Raises:
             ValueError: If machine_type is PYTHON and services is None
         """
-        if machine_type == MachineType.PYTHON:
+
+        engine = config_loader.get_engine(engine_id)
+        engine_type = MachineType(engine.get("type"))
+
+        if engine_type == MachineType.INTERNAL:
             if services is None:
-                raise ValueError("Services instance is required for Python implementation")
+                raise ValueError("Services instance is required for internal Python implementation")
             return PythonCaseManager(services)
-        elif machine_type == MachineType.GO:
-            return GoCaseManager(base_url=go_api_url)
+        elif engine_type == MachineType.HTTP:
+            return HTTPCaseManager(base_url=engine.get("domain"))
         else:
-            raise ValueError(f"Unknown machine type: {machine_type}")
+            raise ValueError(f"Unknown machine type: {engine_type}")
 
 
 class ClaimManagerFactory:
     """Factory for creating ClaimManager instances."""
 
     @staticmethod
-    def create_claim_manager(
-        machine_type: MachineType, services: Services | None = None, go_api_url: str = "http://localhost:8081/v0"
-    ) -> ClaimManagerInterface:
+    def create_claim_manager(engine_id: str) -> ClaimManagerInterface:
         """
         Create a case manager of the specified type.
 
@@ -103,11 +113,15 @@ class ClaimManagerFactory:
         Raises:
             ValueError: If machine_type is PYTHON and services is None
         """
-        if machine_type == MachineType.PYTHON:
+
+        engine = config_loader.get_engine(engine_id)
+        engine_type = MachineType(engine.get("type"))
+
+        if engine_type == MachineType.INTERNAL:
             if services is None:
-                raise ValueError("Services instance is required for Python implementation")
+                raise ValueError("Services instance is required for internal Python implementation")
             return PythonClaimManager(services)
-        elif machine_type == MachineType.GO:
-            return GoClaimManager(base_url=go_api_url)
+        elif engine_type == MachineType.HTTP:
+            return HTTPClaimManager(base_url=engine.get("domain"))
         else:
-            raise ValueError(f"Unknown machine type: {machine_type}")
+            raise ValueError(f"Unknown machine type: {engine_type}")
