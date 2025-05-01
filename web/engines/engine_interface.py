@@ -1,19 +1,8 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-
-@dataclass
-class PathNode:
-    """Node for tracking evaluation path"""
-
-    type: str
-    name: str
-    result: Any
-    resolve_type: str = None
-    required: bool = False
-    details: dict[str, Any] = field(default_factory=dict)
-    children: list["PathNode"] = field(default_factory=list)
+from context import PathNode
 
 
 @dataclass

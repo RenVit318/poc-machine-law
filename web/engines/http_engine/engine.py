@@ -30,6 +30,15 @@ class MachineService(EngineInterface):
         self.base_url = base_url
         self.client = httpx.AsyncClient(base_url=self.base_url)
 
+        # Import here to avoid circular imports
+        from .case_manager import CaseManager
+        from .claim_manager import ClaimManager
+
+        # Add these accessors to make it easier to get at the case and claim managers
+        # This ensures compatibility with MCPLawConnector which expects services.case_manager
+        self.case_manager = CaseManager(base_url=self.base_url)
+        self.claim_manager = ClaimManager(base_url=self.base_url)
+
     async def get_rule_spec(self, law: str, reference_date: str, service: str) -> dict[str, Any]:
         """
         Get the rule specification for a specific law.

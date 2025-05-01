@@ -17,6 +17,9 @@ class PythonMachineService(EngineInterface):
 
     def __init__(self, services: Services):
         self.services = services
+        # Add these accessors to make it easier to get at the case and claim managers
+        self.case_manager = services.case_manager
+        self.claim_manager = services.claim_manager
 
     def get_profile_data(self, bsn: str) -> dict[str, Any]:
         """

@@ -158,7 +158,7 @@ class BaseMCPService:
             value_tree = self.services.extract_value_tree(result.path)
 
             for path, node_info in value_tree.items():
-                if node_info.get("required") and (node_info.get("result") is None or "result" not in node_info):
+                if node_info.get("required") and not node_info.get("result"):
                     # Get the field name (last part of the path)
                     field_name = path.split(".")[-1]
                     missing_fields.append(field_name)
@@ -185,7 +185,7 @@ class BaseMCPService:
             value_tree = self.services.extract_value_tree(result.path)
 
             for path, node_info in value_tree.items():
-                if node_info.get("required") and (node_info.get("result") is None or "result" not in node_info):
+                if node_info.get("required") and not node_info.get("result"):
                     # Get the field name (last part of the path)
                     field_name = path.split(".")[-1]
                     missing_fields.append(field_name)
