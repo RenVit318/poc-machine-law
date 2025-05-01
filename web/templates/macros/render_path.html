@@ -14,9 +14,9 @@
             hx-target="#edit-form-container"
             hx-vals='{ "case_id": "{{ case_id }}", "service": "{{ service }}", "key": "{{ key }}", "value": {{ display_value|tojson }}, "law": "{{ law }}", "bsn": "{{ bsn }}", "show_approve": {{ show_approve|default(false) |tojson }}, "claimant": "{{ claimant }}", {% if node.details %}"details": {{ node.details|tojson }},{% endif %} "has_details": {{ (node.details is defined)|tojson }} }'
             type="button">
-        {% if display_value is none or display_value is undefined %}
+        {% if display_value is none or display_value is undefined or display_value == {} %}
             {% if node.required is defined and node.required %}
-                BENODIGD GEGEVEN
+                <span class="text-red-600 font-medium">BENODIGD GEGEVEN</span>
             {% else %}
                 Ontbrekend gegeven
             {% endif %}
@@ -31,7 +31,7 @@
                 {% else %}
                     {{ display_value }}
                 {% endif %}
-            {% elif display_value is mapping %}
+            {% elif display_value is mapping and display_value|length > 0 %}
                 {% for key, val in display_value.items() %}
                     {% if val is mapping %}
                         {{ key }}:
