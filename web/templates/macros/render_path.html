@@ -36,10 +36,12 @@
                     {% if val is mapping %}
                         {{ key }}:
                         {% for subkey, subval in val.items() %}
-                            {{ subkey }}: {{ subval }}
-                            {% if not loop.last %},{% endif %}
+                            {% if subval is not none %}
+                                {{ subkey }}: {{ subval }}
+                                {% if not loop.last %},{% endif %}
+                            {% endif %}
                         {% endfor %}
-                    {% else %}
+                    {% elif val is not none %}
                         {{ key }}: {{ val }}
                     {% endif %}
                     {% if not loop.last %},{% endif %}
@@ -181,10 +183,13 @@
             </div>
         </div>
     {% else %}
-        <div class="text-sm leading-5 py-0.5">
-            <span class="text-gray-600">{{ key|title|replace('_', ' ') }}:</span>
-            <span class="ml-2">{{ render_value(key, node, case_id, service, law, bsn, claim_map, show_approve, claimant) }}</span>
-        </div>
+        {% set display_result = node.result if node is mapping and node.result is defined else node %}
+        {% if display_result is not none and display_result != {} and display_result != {'value': None} or (node is mapping and node.required) %}
+            <div class="text-sm leading-5 py-0.5">
+                <span class="text-gray-600">{{ key|title|replace('_', ' ') }}:</span>
+                <span class="ml-2">{{ render_value(key, node, case_id, service, law, bsn, claim_map, show_approve, claimant) }}</span>
+            </div>
+        {% endif %}
     {% endif %}
 {% endmacro %}
 {% macro render_missing_required_form(path, case_id, service, law, bsn, claim_map, show_approve=False, claimant="CITIZEN") %}

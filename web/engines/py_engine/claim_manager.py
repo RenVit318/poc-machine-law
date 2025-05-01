@@ -21,31 +21,32 @@ class ClaimManager(ClaimManagerInterface):
 
         Args:
             bsn: BSN identifier for the individual
-            service: Service provider code (e.g., "TOESLAGEN")
-            law: Law identifier (e.g., "zorgtoeslagwet")
+            approved: If True, only return approved claims
+            include_rejected: If True, also include rejected claims
 
         Returns:
-            Case object if found, None otherwise
+            List of claims matching the criteria
         """
-        claims = self.claim_manager.get_claims_by_bsn(bsn, include_rejected)
+        claims = self.claim_manager.get_claims_by_bsn(bsn, approved, include_rejected)
         return claims
 
     async def get_claim_by_bsn_service_law(
         self, bsn: str, service: str, law: str, approved: bool = False, include_rejected: bool = False
     ) -> dict[UUID:Claim]:
         """
-        Retrieves case information using the embedded Python machine.service library.
+        Retrieves claims filtered by BSN, service, and law.
 
         Args:
             bsn: BSN identifier for the individual
             service: Service provider code (e.g., "TOESLAGEN")
             law: Law identifier (e.g., "zorgtoeslagwet")
+            approved: If True, only return approved claims
+            include_rejected: If True, also include rejected claims
 
         Returns:
-            Case object if found, None otherwise
+            Dictionary of claims keyed by claim key
         """
-        claims = self.claim_manager.get_claim_by_bsn_service_law(bsn, service, law)
-        return claims
+        return self.claim_manager.get_claim_by_bsn_service_law(bsn, service, law, approved, include_rejected)
 
     async def submit_claim(
         self,
@@ -71,7 +72,6 @@ class ClaimManager(ClaimManagerInterface):
         Returns:
             A ClaimID
         """
-
         return self.claim_manager.submit_claim(
             service,
             key,
