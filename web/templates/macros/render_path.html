@@ -191,18 +191,18 @@
     {% set missing_required = [] %}
     {% for key, node in path.items() %}
         {% if node is mapping %}
-            {% if node.required is defined and node.required and (node.result is none or node.result is undefined) %}
+            {% if node.required is defined and node.required and (node.result is none or node.result is undefined or node.result == {}) %}
                 {% set _ = missing_required.append({'key': key, 'node': node}) %}
             {% endif %}
             {% if node.children is defined %}
                 {% for child_key, child_node in node.children.items() %}
                     {% if child_node is mapping %}
-                        {% if child_node.required is defined and child_node.required and (child_node.result is none or child_node.result is undefined) %}
+                        {% if child_node.required is defined and child_node.required and (child_node.result is none or child_node.result is undefined or child_node.result == {}) %}
                             {% set _ = missing_required.append({'key': child_key, 'node': child_node}) %}
                         {% endif %}
                         {% if child_node.children is defined %}
                             {% for grandchild_key, grandchild_node in child_node.children.items() %}
-                                {% if grandchild_node is mapping and grandchild_node.required is defined and grandchild_node.required and (grandchild_node.result is none or grandchild_node.result is undefined) %}
+                                {% if grandchild_node is mapping and grandchild_node.required is defined and grandchild_node.required and (grandchild_node.result is none or grandchild_node.result is undefined or grandchild_node.result == {}) %}
                                     {% set _ = missing_required.append({'key': grandchild_key, 'node': grandchild_node}) %}
                                 {% endif %}
                             {% endfor %}
