@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 
 from explain.llm_factory import LLMFactory
-from machine.events.case.aggregate import CaseStatus
 from web.config_loader import ConfigLoader
 from web.dependencies import (
     get_case_manager,
@@ -19,6 +18,7 @@ from web.dependencies import (
     templates,
 )
 from web.engines import CaseManagerInterface, ClaimManagerInterface, EngineInterface
+from web.engines.models import CaseStatus
 from web.routers.laws import evaluate_law
 
 config_loader = ConfigLoader()

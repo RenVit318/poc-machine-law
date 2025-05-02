@@ -5,7 +5,7 @@ from uuid import UUID
 import httpx
 
 from ..case_manager_interface import CaseManagerInterface
-from ..models import Case, CaseObjectionStatus, Event
+from ..models import Case, CaseObjectionStatus, CaseStatus, Event
 from .machine_client.law_as_code_client import Client
 from .machine_client.law_as_code_client.api.case import (
     case_based_on_bsn_service_law,
@@ -200,7 +200,7 @@ def to_case(case) -> Case:
         verified_result=case.verified_result,
         rulespec_uuid=case.rulespec_id,
         approved_claims_only=case.approved_claims_only,
-        status=case.status,
+        status=CaseStatus(case.status),
         approved=get_value(case.approved),
         objection_status=to_objection_status(case.objection_status),
         appeal_status=case.appeal_status,

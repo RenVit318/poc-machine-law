@@ -4,7 +4,7 @@ from uuid import UUID
 from machine.service import Services
 
 from ..case_manager_interface import CaseManagerInterface
-from ..models import Case, CaseObjectionStatus, Event
+from ..models import Case, CaseObjectionStatus, CaseStatus, Event
 
 
 class CaseManager(CaseManagerInterface):
@@ -99,7 +99,7 @@ def to_case(case) -> Case:
         verified_result=case.verified_result,
         rulespec_uuid=case.rulespec_uuid,
         approved_claims_only=case.approved_claims_only,
-        status=case.status,
+        status=CaseStatus(case.status),
         approved=case.approved,
         objection_status=to_objection_status(getattr(case, "objection_status", None)),
         appeal_status=getattr(case, "appeal_status", None),
