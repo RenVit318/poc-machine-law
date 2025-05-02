@@ -31,7 +31,7 @@ jobs:
         run: ./script/test-behaviour
 
   go-test-features:
-    name: Run Go Tests
+    name: Run Go Features
     runs-on: ubuntu-latest
     # Add this permissions block
     permissions:
@@ -45,7 +45,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24" # Replace with your desired Go version
+          go-version-file: "features/go.mod" # Replace with your desired Go version
+          cache-dependency-path: |
+            features/go.sum
 
       - name: Run tests
         working-directory: ./features
@@ -66,7 +68,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24" # Replace with your desired Go version
+          go-version-file: "machinev2/machine/go.mod" # Replace with your desired Go version
+          cache-dependency-path: |
+            machinev2/machine/go.sum
 
       - name: Run tests
         working-directory: ./machinev2/machine
