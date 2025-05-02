@@ -7,8 +7,14 @@ from fastapi.responses import HTMLResponse
 
 from explain.llm_factory import LLMFactory
 from explain.mcp_connector import MCPLawConnector
-from web.dependencies import TODAY, get_machine_service, templates
-from web.engines import EngineInterface
+from web.dependencies import (
+    TODAY,
+    get_case_manager,
+    get_claim_manager,
+    get_machine_service,
+    templates,
+)
+from web.engines import CaseManagerInterface, ClaimManagerInterface, EngineInterface
 from web.utils import format_message
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -34,7 +40,16 @@ class ChatConnectionManager:
 
 
 async def handle_application_display(
-    websocket: WebSocket, bsn: str, services, mcp_connector, service_results, messages, user_msg_content, templates
+    websocket: WebSocket,
+    bsn: str,
+    services,
+    case_manager,
+    claim_manager,
+    mcp_connector,
+    service_results,
+    messages,
+    user_msg_content,
+    templates,
 ):
     """Display an application panel in the chat interface."""
     from web.routers.laws import evaluate_law
@@ -89,16 +104,17 @@ async def handle_application_display(
             law, result, parameters = await evaluate_law(bsn, law, service, services, approved=False)
 
             # Get the rule spec separately
-            rule_spec = await services.get_rule_spec(law, TODAY, service)
+            rule_spec = services.get_rule_spec(law, TODAY, service)
+
             # Use the service's extract_value_tree method, which now should be properly set up
             value_tree = services.extract_value_tree(result.path)
 
             # Get claims for this user
-            claims = services.claim_manager.get_claims_by_bsn(bsn, include_rejected=True)
+            claims = claim_manager.get_claims_by_bsn(bsn, include_rejected=True)
             claim_map = {(claim.service, claim.law, claim.key): claim for claim in claims}
 
             # Get existing case if any
-            existing_case = services.case_manager.get_case(bsn, service, law)
+            existing_case = case_manager.get_case(bsn, service, law)
 
             # Render the application panel template with in_chat_panel=True
             panel_html = templates.get_template("partials/tiles/components/application_form.html").render(
@@ -176,7 +192,7 @@ async def handle_application_display(
 
 
 async def handle_application_submission(
-    websocket: WebSocket, bsn: str, services, mcp_connector, service_name, law_path=None
+    websocket: WebSocket, bsn: str, services, case_manager, mcp_connector, service_name, law_path=None
 ):
     """Handle submission of an application from the chat interface."""
     try:
@@ -198,10 +214,10 @@ async def handle_application_submission(
 
         # Get data needed for submission
         law, result, parameters = await evaluate_law(bsn, law, service_type, services, approved=False)
-        rule_spec = await services.get_rule_spec(law, TODAY, service_type)
+        rule_spec = services.get_rule_spec(law, TODAY, service_type)
 
         # Submit the case
-        await services.case_manager.submit_case(
+        await case_manager.submit_case(
             bsn=bsn,
             service_type=service_type,
             law=law,
@@ -306,7 +322,11 @@ async def set_chat_provider(request: Request, provider: str = Form(...)):
 
 @router.websocket("/ws/{client_id}")
 async def websocket_endpoint(
-    websocket: WebSocket, client_id: str, services: EngineInterface = Depends(get_machine_service)
+    websocket: WebSocket,
+    client_id: str,
+    services: EngineInterface = Depends(get_machine_service),
+    case_manager: CaseManagerInterface = Depends(get_case_manager),
+    claim_manager: ClaimManagerInterface = Depends(get_claim_manager),
 ):
     await manager.connect(websocket, client_id)
 
@@ -329,7 +349,7 @@ async def websocket_endpoint(
             manager.disconnect(client_id)
             return
 
-        services.set_profile_data(bsn)
+        # services.set_profile_data(bsn) # TODO verify if this is necessary
 
         # Check if selected provider is properly configured
         if not LLMFactory.is_provider_configured(selected_provider):
@@ -347,47 +367,7 @@ async def websocket_endpoint(
             json.dumps({"connected": True, "provider": selected_provider, "model": llm_service.model_id, "bsn": bsn})
         )
 
-        # Set up MCP connector
-        # Create a stub that accesses the case_manager and claim_manager through the interface
-        # This is a compatibility layer that adapts EngineInterface to work with MCPLawConnector
-        # without importing or creating new Services objects
-        class ServicesAdapter:
-            def __init__(self, interface):
-                self.interface = interface
-                self.case_manager = interface.case_manager
-                self.claim_manager = interface.claim_manager
-
-            def extract_value_tree(self, path):
-                from web.engines.engine_interface import EngineInterface
-
-                return EngineInterface.extract_value_tree(path)
-
-            # Add methods needed by MCPLawConnector that might be called on Services
-            def get_discoverable_service_laws(self, discoverable_by="CITIZEN"):
-                return self.interface.get_discoverable_service_laws(discoverable_by)
-
-            def evaluate(self, *args, **kwargs):
-                return self.interface.evaluate(*args, **kwargs)
-
-            # Add resolver accessor for the registry
-            @property
-            def resolver(self):
-                from machine.utils import RuleResolver
-
-                return RuleResolver()
-
-            # Add set_source_dataframe method to handle profile data
-            def set_source_dataframe(self, service_name, table_name, df):
-                # For PythonMachineService, we can delegate to its services
-                if hasattr(self.interface, "services") and hasattr(self.interface.services, "set_source_dataframe"):
-                    # This uses the actual Services object inside PythonMachineService
-                    self.interface.services.set_source_dataframe(service_name, table_name, df)
-                # For HTTPMachineService, this data is handled on the Go backend by the profile
-                # We don't need to store it ourselves
-                # The important thing is to not raise an AttributeError
-
-        adapter = ServicesAdapter(services)
-        mcp_connector = MCPLawConnector(adapter)
+        mcp_connector = MCPLawConnector(services, case_manager, claim_manager)
 
         # Initial empty system prompt placeholder - we'll update it with fresh claims data each time
         system_prompt = ""
@@ -421,7 +401,9 @@ async def websocket_endpoint(
                 service_name = user_message.get("service")
                 law = user_message.get("law")
 
-                if await handle_application_submission(websocket, bsn, services, mcp_connector, service_name, law):
+                if await handle_application_submission(
+                    websocket, bsn, services, case_manager, mcp_connector, service_name, law
+                ):
                     continue
 
             # Note: We previously had code here to check for "toon aanvraagformulier",
@@ -496,7 +478,7 @@ async def websocket_endpoint(
                                     service = mcp_connector.registry.get_service(service_name)
                                     if service:
                                         # Submit claim for this value
-                                        await services.claim_manager.submit_claim(
+                                        claim_manager.submit_claim(
                                             service=service.service_type,
                                             key=key,
                                             new_value=parsed_value,
@@ -547,7 +529,7 @@ async def websocket_endpoint(
                 )
 
                 # Format the service results
-                service_context = mcp_connector.format_results_for_llm(service_results)
+                service_context = await mcp_connector.format_results_for_llm(service_results)
 
                 # Create a temporary message from Claude that includes the tool call
                 tool_message = {"role": "assistant", "content": assistant_message}
@@ -622,6 +604,8 @@ async def websocket_endpoint(
                     websocket,
                     bsn,
                     services,
+                    case_manager,
+                    claim_manager,
                     mcp_connector,
                     app_form_request["results"],
                     messages,
@@ -701,7 +685,7 @@ async def websocket_endpoint(
                         service_results = {service_name: result}
 
                         # Format the results
-                        service_context = mcp_connector.format_results_for_llm(service_results)
+                        service_context = await mcp_connector.format_results_for_llm(service_results)
 
                         # Create message prompt based on context
                         is_from_claim = service_name in services_to_execute[: len(claim_refs)] if claim_refs else False

@@ -152,7 +152,7 @@ paths:
         - $ref: "#/components/parameters/pathBSN"
         - $ref: "#/components/parameters/queryOnlyApproved"
         - $ref: "#/components/parameters/queryIncludeRejected"
-      operation: claimListBasedOnBSN
+      operationId: claimListBasedOnBSN
       responses:
         "200":
           $ref: "#/components/responses/ClaimListResponse"
@@ -171,7 +171,7 @@ paths:
         - $ref: "#/components/parameters/pathLaw"
         - $ref: "#/components/parameters/queryOnlyApproved"
         - $ref: "#/components/parameters/queryIncludeRejected"
-      operation: claimListBasedOnBSN
+      operationId: claimListBasedOnBSNServiceLaw
       responses:
         "200":
           $ref: "#/components/responses/ClaimListWithKeyResponse"
@@ -201,7 +201,7 @@ paths:
       description: Get a case based on a case id
       parameters:
         - $ref: "#/components/parameters/pathCaseID"
-      operation: caseGet
+      operationId: caseGet
       responses:
         "200":
           $ref: "#/components/responses/CaseResponse"
@@ -231,6 +231,23 @@ paths:
           $ref: "#/components/responses/ResourceNotFoundErrorResponse"
         "500":
           $ref: "#/components/responses/InternalServerErrorResponse"
+  /cases/{bsn}:
+    get:
+      tags:
+        - Case
+      description: Get all cases based on a bsn
+      parameters:
+        - $ref: "#/components/parameters/pathBSN"
+      operationId: caseListBasedOnBSN
+      responses:
+        "200":
+          $ref: "#/components/responses/CaseListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestErrorResponse"
+        "404":
+          $ref: "#/components/responses/ResourceNotFoundErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerErrorResponse"
   /cases/{bsn}/{service}/{law}:
     get:
       tags:
@@ -240,7 +257,7 @@ paths:
         - $ref: "#/components/parameters/pathBSN"
         - $ref: "#/components/parameters/pathService"
         - $ref: "#/components/parameters/pathLaw"
-      operation: caseBasedOnBSNServiceAndLaw
+      operationId: caseBasedOnBSNServiceLaw
       responses:
         "200":
           $ref: "#/components/responses/CaseResponse"
@@ -258,7 +275,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/pathService"
         - $ref: "#/components/parameters/pathLaw"
-      operation: caseListBasedOnServiceAndLaw
+      operationId: caseListBasedOnServiceLaw
       responses:
         "200":
           $ref: "#/components/responses/CaseListResponse"
@@ -274,7 +291,7 @@ paths:
       description: Get a list of events based on a case id
       parameters:
         - $ref: "#/components/parameters/pathCaseID"
-      operation: eventListBasedOnCaseID
+      operationId: eventListBasedOnCaseID
       responses:
         "200":
           $ref: "#/components/responses/EventListResponse"
@@ -289,10 +306,40 @@ paths:
       tags:
         - Events
       description: Get a list of events
-      operation: eventList
+      operationId: eventList
       responses:
         "200":
           $ref: "#/components/responses/EventListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerErrorResponse"
+  /engine/reset:
+    post:
+      summary: Reset the engine
+      description: Resets the entire engine, clearing all data and returning it to its initial state
+      operationId: resetEngine
+      tags:
+        - Engine
+      responses:
+        "201":
+          $ref: "#/components/responses/EmptyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerErrorResponse"
+  /source-dataframe:
+    post:
+      summary: Set a source data frame
+      description: Inserts data into the engine by setting a source data frame for a specific service and table
+      operationId: setSourceDataFrame
+      tags:
+        - DataFrames
+      requestBody:
+        $ref: "#/components/requestBodies/DataFrameRequest"
+      responses:
+        "201":
+          $ref: "#/components/responses/EmptyResponse"
         "400":
           $ref: "#/components/responses/BadRequestErrorResponse"
         "500":
@@ -751,7 +798,28 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/Event"
-
+    DataFrame:
+      type: object
+      required:
+        - service
+        - table
+        - data
+      properties:
+        service:
+          type: string
+        table:
+          type: string
+        data:
+          type: array
+          description: Column definitions for the data frame
+          items:
+            additionalProperties: true
+      example:
+        service: CBS
+        table: levensverwachting
+        data:
+          - jaar: 2025
+            verwachting_65: "20.5"
   parameters:
     pathBSN:
       name: bsn
@@ -907,6 +975,17 @@ components:
             properties:
               data:
                 $ref: "#/components/schemas/CaseReview"
+            required:
+              - data
+    DataFrameRequest:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: "#/components/schemas/DataFrame"
             required:
               - data
   responses:

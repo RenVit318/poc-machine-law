@@ -3,17 +3,21 @@ from datetime import datetime
 from typing import Any
 
 import httpx
+import pandas as pd
 
 from ..engine_interface import EngineInterface, PathNode, RuleResult
 from .machine_client.law_as_code_client import Client
+from .machine_client.law_as_code_client.api.data_frames import set_source_data_frame
 from .machine_client.law_as_code_client.api.law import evaluate, rule_spec_get, service_laws_discoverable_list
 from .machine_client.law_as_code_client.api.profile import profile_get, profile_list
 from .machine_client.law_as_code_client.models import (
+    DataFrame,
     Evaluate,
     EvaluateBody,
     EvaluateParameters,
     Profile,
     ProfileSources,
+    SetSourceDataFrameBody,
 )
 from .machine_client.law_as_code_client.models import (
     PathNode as ApiPathNode,
@@ -30,16 +34,7 @@ class MachineService(EngineInterface):
         self.base_url = base_url
         self.client = httpx.AsyncClient(base_url=self.base_url)
 
-        # Import here to avoid circular imports
-        from .case_manager import CaseManager
-        from .claim_manager import ClaimManager
-
-        # Add these accessors to make it easier to get at the case and claim managers
-        # This ensures compatibility with MCPLawConnector which expects services.case_manager
-        self.case_manager = CaseManager(base_url=self.base_url)
-        self.claim_manager = ClaimManager(base_url=self.base_url)
-
-    async def get_rule_spec(self, law: str, reference_date: str, service: str) -> dict[str, Any]:
+    def get_rule_spec(self, law: str, reference_date: str, service: str) -> dict[str, Any]:
         """
         Get the rule specification for a specific law.
 
@@ -63,7 +58,7 @@ class MachineService(EngineInterface):
             )
             content = response.parsed
 
-            return content.data
+            return content.data.to_dict()
 
     async def evaluate(
         self,
@@ -110,7 +105,7 @@ class MachineService(EngineInterface):
                 path=to_path_node(content.data.path),
             )
 
-    async def get_discoverable_service_laws(self, discoverable_by="CITIZEN") -> dict[str, list[str]]:
+    def get_discoverable_service_laws(self, discoverable_by="CITIZEN") -> dict[str, list[str]]:
         """
         Get laws discoverable by citizens using HTTP calls to the Go backend service.
         """
@@ -134,7 +129,7 @@ class MachineService(EngineInterface):
         Get sorted laws discoverable by citizens using HTTP calls to the Go backend service.
         """
 
-        response = await self.get_discoverable_service_laws()
+        response = self.get_discoverable_service_laws()
 
         result = []
         for service, laws in response.items():
@@ -166,6 +161,21 @@ class MachineService(EngineInterface):
             content = response.parsed
 
             return profile_transform(content.data)
+
+    def set_source_dataframe(self, service: str, table: str, df: pd.DataFrame) -> None:
+        # Instantiate the API client
+        client = Client(base_url=self.base_url)
+
+        data = DataFrame(
+            service=service,
+            table=table,
+            data=df.to_dict("records"),
+        )
+
+        body = SetSourceDataFrameBody(data=data)
+
+        with client as client:
+            set_source_data_frame.sync_detailed(client=client, body=body)
 
     async def __aenter__(self):
         await self.client.__aenter__()

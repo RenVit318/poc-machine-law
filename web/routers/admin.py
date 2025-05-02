@@ -102,7 +102,7 @@ def group_cases_by_status(cases):
 @router.get("/")
 async def admin_redirect(request: Request, services: EngineInterface = Depends(get_machine_service)):
     """Redirect to first available service"""
-    discoverable_laws = await services.get_discoverable_service_laws()
+    discoverable_laws = services.get_discoverable_service_laws()
     available_services = list(discoverable_laws.keys())
     return RedirectResponse(f"/admin/{available_services[0]}")
 
@@ -234,14 +234,14 @@ async def admin_dashboard(
     case_manager: CaseManagerInterface = Depends(get_case_manager),
 ):
     """Main admin dashboard view"""
-    discoverable_laws = await services.get_discoverable_service_laws()
+    discoverable_laws = services.get_discoverable_service_laws()
     available_services = list(discoverable_laws.keys())
 
     # Get cases for selected service
     service_laws = discoverable_laws.get(service, [])
     service_cases = {}
     for law in service_laws:
-        cases = await case_manager.get_cases_by_law(service, law)
+        cases = case_manager.get_cases_by_law(service, law)
         service_cases[law] = group_cases_by_status(cases)
 
     return templates.TemplateResponse(
@@ -271,7 +271,7 @@ async def move_case(
         except KeyError:
             raise HTTPException(status_code=400, detail=f"Invalid status: {new_status}")
 
-        case = await case_manager.get_case_by_id(case_id)
+        case = case_manager.get_case_by_id(case_id)
         if not case:
             raise HTTPException(status_code=404, detail="Case not found")
 
@@ -303,7 +303,7 @@ async def move_case(
         else:
             raise HTTPException(status_code=400, detail=f"Cannot move to status {new_status}")
 
-        await case_manager.save(case)
+        case_manager.save(case)
 
         # Return just the updated card
         return templates.TemplateResponse(
@@ -330,7 +330,7 @@ async def complete_review(
         )
 
         # Get the updated case
-        updated_case = await case_manager.get_case_by_id(case_id)
+        updated_case = case_manager.get_case_by_id(case_id)
 
         # Check if request is from case detail page
         is_detail_page = request.headers.get("HX-Current-URL", "").endswith(f"/cases/{case_id}")
@@ -372,14 +372,14 @@ async def view_case(
     claim_manager: ClaimManagerInterface = Depends(get_claim_manager),
 ):
     """View details of a specific case"""
-    case = await case_manager.get_case_by_id(case_id)
+    case = case_manager.get_case_by_id(case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    case.events = await case_manager.get_events(case.id)
+    case.events = case_manager.get_events(case.id)
     law, result, parameters = await evaluate_law(case.bsn, case.law, case.service, machine_service)
     value_tree = machine_service.extract_value_tree(result.path)
-    claims = await claim_manager.get_claims_by_bsn(case.bsn, include_rejected=True)
+    claims = claim_manager.get_claims_by_bsn(case.bsn, include_rejected=True)
     claim_ids = {claim.id: claim for claim in claims}
     claim_map = {(claim.service, claim.law, claim.key): claim for claim in claims}
     return templates.TemplateResponse(
@@ -402,14 +402,14 @@ async def view_claim(
     case_manager: CaseManagerInterface = Depends(get_case_manager),
 ):
     """View details of a specific claim"""
-    claim = await claim_manager.get_claim(claim_id)
+    claim = claim_manager.get_claim(claim_id)
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
     # Get related case if it exists
     related_case = None
     if claim.case_id:
-        related_case = await case_manager.get_case_by_id(claim.case_id)
+        related_case = case_manager.get_case_by_id(claim.case_id)
 
     return templates.TemplateResponse(
         "admin/claim_detail.html", {"request": request, "claim": claim, "related_case": related_case}

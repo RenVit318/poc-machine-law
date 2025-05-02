@@ -10,12 +10,12 @@ import (
 	"github.com/minbzk/poc-machine-law/machinev2/backend/model"
 )
 
-// GetCasesBsnServiceLaw implements api.StrictServerInterface.
-func (handler *Handler) GetCasesBsnServiceLaw(ctx context.Context, request api.GetCasesBsnServiceLawRequestObject) (api.GetCasesBsnServiceLawResponseObject, error) {
+// CaseBasedOnBSNServiceLaw implements api.StrictServerInterface.
+func (handler *Handler) CaseBasedOnBSNServiceLaw(ctx context.Context, request api.CaseBasedOnBSNServiceLawRequestObject) (api.CaseBasedOnBSNServiceLawResponseObject, error) {
 	case_, err := handler.servicer.CaseGetBasedOnBSNServiceLaw(ctx, request.Bsn, request.Service, request.Law)
 	if err != nil {
 		if errors.Is(err, model.ErrCaseNotFound) {
-			return api.GetCasesBsnServiceLaw404JSONResponse{
+			return api.CaseBasedOnBSNServiceLaw404JSONResponse{
 				ResourceNotFoundErrorResponseJSONResponse: api.ResourceNotFoundErrorResponseJSONResponse{
 					Errors: &[]api.Error{{
 						Message: err.Error(),
@@ -24,28 +24,44 @@ func (handler *Handler) GetCasesBsnServiceLaw(ctx context.Context, request api.G
 			}, nil
 		}
 
-		return api.GetCasesBsnServiceLaw400JSONResponse{
+		return api.CaseBasedOnBSNServiceLaw400JSONResponse{
 			BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("case get based on bsn, service & law: %w", err)),
 		}, nil
 	}
 
-	return api.GetCasesBsnServiceLaw200JSONResponse{
+	return api.CaseBasedOnBSNServiceLaw200JSONResponse{
 		CaseResponseJSONResponse: api.CaseResponseJSONResponse{
 			Data: adapter.FromCase(case_),
 		},
 	}, nil
 }
 
-// GetCasesServiceLaw implements api.StrictServerInterface.
-func (handler *Handler) GetCasesServiceLaw(ctx context.Context, request api.GetCasesServiceLawRequestObject) (api.GetCasesServiceLawResponseObject, error) {
+// CaseListBasedOnServiceLaw implements api.StrictServerInterface.
+func (handler *Handler) CaseListBasedOnServiceLaw(ctx context.Context, request api.CaseListBasedOnServiceLawRequestObject) (api.CaseListBasedOnServiceLawResponseObject, error) {
 	cases, err := handler.servicer.CaseListBasedOnServiceLaw(ctx, request.Service, request.Law)
 	if err != nil {
-		return api.GetCasesServiceLaw400JSONResponse{
+		return api.CaseListBasedOnServiceLaw400JSONResponse{
 			BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("case list based on service & law: %w", err)),
 		}, nil
 	}
 
-	return api.GetCasesServiceLaw200JSONResponse{
+	return api.CaseListBasedOnServiceLaw200JSONResponse{
+		CaseListResponseJSONResponse: api.CaseListResponseJSONResponse{
+			Data: adapter.FromCases(cases),
+		},
+	}, nil
+}
+
+// CaseListBasedOnBSN implements api.StrictServerInterface.
+func (handler *Handler) CaseListBasedOnBSN(ctx context.Context, request api.CaseListBasedOnBSNRequestObject) (api.CaseListBasedOnBSNResponseObject, error) {
+	cases, err := handler.servicer.CaseListBasedOnBSN(ctx, request.Bsn)
+	if err != nil {
+		return api.CaseListBasedOnBSN400JSONResponse{
+			BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("case list based on bsn: %w", err)),
+		}, nil
+	}
+
+	return api.CaseListBasedOnBSN200JSONResponse{
 		CaseListResponseJSONResponse: api.CaseListResponseJSONResponse{
 			Data: adapter.FromCases(cases),
 		},
@@ -66,12 +82,12 @@ func (handler *Handler) CaseSubmit(ctx context.Context, request api.CaseSubmitRe
 	}, nil
 }
 
-// GetCaseCaseID implements api.StrictServerInterface.
-func (handler *Handler) GetCaseCaseID(ctx context.Context, request api.GetCaseCaseIDRequestObject) (api.GetCaseCaseIDResponseObject, error) {
+// CaseGet implements api.StrictServerInterface.
+func (handler *Handler) CaseGet(ctx context.Context, request api.CaseGetRequestObject) (api.CaseGetResponseObject, error) {
 	case_, err := handler.servicer.CaseGet(ctx, request.CaseID)
 	if err != nil {
 		if errors.Is(err, model.ErrCaseNotFound) {
-			return api.GetCaseCaseID404JSONResponse{
+			return api.CaseGet404JSONResponse{
 				ResourceNotFoundErrorResponseJSONResponse: api.ResourceNotFoundErrorResponseJSONResponse{
 					Errors: &[]api.Error{{
 						Message: err.Error(),
@@ -80,10 +96,10 @@ func (handler *Handler) GetCaseCaseID(ctx context.Context, request api.GetCaseCa
 			}, nil
 		}
 
-		return api.GetCaseCaseID400JSONResponse{BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("case get: %w", err))}, nil
+		return api.CaseGet400JSONResponse{BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("case get: %w", err))}, nil
 	}
 
-	return api.GetCaseCaseID200JSONResponse{
+	return api.CaseGet200JSONResponse{
 		CaseResponseJSONResponse: api.CaseResponseJSONResponse{
 			Data: adapter.FromCase(case_),
 		},

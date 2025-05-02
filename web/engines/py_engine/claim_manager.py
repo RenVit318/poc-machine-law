@@ -15,7 +15,7 @@ class ClaimManager(ClaimManagerInterface):
     def __init__(self, services: Services):
         self.claim_manager = services.claim_manager
 
-    async def get_claims_by_bsn(self, bsn: str, approved: bool = False, include_rejected: bool = False) -> list[Claim]:
+    def get_claims_by_bsn(self, bsn: str, approved: bool = False, include_rejected: bool = False) -> list[Claim]:
         """
         Retrieves case information using the embedded Python machine.service library.
 
@@ -30,7 +30,7 @@ class ClaimManager(ClaimManagerInterface):
         claims = self.claim_manager.get_claims_by_bsn(bsn, approved, include_rejected)
         return claims
 
-    async def get_claim_by_bsn_service_law(
+    def get_claim_by_bsn_service_law(
         self, bsn: str, service: str, law: str, approved: bool = False, include_rejected: bool = False
     ) -> dict[UUID:Claim]:
         """
@@ -48,7 +48,7 @@ class ClaimManager(ClaimManagerInterface):
         """
         return self.claim_manager.get_claim_by_bsn_service_law(bsn, service, law, approved, include_rejected)
 
-    async def submit_claim(
+    def submit_claim(
         self,
         service: str,
         key: str,
@@ -86,7 +86,7 @@ class ClaimManager(ClaimManagerInterface):
             auto_approve,
         )
 
-    async def reject_claim(self, claim_id: str, rejected_by: str, rejection_reason: str) -> None:
+    def reject_claim(self, claim_id: str, rejected_by: str, rejection_reason: str) -> None:
         """
         Reject a claim with reason
 
@@ -105,7 +105,7 @@ class ClaimManager(ClaimManagerInterface):
             rejection_reason,
         )
 
-    async def approve_claim(self, claim_id: str, verified_by: str, verified_value: str) -> None:
+    def approve_claim(self, claim_id: str, verified_by: str, verified_value: str) -> None:
         """
         Approve a claim with verified value
 

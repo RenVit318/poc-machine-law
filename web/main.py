@@ -57,7 +57,6 @@ async def root(request: Request, bsn: str = "100000001", services: EngineInterfa
     profile = services.get_profile_data(bsn)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    services.set_profile_data(bsn)
 
     return templates.TemplateResponse(
         "index.html",

@@ -1,8 +1,21 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
-from context import PathNode
+import pandas as pd
+
+
+@dataclass
+class PathNode:
+    """Node for tracking evaluation path"""
+
+    type: str
+    name: str
+    result: Any
+    resolve_type: str = None
+    required: bool = False
+    details: dict[str, Any] = field(default_factory=dict)
+    children: list["PathNode"] = field(default_factory=list)
 
 
 @dataclass
@@ -24,7 +37,7 @@ class EngineInterface(ABC):
     """
 
     @abstractmethod
-    async def get_rule_spec(self, law: str, reference_date: str, service: str) -> dict[str, Any]:
+    def get_rule_spec(self, law: str, reference_date: str, service: str) -> dict[str, Any]:
         """
         Get the rule specification for a specific law.
 
@@ -38,7 +51,7 @@ class EngineInterface(ABC):
         """
 
     @abstractmethod
-    async def get_profile_data(self, bsn: str) -> dict[str, Any]:
+    def get_profile_data(self, bsn: str) -> dict[str, Any]:
         """
         Get profile data for a specific BSN.
 
@@ -50,7 +63,7 @@ class EngineInterface(ABC):
         """
 
     @abstractmethod
-    async def get_all_profiles(self) -> dict[str, dict[str, Any]]:
+    def get_all_profiles(self) -> dict[str, dict[str, Any]]:
         """
         Get all available profiles.
 
@@ -86,7 +99,7 @@ class EngineInterface(ABC):
         """
 
     @abstractmethod
-    async def get_discoverable_service_laws(self, discoverable_by="CITIZEN") -> dict[str, list[str]]:
+    def get_discoverable_service_laws(self, discoverable_by="CITIZEN") -> dict[str, list[str]]:
         """
         Get laws discoverable by citizens.
 
@@ -104,6 +117,12 @@ class EngineInterface(ABC):
 
         Returns:
             List of dictionaries containing service, law, and impact information
+        """
+
+    @abstractmethod
+    def set_source_dataframe(self, service: str, table: str, df: pd.DataFrame) -> None:
+        """
+        Set a dataframe in a table for a service
         """
 
     @staticmethod

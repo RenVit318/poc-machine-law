@@ -11,7 +11,7 @@ class ClaimManagerInterface(ABC):
     """
 
     @abstractmethod
-    async def get_claims_by_bsn(self, bsn: str, approved: bool = False, include_rejected: bool = False) -> list[Claim]:
+    def get_claims_by_bsn(self, bsn: str, approved: bool = False, include_rejected: bool = False) -> list[Claim]:
         """
         Retrieves case information based on bsn.
 
@@ -24,7 +24,7 @@ class ClaimManagerInterface(ABC):
         """
 
     @abstractmethod
-    async def get_claim_by_bsn_service_law(
+    def get_claim_by_bsn_service_law(
         self, bsn: str, service: str, law: str, approved: bool = False, include_rejected: bool = False
     ) -> dict[UUID:Claim]:
         """
@@ -41,7 +41,7 @@ class ClaimManagerInterface(ABC):
         """
 
     @abstractmethod
-    async def submit_claim(
+    def submit_claim(
         self,
         service: str,
         key: str,
@@ -68,7 +68,7 @@ class ClaimManagerInterface(ABC):
         """
 
     @abstractmethod
-    async def reject_claim(self, claim_id: UUID, rejected_by: str, rejection_reason: str) -> None:
+    def reject_claim(self, claim_id: UUID, rejected_by: str, rejection_reason: str) -> None:
         """
         Reject a claim with reason
 
@@ -82,7 +82,7 @@ class ClaimManagerInterface(ABC):
         """
 
     @abstractmethod
-    async def approve_claim(
+    def approve_claim(
         self,
         claim_id: UUID,
         verified_by: str,

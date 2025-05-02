@@ -9,6 +9,16 @@ import (
 	"github.com/minbzk/poc-machine-law/machinev2/machine/casemanager"
 )
 
+// CaseListBasedOnBSN implements Servicer.
+func (service *Service) CaseListBasedOnBSN(ctx context.Context, bsn string) ([]model.Case, error) {
+	records, err := service.service.CaseManager.GetCasesByBSN(ctx, bsn)
+	if err != nil {
+		return nil, fmt.Errorf("get case by bsn: %w", err)
+	}
+
+	return ToCases(records), nil
+}
+
 func (service *Service) CaseGetBasedOnBSNServiceLaw(ctx context.Context, bsn, svc, law string) (model.Case, error) {
 	record, err := service.service.CaseManager.GetCase(ctx, bsn, svc, law)
 	if err != nil {

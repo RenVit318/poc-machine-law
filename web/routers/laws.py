@@ -87,12 +87,12 @@ async def execute_law(
         )
 
     # Check if there's an existing case
-    existing_case = await case_manager.get_case(bsn, service, law)
+    existing_case = case_manager.get_case(bsn, service, law)
 
     # Get the appropriate template
     template_path = get_tile_template(service, law)
 
-    rule_spec = await machine_service.get_rule_spec(law, TODAY, service)
+    rule_spec = machine_service.get_rule_spec(law, TODAY, service)
 
     return templates.TemplateResponse(
         template_path,
@@ -135,9 +135,9 @@ async def submit_case(
         approved_claims_only=approved,
     )
 
-    case = await case_manager.get_case_by_id(case_id)
+    case = case_manager.get_case_by_id(case_id)
 
-    rule_spec = await machine_service.get_rule_spec(law, TODAY, service)
+    rule_spec = machine_service.get_rule_spec(law, TODAY, service)
 
     # Return the updated law result with the new case
     return templates.TemplateResponse(
@@ -172,7 +172,7 @@ async def objection_case(
     law = unquote(law)
 
     # Submit the objection with new claimed result
-    case_id = await case_manager.objection_case(
+    case_id = case_manager.objection_case(
         case_id=case_id,
         reason=reason,
     )
@@ -188,11 +188,11 @@ async def objection_case(
             "request": request,
             "law": law,
             "service": service,
-            "rule_spec": await machine_service.get_rule_spec(law, TODAY, service),
+            "rule_spec": machine_service.get_rule_spec(law, TODAY, service),
             "result": result.output,
             "input": result.input,
             "requirements_met": result.requirements_met,
-            "current_case": await case_manager.get_case_by_id(case_id),
+            "current_case": case_manager.get_case_by_id(case_id),
         },
     )
 
@@ -232,7 +232,7 @@ async def explanation(
         path_dict = node_to_dict(result.path, skip_services=True)
         path_json = json.dumps(path_dict, ensure_ascii=False, indent=2)
 
-        rule_spec = await machine_service.get_rule_spec(law, TODAY, service)
+        rule_spec = machine_service.get_rule_spec(law, TODAY, service)
 
         # Filter relevant parts of rule_spec
         relevant_spec = {
@@ -330,12 +330,12 @@ async def application_panel(
         law, result, parameters = await evaluate_law(bsn, law, service, machine_service, approved=approved)
 
         value_tree = machine_service.extract_value_tree(result.path)
-        existing_case = await case_manager.get_case(bsn, service, law)
+        existing_case = case_manager.get_case(bsn, service, law)
 
-        claims = await claim_manager.get_claims_by_bsn(bsn, include_rejected=True)
+        claims = claim_manager.get_claims_by_bsn(bsn, include_rejected=True)
         claim_map = {(claim.service, claim.law, claim.key): claim for claim in claims}
 
-        rule_spec = await machine_service.get_rule_spec(law, TODAY, service)
+        rule_spec = machine_service.get_rule_spec(law, TODAY, service)
 
         return templates.TemplateResponse(
             "partials/tiles/components/application_panel.html",

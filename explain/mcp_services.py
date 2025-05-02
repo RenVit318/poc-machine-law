@@ -4,24 +4,30 @@ This module wraps law execution engines as MCP-compatible services based on the
 Model Context Protocol specification: https://contextprovider.ai/
 """
 
+import asyncio
 from typing import Any
 
-import pandas as pd
-
-from machine.service import Services
 from web.dependencies import TODAY
-from web.engines.py_engine.services.profiles import get_profile_data
+from web.engines import CaseManagerInterface, ClaimManagerInterface, EngineInterface
 
 
 class MCPServiceRegistry:
     """Registry for MCP services related to Dutch laws"""
 
-    def __init__(self, services: Services):
+    def __init__(
+        self,
+        services: EngineInterface,
+        case_manager: CaseManagerInterface,
+        claim_manager: ClaimManagerInterface,
+    ):
         self.services = services
-        self.law_services = {}
-        self._initialize_services()
+        self.case_manager = case_manager
+        self.claim_manager = claim_manager
 
-    def _initialize_services(self):
+        self.law_services = {}
+        asyncio.create_task(self._initialize_services())
+
+    async def _initialize_services(self):
         """Initialize all available law services by discovering available laws"""
         self.law_services = {}
 
@@ -41,7 +47,7 @@ class MCPServiceRegistry:
         # Get all discoverable services for citizens
         try:
             # Get discoverable service laws from the resolver for citizens
-            discoverable_laws = self.services.resolver.get_discoverable_service_laws("CITIZEN")
+            discoverable_laws = self.services.get_discoverable_service_laws("CITIZEN")
             print(f"Discovered services and laws: {discoverable_laws}")
 
             # Generate service instances for each discoverable law
@@ -66,7 +72,7 @@ class MCPServiceRegistry:
                     if service_name not in self.law_services:
                         try:
                             # Get rule spec to extract metadata
-                            rule_spec = self.services.resolver.get_rule_spec(law_path, "2025-01-01", service_type)
+                            rule_spec = self.services.get_rule_spec(law_path, "2025-01-01", service_type)
 
                             # Use the official name from the rule spec if available
                             description = rule_spec.get("name", service_name.capitalize())
@@ -112,36 +118,17 @@ class MCPServiceRegistry:
 class BaseMCPService:
     """Base class for MCP services"""
 
-    def __init__(self, services: Services):
+    def __init__(self, services: EngineInterface):
         self.services = services
         self.name = "base"
         self.description = "Base MCP service"
         self.law_path = ""
         self.service_type = ""
 
-    async def load_profile_data(self, bsn: str):
-        """Load profile data for a BSN into the services"""
-        profile_data = get_profile_data(bsn)
-        if not profile_data:
-            return False
-
-        # Load source data into services
-        for service_name, tables in profile_data["sources"].items():
-            for table_name, data in tables.items():
-                df = pd.DataFrame(data)
-                self.services.set_source_dataframe(service_name, table_name, df)
-
-        return True
-
     async def execute(self, bsn: str, params: dict) -> dict[str, Any]:
         """Execute the law for a specific BSN with parameters"""
-        # Load profile data
-        profile_loaded = await self.load_profile_data(bsn)
-        if not profile_loaded:
-            return {"error": f"Profile not found for BSN: {bsn}"}
-
         # Get the rule specification
-        rule_spec = self.services.resolver.get_rule_spec(self.law_path, TODAY, self.service_type)
+        rule_spec = self.services.get_rule_spec(self.law_path, TODAY, self.service_type)
         if not rule_spec:
             return {"error": f"Invalid law specified: {self.law_path}"}
 
@@ -204,7 +191,7 @@ class BaseMCPService:
 class GenericMCPService(BaseMCPService):
     """Generic MCP service for any law calculation"""
 
-    def __init__(self, services: Services, name: str, description: str, law_path: str, service_type: str):
+    def __init__(self, services: EngineInterface, name: str, description: str, law_path: str, service_type: str):
         super().__init__(services)
         self.name = name
         self.description = description

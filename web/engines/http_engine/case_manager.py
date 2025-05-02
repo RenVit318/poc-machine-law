@@ -8,15 +8,16 @@ from ..case_manager_interface import CaseManagerInterface
 from ..models import Case, CaseObjectionStatus, Event
 from .machine_client.law_as_code_client import Client
 from .machine_client.law_as_code_client.api.case import (
+    case_based_on_bsn_service_law,
+    case_get,
+    case_list_based_on_bsn,
+    case_list_based_on_service_law,
     case_review,
     case_submit,
-    get_case_case_id,
-    get_case_case_id_events,
-    get_cases_bsn_service_law,
-    get_cases_service_law,
+    event_list_based_on_case_id,
 )
 from .machine_client.law_as_code_client.api.events import (
-    get_events,
+    event_list,
 )
 from .machine_client.law_as_code_client.models import (
     CaseReview,
@@ -36,7 +37,7 @@ class CaseManager(CaseManagerInterface):
         self.base_url = base_url
         self.client = httpx.AsyncClient(base_url=self.base_url)
 
-    async def get_case(self, bsn: str, service: str, law: str) -> Case | None:
+    def get_case(self, bsn: str, service: str, law: str) -> Case | None:
         """
         Retrieves case information using HTTP calls to the Go backend service.
 
@@ -56,7 +57,7 @@ class CaseManager(CaseManagerInterface):
             service = urllib.parse.quote_plus(service)
             law = urllib.parse.quote_plus(law)
 
-            response = get_cases_bsn_service_law.sync_detailed(
+            response = case_based_on_bsn_service_law.sync_detailed(
                 client=client,
                 bsn=bsn,
                 service=service,
@@ -67,18 +68,18 @@ class CaseManager(CaseManagerInterface):
 
             return to_case(response.parsed.data)
 
-    async def get_case_by_id(self, id: UUID) -> Case:
+    def get_case_by_id(self, id: UUID) -> Case:
         # Instantiate the API client
         client = Client(base_url=self.base_url)
 
         with client as client:
-            response = get_case_case_id.sync_detailed(client=client, case_id=id)
+            response = case_get.sync_detailed(client=client, case_id=id)
             if response.status_code == 404:
                 return None
 
             return to_case(response.parsed.data)
 
-    async def get_cases_by_law(self, service: str, law: str) -> list[Case]:
+    def get_cases_by_law(self, service: str, law: str) -> list[Case]:
         """
         Retrieves case information using HTTP calls to the Go backend service.
 
@@ -98,7 +99,16 @@ class CaseManager(CaseManagerInterface):
             service = urllib.parse.quote_plus(service)
             law = urllib.parse.quote_plus(law)
 
-            response = get_cases_service_law.sync_detailed(client=client, service=service, law=law)
+            response = case_list_based_on_service_law.sync_detailed(client=client, service=service, law=law)
+
+            return to_cases(response.parsed.data)
+
+    def get_cases_by_bsn(self, bsn: str) -> list[Case]:
+        # Instantiate the API client
+        client = Client(base_url=self.base_url)
+
+        with client as client:
+            response = case_list_based_on_bsn.sync_detailed(client=client, bsn=bsn)
 
             return to_cases(response.parsed.data)
 
@@ -130,7 +140,7 @@ class CaseManager(CaseManagerInterface):
 
             return content.data
 
-    async def complete_manual_review(
+    def complete_manual_review(
         self,
         case_id: UUID,
         verifier_id: str,
@@ -150,7 +160,7 @@ class CaseManager(CaseManagerInterface):
         with client as client:
             case_review.sync_detailed(client=client, case_id=case_id, body=body)
 
-    async def get_events(
+    def get_events(
         self,
         case_id: UUID | None = None,
     ) -> list[Event]:
@@ -159,9 +169,9 @@ class CaseManager(CaseManagerInterface):
 
         with client as client:
             if case_id is None:
-                response = get_events.sync_detailed(client=client)
+                response = event_list.sync_detailed(client=client)
             else:
-                response = get_case_case_id_events.sync_detailed(client=client, case_id=case_id)
+                response = event_list_based_on_case_id.sync_detailed(client=client, case_id=case_id)
 
             return to_events(response.parsed.data)
 

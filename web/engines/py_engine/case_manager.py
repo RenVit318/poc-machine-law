@@ -13,10 +13,9 @@ class CaseManager(CaseManagerInterface):
     """
 
     def __init__(self, services: Services):
-        self.services = services
         self.case_manager = services.case_manager
 
-    async def get_case(self, bsn: str, service: str, law: str) -> Case | None:
+    def get_case(self, bsn: str, service: str, law: str) -> Case | None:
         """
         Retrieves case information using the embedded Python machine.service library.
 
@@ -34,15 +33,19 @@ class CaseManager(CaseManagerInterface):
 
         return None
 
-    async def get_case_by_id(self, id: UUID) -> Case:
+    def get_case_by_id(self, id: UUID) -> Case:
         case = self.case_manager.get_case_by_id(id)
         if case is not None:
             return to_case(case)
 
         return None
 
-    async def get_cases_by_law(self, service: str, law: str) -> list[Case]:
-        cases = self.case_manager.get_cases_by_law(service, law)
+    def get_cases_by_law(self, service: str, law: str) -> list[Case]:
+        cases = self.case_manager.get_cases_by_law(law, service)
+        return to_cases(cases)
+
+    def get_cases_by_bsn(self, bsn: str) -> list[Case]:
+        cases = self.case_manager.get_cases_by_bsn(bsn)
         return to_cases(cases)
 
     async def submit_case(
@@ -63,21 +66,21 @@ class CaseManager(CaseManagerInterface):
             approved_claims_only=approved_claims_only,
         )
 
-    async def complete_manual_review(
+    def complete_manual_review(
         self,
         case_id: UUID,
         verifier_id: str,
         approved: bool,
         reason: str,
     ) -> UUID:
-        return await self.case_manager.complete_manual_review(
+        return self.case_manager.complete_manual_review(
             case_id=case_id,
             verifier_id=verifier_id,
             approved=approved,
             reason=reason,
         )
 
-    async def get_events(
+    def get_events(
         self,
         case_id: UUID | None = None,
     ) -> list[dict[str, Any]]:

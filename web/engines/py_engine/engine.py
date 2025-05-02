@@ -17,9 +17,6 @@ class PythonMachineService(EngineInterface):
 
     def __init__(self, services: Services):
         self.services = services
-        # Add these accessors to make it easier to get at the case and claim managers
-        self.case_manager = services.case_manager
-        self.claim_manager = services.claim_manager
 
     def get_profile_data(self, bsn: str) -> dict[str, Any]:
         """
@@ -57,7 +54,7 @@ class PythonMachineService(EngineInterface):
         """
 
         # Get the rule specification
-        rule_spec = self.services.resolver.get_rule_spec(law, datetime.today().strftime("%Y-%m-%d"), service)
+        rule_spec = self.get_rule_spec(law, datetime.today().strftime("%Y-%m-%d"), service)
         if not rule_spec:
             raise HTTPException(status_code=400, detail="Invalid law specified")
 
@@ -83,11 +80,11 @@ class PythonMachineService(EngineInterface):
             path=to_path_node(result.path),
         )
 
-    async def get_discoverable_service_laws(self, discoverable_by="CITIZEN") -> dict[str, list[str]]:
+    def get_discoverable_service_laws(self, discoverable_by="CITIZEN") -> dict[str, list[str]]:
         """
         Get laws discoverable by citizens using the embedded Python machine.service library.
         """
-        return await self.services.get_discoverable_service_laws(discoverable_by)
+        return self.services.get_discoverable_service_laws(discoverable_by)
 
     async def get_sorted_discoverable_service_laws(self, bsn: str) -> list[dict[str, Any]]:
         """
@@ -95,7 +92,7 @@ class PythonMachineService(EngineInterface):
         """
         return await self.services.get_sorted_discoverable_service_laws(bsn)
 
-    async def get_rule_spec(self, law: str, reference_date: str, service: str) -> dict[str, Any]:
+    def get_rule_spec(self, law: str, reference_date: str, service: str) -> dict[str, Any]:
         """
         Get the rule specification for a specific law.
 
@@ -125,7 +122,10 @@ class PythonMachineService(EngineInterface):
         for service_name, tables in profile_data["sources"].items():
             for table_name, data in tables.items():
                 df = pd.DataFrame(data)
-                self.services.set_source_dataframe(service_name, table_name, df)
+                self.set_source_dataframe(service_name, table_name, df)
+
+    def set_source_dataframe(self, service: str, table: str, df: pd.DataFrame) -> None:
+        self.services.set_source_dataframe(service, table, df)
 
 
 def to_path_node(path_node) -> PathNode:

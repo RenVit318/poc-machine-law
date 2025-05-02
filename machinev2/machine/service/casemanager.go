@@ -666,6 +666,27 @@ func (cm *CaseManager) GetCasesByLaw(ctx context.Context, service, law string) (
 	return result, nil
 }
 
+func (cm *CaseManager) GetCasesByBSN(ctx context.Context, bsn string) ([]*casemanager.Case, error) {
+	// This would normally involve a more efficient query to the repository
+	// For now, we'll scan through all cases in the index
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	var result []*casemanager.Case
+	for _, caseID := range cm.caseIndex {
+		c, err := casemanager.FindCase(ctx, cm.caseRepo, caseID)
+		if err != nil {
+			continue
+		}
+
+		if c.BSN == bsn {
+			result = append(result, c)
+		}
+	}
+
+	return result, nil
+}
+
 // GetEventsByUUID gets events, optionally filtered by case ID
 func (cm *CaseManager) GetEventsByUUID(caseID uuid.UUID) []model.Event {
 	cm.mu.RLock()

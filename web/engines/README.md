@@ -34,7 +34,7 @@ async def get_case(
     law: str,
     case_manager: CaseManagerInterface = Depends(get_case_manager)
 ):
-    case = await case_manager.get_case(bsn, service, law)
+    case = case_manager.get_case(bsn, service, law)
     return case
 
 @router.post("/evaluate")
@@ -44,7 +44,7 @@ async def evaluate_law(
     parameters: dict,
     machine_service: EngineInterface = Depends(get_machine_service)
 ):
-    result = await machine_service.evaluate(service, law, parameters)
+    result = machine_service.evaluate(service, law, parameters)
     return result
 ```
 
@@ -55,7 +55,7 @@ async def evaluate_law(
 async def get_discoverable_laws(
     machine_service: EngineInterface = Depends(get_machine_service)
 ):
-    laws = await machine_service.get_discoverable_service_laws()
+    laws = machine_service.get_discoverable_service_laws()
     return laws
 ```
 

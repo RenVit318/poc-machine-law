@@ -40,7 +40,7 @@ async def get_edit_form(
 
     # Try to get existing claim by bsn, service, law and key
     claim_data = None
-    existing_claims = await claim_manager.get_claim_by_bsn_service_law(
+    existing_claims = claim_manager.get_claim_by_bsn_service_law(
         bsn=bsn,
         service=service,
         law=law,
@@ -158,7 +158,7 @@ async def update_value(
         # evidence_path = await save_evidence_file(evidence)
         pass
 
-    claim_id = await claim_manager.submit_claim(
+    claim_id = claim_manager.submit_claim(
         service=service,
         key=key,
         new_value=parsed_value,
@@ -206,7 +206,7 @@ async def reject_claim(
 ):
     """Handle dropping a claim by rejecting it"""
     try:
-        await claim_manager.reject_claim(
+        claim_manager.reject_claim(
             claim_id=claim_id,
             rejected_by="USER",  # You might want to get this from auth
             rejection_reason=f"Claim dropped: {reason}",
@@ -242,7 +242,7 @@ async def approve_claim(
 ):
     """Handle approving a claim by verifying it with its original new_value"""
     try:
-        await claim_manager.approve_claim(
+        claim_manager.approve_claim(
             claim_id=claim_id,
             verified_by="USER",
             verified_value=None,
@@ -341,7 +341,7 @@ async def update_missing_values(
             pass
 
         # Submit each claim individually
-        await claim_manager.submit_claim(
+        claim_manager.submit_claim(
             service=service,
             key=key,
             new_value=parsed_value,

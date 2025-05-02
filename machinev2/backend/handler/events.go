@@ -8,30 +8,30 @@ import (
 	"github.com/minbzk/poc-machine-law/machinev2/backend/interface/api"
 )
 
-// GetEvents implements api.StrictServerInterface.
-func (handler *Handler) GetEvents(ctx context.Context, request api.GetEventsRequestObject) (api.GetEventsResponseObject, error) {
+// EventList implements api.StrictServerInterface.
+func (handler *Handler) EventList(ctx context.Context, request api.EventListRequestObject) (api.EventListResponseObject, error) {
 	events, err := handler.servicer.EventList(ctx)
 	if err != nil {
-		return api.GetEvents400JSONResponse{
+		return api.EventList400JSONResponse{
 			BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("event list: %w", err)),
 		}, err
 	}
 
-	return api.GetEvents200JSONResponse{
+	return api.EventList200JSONResponse{
 		EventListResponseJSONResponse: api.EventListResponseJSONResponse{
 			Data: adapter.FromEvents(events),
 		},
 	}, nil
 }
 
-// GetCaseCaseIDEvents implements api.StrictServerInterface.
-func (handler *Handler) GetCaseCaseIDEvents(ctx context.Context, request api.GetCaseCaseIDEventsRequestObject) (api.GetCaseCaseIDEventsResponseObject, error) {
+// EventListBasedOnCaseID implements api.StrictServerInterface.
+func (handler *Handler) EventListBasedOnCaseID(ctx context.Context, request api.EventListBasedOnCaseIDRequestObject) (api.EventListBasedOnCaseIDResponseObject, error) {
 	events, err := handler.servicer.CaseEventList(ctx, request.CaseID)
 	if err != nil {
-		return api.GetCaseCaseIDEvents400JSONResponse{BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("case event list: %w}", err))}, nil
+		return api.EventListBasedOnCaseID400JSONResponse{BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("case event list: %w}", err))}, nil
 	}
 
-	return api.GetCaseCaseIDEvents200JSONResponse{
+	return api.EventListBasedOnCaseID200JSONResponse{
 		EventListResponseJSONResponse: api.EventListResponseJSONResponse{
 			Data: adapter.FromEvents(events),
 		},

@@ -192,6 +192,14 @@ type ClaimSubmit struct {
 	Service string `json:"service"`
 }
 
+// DataFrame defines model for DataFrame.
+type DataFrame struct {
+	// Data Column definitions for the data frame
+	Data    []map[string]interface{} `json:"data"`
+	Service string                   `json:"service"`
+	Table   string                   `json:"table"`
+}
+
 // Error The error that occured while processing this request.
 type Error struct {
 	Message string `json:"message"`
@@ -483,6 +491,11 @@ type ClaimSubmitRequest struct {
 	Data ClaimSubmit `json:"data"`
 }
 
+// DataFrameRequest defines model for DataFrameRequest.
+type DataFrameRequest struct {
+	Data DataFrame `json:"data"`
+}
+
 // EvaluateRequest defines model for EvaluateRequest.
 type EvaluateRequest struct {
 	// Data Evaluate.
@@ -506,8 +519,8 @@ type ClaimSubmitJSONBody struct {
 	Data ClaimSubmit `json:"data"`
 }
 
-// GetClaimsBsnParams defines parameters for GetClaimsBsn.
-type GetClaimsBsnParams struct {
+// ClaimListBasedOnBSNParams defines parameters for ClaimListBasedOnBSN.
+type ClaimListBasedOnBSNParams struct {
 	// Approved If added to URI only approved claims will be returned.
 	Approved *QueryOnlyApproved `form:"approved,omitempty" json:"approved,omitempty"`
 
@@ -515,8 +528,8 @@ type GetClaimsBsnParams struct {
 	IncludeRejected *QueryIncludeRejected `form:"includeRejected,omitempty" json:"includeRejected,omitempty"`
 }
 
-// GetClaimsBsnServiceLawParams defines parameters for GetClaimsBsnServiceLaw.
-type GetClaimsBsnServiceLawParams struct {
+// ClaimListBasedOnBSNServiceLawParams defines parameters for ClaimListBasedOnBSNServiceLaw.
+type ClaimListBasedOnBSNServiceLawParams struct {
 	// Approved If added to URI only approved claims will be returned.
 	Approved *QueryOnlyApproved `form:"approved,omitempty" json:"approved,omitempty"`
 
@@ -560,6 +573,11 @@ type RuleSpecGetParams struct {
 	ReferenceDate QueryReferenceDate `form:"referenceDate" json:"referenceDate"`
 }
 
+// SetSourceDataFrameJSONBody defines parameters for SetSourceDataFrame.
+type SetSourceDataFrameJSONBody struct {
+	Data DataFrame `json:"data"`
+}
+
 // CaseSubmitJSONRequestBody defines body for CaseSubmit for application/json ContentType.
 type CaseSubmitJSONRequestBody CaseSubmitJSONBody
 
@@ -578,6 +596,9 @@ type ClaimRejectJSONRequestBody ClaimRejectJSONBody
 // EvaluateJSONRequestBody defines body for Evaluate for application/json ContentType.
 type EvaluateJSONRequestBody EvaluateJSONBody
 
+// SetSourceDataFrameJSONRequestBody defines body for SetSourceDataFrame for application/json ContentType.
+type SetSourceDataFrameJSONRequestBody SetSourceDataFrameJSONBody
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 
@@ -585,28 +606,31 @@ type ServerInterface interface {
 	CaseSubmit(w http.ResponseWriter, r *http.Request)
 
 	// (GET /case/{caseID})
-	GetCaseCaseID(w http.ResponseWriter, r *http.Request, caseID PathCaseID)
+	CaseGet(w http.ResponseWriter, r *http.Request, caseID PathCaseID)
 
 	// (GET /case/{caseID}/events)
-	GetCaseCaseIDEvents(w http.ResponseWriter, r *http.Request, caseID PathCaseID)
+	EventListBasedOnCaseID(w http.ResponseWriter, r *http.Request, caseID PathCaseID)
+
+	// (GET /cases/{bsn})
+	CaseListBasedOnBSN(w http.ResponseWriter, r *http.Request, bsn PathBSN)
 
 	// (GET /cases/{bsn}/{service}/{law})
-	GetCasesBsnServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw)
+	CaseBasedOnBSNServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw)
 	// Complete a manual review for a case
 	// (POST /cases/{caseID}/review)
 	CaseReview(w http.ResponseWriter, r *http.Request, caseID PathCaseID)
 
 	// (GET /cases/{service}/{law})
-	GetCasesServiceLaw(w http.ResponseWriter, r *http.Request, service PathService, law PathLaw)
+	CaseListBasedOnServiceLaw(w http.ResponseWriter, r *http.Request, service PathService, law PathLaw)
 	// Submit a new claim
 	// (POST /claims)
 	ClaimSubmit(w http.ResponseWriter, r *http.Request)
 
 	// (GET /claims/{bsn})
-	GetClaimsBsn(w http.ResponseWriter, r *http.Request, bsn PathBSN, params GetClaimsBsnParams)
+	ClaimListBasedOnBSN(w http.ResponseWriter, r *http.Request, bsn PathBSN, params ClaimListBasedOnBSNParams)
 
 	// (GET /claims/{bsn}/{service}/{law})
-	GetClaimsBsnServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw, params GetClaimsBsnServiceLawParams)
+	ClaimListBasedOnBSNServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw, params ClaimListBasedOnBSNServiceLawParams)
 	// Approve a claim
 	// (POST /claims/{claimId}/approve)
 	ClaimApprove(w http.ResponseWriter, r *http.Request, claimId PathClaimID)
@@ -616,12 +640,15 @@ type ServerInterface interface {
 
 	// (GET /discoverable-service-laws)
 	ServiceLawsDiscoverableList(w http.ResponseWriter, r *http.Request, params ServiceLawsDiscoverableListParams)
+	// Reset the engine
+	// (POST /engine/reset)
+	ResetEngine(w http.ResponseWriter, r *http.Request)
 
 	// (POST /evaluate)
 	Evaluate(w http.ResponseWriter, r *http.Request)
 
 	// (GET /events)
-	GetEvents(w http.ResponseWriter, r *http.Request)
+	EventList(w http.ResponseWriter, r *http.Request)
 
 	// (GET /profiles)
 	ProfileList(w http.ResponseWriter, r *http.Request)
@@ -631,6 +658,9 @@ type ServerInterface interface {
 
 	// (GET /rule-spec)
 	RuleSpecGet(w http.ResponseWriter, r *http.Request, params RuleSpecGetParams)
+	// Set a source data frame
+	// (POST /source-dataframe)
+	SetSourceDataFrame(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -643,17 +673,22 @@ func (_ Unimplemented) CaseSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 // (GET /case/{caseID})
-func (_ Unimplemented) GetCaseCaseID(w http.ResponseWriter, r *http.Request, caseID PathCaseID) {
+func (_ Unimplemented) CaseGet(w http.ResponseWriter, r *http.Request, caseID PathCaseID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // (GET /case/{caseID}/events)
-func (_ Unimplemented) GetCaseCaseIDEvents(w http.ResponseWriter, r *http.Request, caseID PathCaseID) {
+func (_ Unimplemented) EventListBasedOnCaseID(w http.ResponseWriter, r *http.Request, caseID PathCaseID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /cases/{bsn})
+func (_ Unimplemented) CaseListBasedOnBSN(w http.ResponseWriter, r *http.Request, bsn PathBSN) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // (GET /cases/{bsn}/{service}/{law})
-func (_ Unimplemented) GetCasesBsnServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw) {
+func (_ Unimplemented) CaseBasedOnBSNServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -664,7 +699,7 @@ func (_ Unimplemented) CaseReview(w http.ResponseWriter, r *http.Request, caseID
 }
 
 // (GET /cases/{service}/{law})
-func (_ Unimplemented) GetCasesServiceLaw(w http.ResponseWriter, r *http.Request, service PathService, law PathLaw) {
+func (_ Unimplemented) CaseListBasedOnServiceLaw(w http.ResponseWriter, r *http.Request, service PathService, law PathLaw) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -675,12 +710,12 @@ func (_ Unimplemented) ClaimSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 // (GET /claims/{bsn})
-func (_ Unimplemented) GetClaimsBsn(w http.ResponseWriter, r *http.Request, bsn PathBSN, params GetClaimsBsnParams) {
+func (_ Unimplemented) ClaimListBasedOnBSN(w http.ResponseWriter, r *http.Request, bsn PathBSN, params ClaimListBasedOnBSNParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // (GET /claims/{bsn}/{service}/{law})
-func (_ Unimplemented) GetClaimsBsnServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw, params GetClaimsBsnServiceLawParams) {
+func (_ Unimplemented) ClaimListBasedOnBSNServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw, params ClaimListBasedOnBSNServiceLawParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -701,13 +736,19 @@ func (_ Unimplemented) ServiceLawsDiscoverableList(w http.ResponseWriter, r *htt
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Reset the engine
+// (POST /engine/reset)
+func (_ Unimplemented) ResetEngine(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (POST /evaluate)
 func (_ Unimplemented) Evaluate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // (GET /events)
-func (_ Unimplemented) GetEvents(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) EventList(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -723,6 +764,12 @@ func (_ Unimplemented) ProfileGet(w http.ResponseWriter, r *http.Request, bsn Pa
 
 // (GET /rule-spec)
 func (_ Unimplemented) RuleSpecGet(w http.ResponseWriter, r *http.Request, params RuleSpecGetParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Set a source data frame
+// (POST /source-dataframe)
+func (_ Unimplemented) SetSourceDataFrame(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -749,8 +796,8 @@ func (siw *ServerInterfaceWrapper) CaseSubmit(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// GetCaseCaseID operation middleware
-func (siw *ServerInterfaceWrapper) GetCaseCaseID(w http.ResponseWriter, r *http.Request) {
+// CaseGet operation middleware
+func (siw *ServerInterfaceWrapper) CaseGet(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -764,7 +811,7 @@ func (siw *ServerInterfaceWrapper) GetCaseCaseID(w http.ResponseWriter, r *http.
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCaseCaseID(w, r, caseID)
+		siw.Handler.CaseGet(w, r, caseID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -774,8 +821,8 @@ func (siw *ServerInterfaceWrapper) GetCaseCaseID(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
-// GetCaseCaseIDEvents operation middleware
-func (siw *ServerInterfaceWrapper) GetCaseCaseIDEvents(w http.ResponseWriter, r *http.Request) {
+// EventListBasedOnCaseID operation middleware
+func (siw *ServerInterfaceWrapper) EventListBasedOnCaseID(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -789,7 +836,7 @@ func (siw *ServerInterfaceWrapper) GetCaseCaseIDEvents(w http.ResponseWriter, r 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCaseCaseIDEvents(w, r, caseID)
+		siw.Handler.EventListBasedOnCaseID(w, r, caseID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -799,8 +846,33 @@ func (siw *ServerInterfaceWrapper) GetCaseCaseIDEvents(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
-// GetCasesBsnServiceLaw operation middleware
-func (siw *ServerInterfaceWrapper) GetCasesBsnServiceLaw(w http.ResponseWriter, r *http.Request) {
+// CaseListBasedOnBSN operation middleware
+func (siw *ServerInterfaceWrapper) CaseListBasedOnBSN(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "bsn" -------------
+	var bsn PathBSN
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bsn", chi.URLParam(r, "bsn"), &bsn, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bsn", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CaseListBasedOnBSN(w, r, bsn)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CaseBasedOnBSNServiceLaw operation middleware
+func (siw *ServerInterfaceWrapper) CaseBasedOnBSNServiceLaw(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -832,7 +904,7 @@ func (siw *ServerInterfaceWrapper) GetCasesBsnServiceLaw(w http.ResponseWriter, 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCasesBsnServiceLaw(w, r, bsn, service, law)
+		siw.Handler.CaseBasedOnBSNServiceLaw(w, r, bsn, service, law)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -867,8 +939,8 @@ func (siw *ServerInterfaceWrapper) CaseReview(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// GetCasesServiceLaw operation middleware
-func (siw *ServerInterfaceWrapper) GetCasesServiceLaw(w http.ResponseWriter, r *http.Request) {
+// CaseListBasedOnServiceLaw operation middleware
+func (siw *ServerInterfaceWrapper) CaseListBasedOnServiceLaw(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -891,7 +963,7 @@ func (siw *ServerInterfaceWrapper) GetCasesServiceLaw(w http.ResponseWriter, r *
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCasesServiceLaw(w, r, service, law)
+		siw.Handler.CaseListBasedOnServiceLaw(w, r, service, law)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -915,8 +987,8 @@ func (siw *ServerInterfaceWrapper) ClaimSubmit(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
-// GetClaimsBsn operation middleware
-func (siw *ServerInterfaceWrapper) GetClaimsBsn(w http.ResponseWriter, r *http.Request) {
+// ClaimListBasedOnBSN operation middleware
+func (siw *ServerInterfaceWrapper) ClaimListBasedOnBSN(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -930,7 +1002,7 @@ func (siw *ServerInterfaceWrapper) GetClaimsBsn(w http.ResponseWriter, r *http.R
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetClaimsBsnParams
+	var params ClaimListBasedOnBSNParams
 
 	// ------------- Optional query parameter "approved" -------------
 
@@ -949,7 +1021,7 @@ func (siw *ServerInterfaceWrapper) GetClaimsBsn(w http.ResponseWriter, r *http.R
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetClaimsBsn(w, r, bsn, params)
+		siw.Handler.ClaimListBasedOnBSN(w, r, bsn, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -959,8 +1031,8 @@ func (siw *ServerInterfaceWrapper) GetClaimsBsn(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// GetClaimsBsnServiceLaw operation middleware
-func (siw *ServerInterfaceWrapper) GetClaimsBsnServiceLaw(w http.ResponseWriter, r *http.Request) {
+// ClaimListBasedOnBSNServiceLaw operation middleware
+func (siw *ServerInterfaceWrapper) ClaimListBasedOnBSNServiceLaw(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -992,7 +1064,7 @@ func (siw *ServerInterfaceWrapper) GetClaimsBsnServiceLaw(w http.ResponseWriter,
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetClaimsBsnServiceLawParams
+	var params ClaimListBasedOnBSNServiceLawParams
 
 	// ------------- Optional query parameter "approved" -------------
 
@@ -1011,7 +1083,7 @@ func (siw *ServerInterfaceWrapper) GetClaimsBsnServiceLaw(w http.ResponseWriter,
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetClaimsBsnServiceLaw(w, r, bsn, service, law, params)
+		siw.Handler.ClaimListBasedOnBSNServiceLaw(w, r, bsn, service, law, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1098,6 +1170,20 @@ func (siw *ServerInterfaceWrapper) ServiceLawsDiscoverableList(w http.ResponseWr
 	handler.ServeHTTP(w, r)
 }
 
+// ResetEngine operation middleware
+func (siw *ServerInterfaceWrapper) ResetEngine(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetEngine(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Evaluate operation middleware
 func (siw *ServerInterfaceWrapper) Evaluate(w http.ResponseWriter, r *http.Request) {
 
@@ -1112,11 +1198,11 @@ func (siw *ServerInterfaceWrapper) Evaluate(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
-// GetEvents operation middleware
-func (siw *ServerInterfaceWrapper) GetEvents(w http.ResponseWriter, r *http.Request) {
+// EventList operation middleware
+func (siw *ServerInterfaceWrapper) EventList(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetEvents(w, r)
+		siw.Handler.EventList(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1220,6 +1306,20 @@ func (siw *ServerInterfaceWrapper) RuleSpecGet(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RuleSpecGet(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetSourceDataFrame operation middleware
+func (siw *ServerInterfaceWrapper) SetSourceDataFrame(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetSourceDataFrame(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1346,28 +1446,31 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/case", wrapper.CaseSubmit)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/case/{caseID}", wrapper.GetCaseCaseID)
+		r.Get(options.BaseURL+"/case/{caseID}", wrapper.CaseGet)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/case/{caseID}/events", wrapper.GetCaseCaseIDEvents)
+		r.Get(options.BaseURL+"/case/{caseID}/events", wrapper.EventListBasedOnCaseID)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/cases/{bsn}/{service}/{law}", wrapper.GetCasesBsnServiceLaw)
+		r.Get(options.BaseURL+"/cases/{bsn}", wrapper.CaseListBasedOnBSN)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/cases/{bsn}/{service}/{law}", wrapper.CaseBasedOnBSNServiceLaw)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/cases/{caseID}/review", wrapper.CaseReview)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/cases/{service}/{law}", wrapper.GetCasesServiceLaw)
+		r.Get(options.BaseURL+"/cases/{service}/{law}", wrapper.CaseListBasedOnServiceLaw)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/claims", wrapper.ClaimSubmit)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/claims/{bsn}", wrapper.GetClaimsBsn)
+		r.Get(options.BaseURL+"/claims/{bsn}", wrapper.ClaimListBasedOnBSN)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/claims/{bsn}/{service}/{law}", wrapper.GetClaimsBsnServiceLaw)
+		r.Get(options.BaseURL+"/claims/{bsn}/{service}/{law}", wrapper.ClaimListBasedOnBSNServiceLaw)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/claims/{claimId}/approve", wrapper.ClaimApprove)
@@ -1379,10 +1482,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/discoverable-service-laws", wrapper.ServiceLawsDiscoverableList)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/engine/reset", wrapper.ResetEngine)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/evaluate", wrapper.Evaluate)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/events", wrapper.GetEvents)
+		r.Get(options.BaseURL+"/events", wrapper.EventList)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/profiles", wrapper.ProfileList)
@@ -1392,6 +1498,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/rule-spec", wrapper.RuleSpecGet)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/source-dataframe", wrapper.SetSourceDataFrame)
 	})
 
 	return r
@@ -1443,6 +1552,9 @@ type ClaimRejectResponseJSONResponse struct {
 type ClaimSubmitResponseJSONResponse struct {
 	// Data Identifier of a claim
 	Data ClaimID `json:"data"`
+}
+
+type EmptyResponseResponse struct {
 }
 
 type EvaluateResponseJSONResponse struct {
@@ -1522,152 +1634,202 @@ func (response CaseSubmit500JSONResponse) VisitCaseSubmitResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCaseCaseIDRequestObject struct {
+type CaseGetRequestObject struct {
 	CaseID PathCaseID `json:"caseID"`
 }
 
-type GetCaseCaseIDResponseObject interface {
-	VisitGetCaseCaseIDResponse(w http.ResponseWriter) error
+type CaseGetResponseObject interface {
+	VisitCaseGetResponse(w http.ResponseWriter) error
 }
 
-type GetCaseCaseID200JSONResponse struct{ CaseResponseJSONResponse }
+type CaseGet200JSONResponse struct{ CaseResponseJSONResponse }
 
-func (response GetCaseCaseID200JSONResponse) VisitGetCaseCaseIDResponse(w http.ResponseWriter) error {
+func (response CaseGet200JSONResponse) VisitCaseGetResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCaseCaseID400JSONResponse struct {
+type CaseGet400JSONResponse struct {
 	BadRequestErrorResponseJSONResponse
 }
 
-func (response GetCaseCaseID400JSONResponse) VisitGetCaseCaseIDResponse(w http.ResponseWriter) error {
+func (response CaseGet400JSONResponse) VisitCaseGetResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCaseCaseID404JSONResponse struct {
+type CaseGet404JSONResponse struct {
 	ResourceNotFoundErrorResponseJSONResponse
 }
 
-func (response GetCaseCaseID404JSONResponse) VisitGetCaseCaseIDResponse(w http.ResponseWriter) error {
+func (response CaseGet404JSONResponse) VisitCaseGetResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCaseCaseID500JSONResponse struct {
+type CaseGet500JSONResponse struct {
 	InternalServerErrorResponseJSONResponse
 }
 
-func (response GetCaseCaseID500JSONResponse) VisitGetCaseCaseIDResponse(w http.ResponseWriter) error {
+func (response CaseGet500JSONResponse) VisitCaseGetResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCaseCaseIDEventsRequestObject struct {
+type EventListBasedOnCaseIDRequestObject struct {
 	CaseID PathCaseID `json:"caseID"`
 }
 
-type GetCaseCaseIDEventsResponseObject interface {
-	VisitGetCaseCaseIDEventsResponse(w http.ResponseWriter) error
+type EventListBasedOnCaseIDResponseObject interface {
+	VisitEventListBasedOnCaseIDResponse(w http.ResponseWriter) error
 }
 
-type GetCaseCaseIDEvents200JSONResponse struct{ EventListResponseJSONResponse }
+type EventListBasedOnCaseID200JSONResponse struct{ EventListResponseJSONResponse }
 
-func (response GetCaseCaseIDEvents200JSONResponse) VisitGetCaseCaseIDEventsResponse(w http.ResponseWriter) error {
+func (response EventListBasedOnCaseID200JSONResponse) VisitEventListBasedOnCaseIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCaseCaseIDEvents400JSONResponse struct {
+type EventListBasedOnCaseID400JSONResponse struct {
 	BadRequestErrorResponseJSONResponse
 }
 
-func (response GetCaseCaseIDEvents400JSONResponse) VisitGetCaseCaseIDEventsResponse(w http.ResponseWriter) error {
+func (response EventListBasedOnCaseID400JSONResponse) VisitEventListBasedOnCaseIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCaseCaseIDEvents404JSONResponse struct {
+type EventListBasedOnCaseID404JSONResponse struct {
 	ResourceNotFoundErrorResponseJSONResponse
 }
 
-func (response GetCaseCaseIDEvents404JSONResponse) VisitGetCaseCaseIDEventsResponse(w http.ResponseWriter) error {
+func (response EventListBasedOnCaseID404JSONResponse) VisitEventListBasedOnCaseIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCaseCaseIDEvents500JSONResponse struct {
+type EventListBasedOnCaseID500JSONResponse struct {
 	InternalServerErrorResponseJSONResponse
 }
 
-func (response GetCaseCaseIDEvents500JSONResponse) VisitGetCaseCaseIDEventsResponse(w http.ResponseWriter) error {
+func (response EventListBasedOnCaseID500JSONResponse) VisitEventListBasedOnCaseIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCasesBsnServiceLawRequestObject struct {
+type CaseListBasedOnBSNRequestObject struct {
+	Bsn PathBSN `json:"bsn"`
+}
+
+type CaseListBasedOnBSNResponseObject interface {
+	VisitCaseListBasedOnBSNResponse(w http.ResponseWriter) error
+}
+
+type CaseListBasedOnBSN200JSONResponse struct{ CaseListResponseJSONResponse }
+
+func (response CaseListBasedOnBSN200JSONResponse) VisitCaseListBasedOnBSNResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CaseListBasedOnBSN400JSONResponse struct {
+	BadRequestErrorResponseJSONResponse
+}
+
+func (response CaseListBasedOnBSN400JSONResponse) VisitCaseListBasedOnBSNResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CaseListBasedOnBSN404JSONResponse struct {
+	ResourceNotFoundErrorResponseJSONResponse
+}
+
+func (response CaseListBasedOnBSN404JSONResponse) VisitCaseListBasedOnBSNResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CaseListBasedOnBSN500JSONResponse struct {
+	InternalServerErrorResponseJSONResponse
+}
+
+func (response CaseListBasedOnBSN500JSONResponse) VisitCaseListBasedOnBSNResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CaseBasedOnBSNServiceLawRequestObject struct {
 	Bsn     PathBSN     `json:"bsn"`
 	Service PathService `json:"service"`
 	Law     PathLaw     `json:"law"`
 }
 
-type GetCasesBsnServiceLawResponseObject interface {
-	VisitGetCasesBsnServiceLawResponse(w http.ResponseWriter) error
+type CaseBasedOnBSNServiceLawResponseObject interface {
+	VisitCaseBasedOnBSNServiceLawResponse(w http.ResponseWriter) error
 }
 
-type GetCasesBsnServiceLaw200JSONResponse struct{ CaseResponseJSONResponse }
+type CaseBasedOnBSNServiceLaw200JSONResponse struct{ CaseResponseJSONResponse }
 
-func (response GetCasesBsnServiceLaw200JSONResponse) VisitGetCasesBsnServiceLawResponse(w http.ResponseWriter) error {
+func (response CaseBasedOnBSNServiceLaw200JSONResponse) VisitCaseBasedOnBSNServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCasesBsnServiceLaw400JSONResponse struct {
+type CaseBasedOnBSNServiceLaw400JSONResponse struct {
 	BadRequestErrorResponseJSONResponse
 }
 
-func (response GetCasesBsnServiceLaw400JSONResponse) VisitGetCasesBsnServiceLawResponse(w http.ResponseWriter) error {
+func (response CaseBasedOnBSNServiceLaw400JSONResponse) VisitCaseBasedOnBSNServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCasesBsnServiceLaw404JSONResponse struct {
+type CaseBasedOnBSNServiceLaw404JSONResponse struct {
 	ResourceNotFoundErrorResponseJSONResponse
 }
 
-func (response GetCasesBsnServiceLaw404JSONResponse) VisitGetCasesBsnServiceLawResponse(w http.ResponseWriter) error {
+func (response CaseBasedOnBSNServiceLaw404JSONResponse) VisitCaseBasedOnBSNServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCasesBsnServiceLaw500JSONResponse struct {
+type CaseBasedOnBSNServiceLaw500JSONResponse struct {
 	InternalServerErrorResponseJSONResponse
 }
 
-func (response GetCasesBsnServiceLaw500JSONResponse) VisitGetCasesBsnServiceLawResponse(w http.ResponseWriter) error {
+func (response CaseBasedOnBSNServiceLaw500JSONResponse) VisitCaseBasedOnBSNServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -1725,40 +1887,40 @@ func (response CaseReview500JSONResponse) VisitCaseReviewResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCasesServiceLawRequestObject struct {
+type CaseListBasedOnServiceLawRequestObject struct {
 	Service PathService `json:"service"`
 	Law     PathLaw     `json:"law"`
 }
 
-type GetCasesServiceLawResponseObject interface {
-	VisitGetCasesServiceLawResponse(w http.ResponseWriter) error
+type CaseListBasedOnServiceLawResponseObject interface {
+	VisitCaseListBasedOnServiceLawResponse(w http.ResponseWriter) error
 }
 
-type GetCasesServiceLaw200JSONResponse struct{ CaseListResponseJSONResponse }
+type CaseListBasedOnServiceLaw200JSONResponse struct{ CaseListResponseJSONResponse }
 
-func (response GetCasesServiceLaw200JSONResponse) VisitGetCasesServiceLawResponse(w http.ResponseWriter) error {
+func (response CaseListBasedOnServiceLaw200JSONResponse) VisitCaseListBasedOnServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCasesServiceLaw400JSONResponse struct {
+type CaseListBasedOnServiceLaw400JSONResponse struct {
 	BadRequestErrorResponseJSONResponse
 }
 
-func (response GetCasesServiceLaw400JSONResponse) VisitGetCasesServiceLawResponse(w http.ResponseWriter) error {
+func (response CaseListBasedOnServiceLaw400JSONResponse) VisitCaseListBasedOnServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCasesServiceLaw500JSONResponse struct {
+type CaseListBasedOnServiceLaw500JSONResponse struct {
 	InternalServerErrorResponseJSONResponse
 }
 
-func (response GetCasesServiceLaw500JSONResponse) VisitGetCasesServiceLawResponse(w http.ResponseWriter) error {
+func (response CaseListBasedOnServiceLaw500JSONResponse) VisitCaseListBasedOnServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -1806,84 +1968,84 @@ func (response ClaimSubmit500JSONResponse) VisitClaimSubmitResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetClaimsBsnRequestObject struct {
+type ClaimListBasedOnBSNRequestObject struct {
 	Bsn    PathBSN `json:"bsn"`
-	Params GetClaimsBsnParams
+	Params ClaimListBasedOnBSNParams
 }
 
-type GetClaimsBsnResponseObject interface {
-	VisitGetClaimsBsnResponse(w http.ResponseWriter) error
+type ClaimListBasedOnBSNResponseObject interface {
+	VisitClaimListBasedOnBSNResponse(w http.ResponseWriter) error
 }
 
-type GetClaimsBsn200JSONResponse struct{ ClaimListResponseJSONResponse }
+type ClaimListBasedOnBSN200JSONResponse struct{ ClaimListResponseJSONResponse }
 
-func (response GetClaimsBsn200JSONResponse) VisitGetClaimsBsnResponse(w http.ResponseWriter) error {
+func (response ClaimListBasedOnBSN200JSONResponse) VisitClaimListBasedOnBSNResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetClaimsBsn400JSONResponse struct {
+type ClaimListBasedOnBSN400JSONResponse struct {
 	BadRequestErrorResponseJSONResponse
 }
 
-func (response GetClaimsBsn400JSONResponse) VisitGetClaimsBsnResponse(w http.ResponseWriter) error {
+func (response ClaimListBasedOnBSN400JSONResponse) VisitClaimListBasedOnBSNResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetClaimsBsn500JSONResponse struct {
+type ClaimListBasedOnBSN500JSONResponse struct {
 	InternalServerErrorResponseJSONResponse
 }
 
-func (response GetClaimsBsn500JSONResponse) VisitGetClaimsBsnResponse(w http.ResponseWriter) error {
+func (response ClaimListBasedOnBSN500JSONResponse) VisitClaimListBasedOnBSNResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetClaimsBsnServiceLawRequestObject struct {
+type ClaimListBasedOnBSNServiceLawRequestObject struct {
 	Bsn     PathBSN     `json:"bsn"`
 	Service PathService `json:"service"`
 	Law     PathLaw     `json:"law"`
-	Params  GetClaimsBsnServiceLawParams
+	Params  ClaimListBasedOnBSNServiceLawParams
 }
 
-type GetClaimsBsnServiceLawResponseObject interface {
-	VisitGetClaimsBsnServiceLawResponse(w http.ResponseWriter) error
+type ClaimListBasedOnBSNServiceLawResponseObject interface {
+	VisitClaimListBasedOnBSNServiceLawResponse(w http.ResponseWriter) error
 }
 
-type GetClaimsBsnServiceLaw200JSONResponse struct {
+type ClaimListBasedOnBSNServiceLaw200JSONResponse struct {
 	ClaimListWithKeyResponseJSONResponse
 }
 
-func (response GetClaimsBsnServiceLaw200JSONResponse) VisitGetClaimsBsnServiceLawResponse(w http.ResponseWriter) error {
+func (response ClaimListBasedOnBSNServiceLaw200JSONResponse) VisitClaimListBasedOnBSNServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetClaimsBsnServiceLaw400JSONResponse struct {
+type ClaimListBasedOnBSNServiceLaw400JSONResponse struct {
 	BadRequestErrorResponseJSONResponse
 }
 
-func (response GetClaimsBsnServiceLaw400JSONResponse) VisitGetClaimsBsnServiceLawResponse(w http.ResponseWriter) error {
+func (response ClaimListBasedOnBSNServiceLaw400JSONResponse) VisitClaimListBasedOnBSNServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetClaimsBsnServiceLaw500JSONResponse struct {
+type ClaimListBasedOnBSNServiceLaw500JSONResponse struct {
 	InternalServerErrorResponseJSONResponse
 }
 
-func (response GetClaimsBsnServiceLaw500JSONResponse) VisitGetClaimsBsnServiceLawResponse(w http.ResponseWriter) error {
+func (response ClaimListBasedOnBSNServiceLaw500JSONResponse) VisitClaimListBasedOnBSNServiceLawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -2037,6 +2199,42 @@ func (response ServiceLawsDiscoverableList500JSONResponse) VisitServiceLawsDisco
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ResetEngineRequestObject struct {
+}
+
+type ResetEngineResponseObject interface {
+	VisitResetEngineResponse(w http.ResponseWriter) error
+}
+
+type ResetEngine201Response = EmptyResponseResponse
+
+func (response ResetEngine201Response) VisitResetEngineResponse(w http.ResponseWriter) error {
+	w.WriteHeader(201)
+	return nil
+}
+
+type ResetEngine400JSONResponse struct {
+	BadRequestErrorResponseJSONResponse
+}
+
+func (response ResetEngine400JSONResponse) VisitResetEngineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ResetEngine500JSONResponse struct {
+	InternalServerErrorResponseJSONResponse
+}
+
+func (response ResetEngine500JSONResponse) VisitResetEngineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type EvaluateRequestObject struct {
 	Body *EvaluateJSONRequestBody
 }
@@ -2076,38 +2274,38 @@ func (response Evaluate500JSONResponse) VisitEvaluateResponse(w http.ResponseWri
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetEventsRequestObject struct {
+type EventListRequestObject struct {
 }
 
-type GetEventsResponseObject interface {
-	VisitGetEventsResponse(w http.ResponseWriter) error
+type EventListResponseObject interface {
+	VisitEventListResponse(w http.ResponseWriter) error
 }
 
-type GetEvents200JSONResponse struct{ EventListResponseJSONResponse }
+type EventList200JSONResponse struct{ EventListResponseJSONResponse }
 
-func (response GetEvents200JSONResponse) VisitGetEventsResponse(w http.ResponseWriter) error {
+func (response EventList200JSONResponse) VisitEventListResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetEvents400JSONResponse struct {
+type EventList400JSONResponse struct {
 	BadRequestErrorResponseJSONResponse
 }
 
-func (response GetEvents400JSONResponse) VisitGetEventsResponse(w http.ResponseWriter) error {
+func (response EventList400JSONResponse) VisitEventListResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetEvents500JSONResponse struct {
+type EventList500JSONResponse struct {
 	InternalServerErrorResponseJSONResponse
 }
 
-func (response GetEvents500JSONResponse) VisitGetEventsResponse(w http.ResponseWriter) error {
+func (response EventList500JSONResponse) VisitEventListResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -2243,6 +2441,43 @@ func (response RuleSpecGet500JSONResponse) VisitRuleSpecGetResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type SetSourceDataFrameRequestObject struct {
+	Body *SetSourceDataFrameJSONRequestBody
+}
+
+type SetSourceDataFrameResponseObject interface {
+	VisitSetSourceDataFrameResponse(w http.ResponseWriter) error
+}
+
+type SetSourceDataFrame201Response = EmptyResponseResponse
+
+func (response SetSourceDataFrame201Response) VisitSetSourceDataFrameResponse(w http.ResponseWriter) error {
+	w.WriteHeader(201)
+	return nil
+}
+
+type SetSourceDataFrame400JSONResponse struct {
+	BadRequestErrorResponseJSONResponse
+}
+
+func (response SetSourceDataFrame400JSONResponse) VisitSetSourceDataFrameResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetSourceDataFrame500JSONResponse struct {
+	InternalServerErrorResponseJSONResponse
+}
+
+func (response SetSourceDataFrame500JSONResponse) VisitSetSourceDataFrameResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 
@@ -2250,28 +2485,31 @@ type StrictServerInterface interface {
 	CaseSubmit(ctx context.Context, request CaseSubmitRequestObject) (CaseSubmitResponseObject, error)
 
 	// (GET /case/{caseID})
-	GetCaseCaseID(ctx context.Context, request GetCaseCaseIDRequestObject) (GetCaseCaseIDResponseObject, error)
+	CaseGet(ctx context.Context, request CaseGetRequestObject) (CaseGetResponseObject, error)
 
 	// (GET /case/{caseID}/events)
-	GetCaseCaseIDEvents(ctx context.Context, request GetCaseCaseIDEventsRequestObject) (GetCaseCaseIDEventsResponseObject, error)
+	EventListBasedOnCaseID(ctx context.Context, request EventListBasedOnCaseIDRequestObject) (EventListBasedOnCaseIDResponseObject, error)
+
+	// (GET /cases/{bsn})
+	CaseListBasedOnBSN(ctx context.Context, request CaseListBasedOnBSNRequestObject) (CaseListBasedOnBSNResponseObject, error)
 
 	// (GET /cases/{bsn}/{service}/{law})
-	GetCasesBsnServiceLaw(ctx context.Context, request GetCasesBsnServiceLawRequestObject) (GetCasesBsnServiceLawResponseObject, error)
+	CaseBasedOnBSNServiceLaw(ctx context.Context, request CaseBasedOnBSNServiceLawRequestObject) (CaseBasedOnBSNServiceLawResponseObject, error)
 	// Complete a manual review for a case
 	// (POST /cases/{caseID}/review)
 	CaseReview(ctx context.Context, request CaseReviewRequestObject) (CaseReviewResponseObject, error)
 
 	// (GET /cases/{service}/{law})
-	GetCasesServiceLaw(ctx context.Context, request GetCasesServiceLawRequestObject) (GetCasesServiceLawResponseObject, error)
+	CaseListBasedOnServiceLaw(ctx context.Context, request CaseListBasedOnServiceLawRequestObject) (CaseListBasedOnServiceLawResponseObject, error)
 	// Submit a new claim
 	// (POST /claims)
 	ClaimSubmit(ctx context.Context, request ClaimSubmitRequestObject) (ClaimSubmitResponseObject, error)
 
 	// (GET /claims/{bsn})
-	GetClaimsBsn(ctx context.Context, request GetClaimsBsnRequestObject) (GetClaimsBsnResponseObject, error)
+	ClaimListBasedOnBSN(ctx context.Context, request ClaimListBasedOnBSNRequestObject) (ClaimListBasedOnBSNResponseObject, error)
 
 	// (GET /claims/{bsn}/{service}/{law})
-	GetClaimsBsnServiceLaw(ctx context.Context, request GetClaimsBsnServiceLawRequestObject) (GetClaimsBsnServiceLawResponseObject, error)
+	ClaimListBasedOnBSNServiceLaw(ctx context.Context, request ClaimListBasedOnBSNServiceLawRequestObject) (ClaimListBasedOnBSNServiceLawResponseObject, error)
 	// Approve a claim
 	// (POST /claims/{claimId}/approve)
 	ClaimApprove(ctx context.Context, request ClaimApproveRequestObject) (ClaimApproveResponseObject, error)
@@ -2281,12 +2519,15 @@ type StrictServerInterface interface {
 
 	// (GET /discoverable-service-laws)
 	ServiceLawsDiscoverableList(ctx context.Context, request ServiceLawsDiscoverableListRequestObject) (ServiceLawsDiscoverableListResponseObject, error)
+	// Reset the engine
+	// (POST /engine/reset)
+	ResetEngine(ctx context.Context, request ResetEngineRequestObject) (ResetEngineResponseObject, error)
 
 	// (POST /evaluate)
 	Evaluate(ctx context.Context, request EvaluateRequestObject) (EvaluateResponseObject, error)
 
 	// (GET /events)
-	GetEvents(ctx context.Context, request GetEventsRequestObject) (GetEventsResponseObject, error)
+	EventList(ctx context.Context, request EventListRequestObject) (EventListResponseObject, error)
 
 	// (GET /profiles)
 	ProfileList(ctx context.Context, request ProfileListRequestObject) (ProfileListResponseObject, error)
@@ -2296,6 +2537,9 @@ type StrictServerInterface interface {
 
 	// (GET /rule-spec)
 	RuleSpecGet(ctx context.Context, request RuleSpecGetRequestObject) (RuleSpecGetResponseObject, error)
+	// Set a source data frame
+	// (POST /source-dataframe)
+	SetSourceDataFrame(ctx context.Context, request SetSourceDataFrameRequestObject) (SetSourceDataFrameResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -2358,25 +2602,25 @@ func (sh *strictHandler) CaseSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetCaseCaseID operation middleware
-func (sh *strictHandler) GetCaseCaseID(w http.ResponseWriter, r *http.Request, caseID PathCaseID) {
-	var request GetCaseCaseIDRequestObject
+// CaseGet operation middleware
+func (sh *strictHandler) CaseGet(w http.ResponseWriter, r *http.Request, caseID PathCaseID) {
+	var request CaseGetRequestObject
 
 	request.CaseID = caseID
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetCaseCaseID(ctx, request.(GetCaseCaseIDRequestObject))
+		return sh.ssi.CaseGet(ctx, request.(CaseGetRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetCaseCaseID")
+		handler = middleware(handler, "CaseGet")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetCaseCaseIDResponseObject); ok {
-		if err := validResponse.VisitGetCaseCaseIDResponse(w); err != nil {
+	} else if validResponse, ok := response.(CaseGetResponseObject); ok {
+		if err := validResponse.VisitCaseGetResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -2384,25 +2628,25 @@ func (sh *strictHandler) GetCaseCaseID(w http.ResponseWriter, r *http.Request, c
 	}
 }
 
-// GetCaseCaseIDEvents operation middleware
-func (sh *strictHandler) GetCaseCaseIDEvents(w http.ResponseWriter, r *http.Request, caseID PathCaseID) {
-	var request GetCaseCaseIDEventsRequestObject
+// EventListBasedOnCaseID operation middleware
+func (sh *strictHandler) EventListBasedOnCaseID(w http.ResponseWriter, r *http.Request, caseID PathCaseID) {
+	var request EventListBasedOnCaseIDRequestObject
 
 	request.CaseID = caseID
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetCaseCaseIDEvents(ctx, request.(GetCaseCaseIDEventsRequestObject))
+		return sh.ssi.EventListBasedOnCaseID(ctx, request.(EventListBasedOnCaseIDRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetCaseCaseIDEvents")
+		handler = middleware(handler, "EventListBasedOnCaseID")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetCaseCaseIDEventsResponseObject); ok {
-		if err := validResponse.VisitGetCaseCaseIDEventsResponse(w); err != nil {
+	} else if validResponse, ok := response.(EventListBasedOnCaseIDResponseObject); ok {
+		if err := validResponse.VisitEventListBasedOnCaseIDResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -2410,27 +2654,53 @@ func (sh *strictHandler) GetCaseCaseIDEvents(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// GetCasesBsnServiceLaw operation middleware
-func (sh *strictHandler) GetCasesBsnServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw) {
-	var request GetCasesBsnServiceLawRequestObject
+// CaseListBasedOnBSN operation middleware
+func (sh *strictHandler) CaseListBasedOnBSN(w http.ResponseWriter, r *http.Request, bsn PathBSN) {
+	var request CaseListBasedOnBSNRequestObject
+
+	request.Bsn = bsn
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CaseListBasedOnBSN(ctx, request.(CaseListBasedOnBSNRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CaseListBasedOnBSN")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CaseListBasedOnBSNResponseObject); ok {
+		if err := validResponse.VisitCaseListBasedOnBSNResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CaseBasedOnBSNServiceLaw operation middleware
+func (sh *strictHandler) CaseBasedOnBSNServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw) {
+	var request CaseBasedOnBSNServiceLawRequestObject
 
 	request.Bsn = bsn
 	request.Service = service
 	request.Law = law
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetCasesBsnServiceLaw(ctx, request.(GetCasesBsnServiceLawRequestObject))
+		return sh.ssi.CaseBasedOnBSNServiceLaw(ctx, request.(CaseBasedOnBSNServiceLawRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetCasesBsnServiceLaw")
+		handler = middleware(handler, "CaseBasedOnBSNServiceLaw")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetCasesBsnServiceLawResponseObject); ok {
-		if err := validResponse.VisitGetCasesBsnServiceLawResponse(w); err != nil {
+	} else if validResponse, ok := response.(CaseBasedOnBSNServiceLawResponseObject); ok {
+		if err := validResponse.VisitCaseBasedOnBSNServiceLawResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -2471,26 +2741,26 @@ func (sh *strictHandler) CaseReview(w http.ResponseWriter, r *http.Request, case
 	}
 }
 
-// GetCasesServiceLaw operation middleware
-func (sh *strictHandler) GetCasesServiceLaw(w http.ResponseWriter, r *http.Request, service PathService, law PathLaw) {
-	var request GetCasesServiceLawRequestObject
+// CaseListBasedOnServiceLaw operation middleware
+func (sh *strictHandler) CaseListBasedOnServiceLaw(w http.ResponseWriter, r *http.Request, service PathService, law PathLaw) {
+	var request CaseListBasedOnServiceLawRequestObject
 
 	request.Service = service
 	request.Law = law
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetCasesServiceLaw(ctx, request.(GetCasesServiceLawRequestObject))
+		return sh.ssi.CaseListBasedOnServiceLaw(ctx, request.(CaseListBasedOnServiceLawRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetCasesServiceLaw")
+		handler = middleware(handler, "CaseListBasedOnServiceLaw")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetCasesServiceLawResponseObject); ok {
-		if err := validResponse.VisitGetCasesServiceLawResponse(w); err != nil {
+	} else if validResponse, ok := response.(CaseListBasedOnServiceLawResponseObject); ok {
+		if err := validResponse.VisitCaseListBasedOnServiceLawResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -2529,26 +2799,26 @@ func (sh *strictHandler) ClaimSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetClaimsBsn operation middleware
-func (sh *strictHandler) GetClaimsBsn(w http.ResponseWriter, r *http.Request, bsn PathBSN, params GetClaimsBsnParams) {
-	var request GetClaimsBsnRequestObject
+// ClaimListBasedOnBSN operation middleware
+func (sh *strictHandler) ClaimListBasedOnBSN(w http.ResponseWriter, r *http.Request, bsn PathBSN, params ClaimListBasedOnBSNParams) {
+	var request ClaimListBasedOnBSNRequestObject
 
 	request.Bsn = bsn
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetClaimsBsn(ctx, request.(GetClaimsBsnRequestObject))
+		return sh.ssi.ClaimListBasedOnBSN(ctx, request.(ClaimListBasedOnBSNRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetClaimsBsn")
+		handler = middleware(handler, "ClaimListBasedOnBSN")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetClaimsBsnResponseObject); ok {
-		if err := validResponse.VisitGetClaimsBsnResponse(w); err != nil {
+	} else if validResponse, ok := response.(ClaimListBasedOnBSNResponseObject); ok {
+		if err := validResponse.VisitClaimListBasedOnBSNResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -2556,9 +2826,9 @@ func (sh *strictHandler) GetClaimsBsn(w http.ResponseWriter, r *http.Request, bs
 	}
 }
 
-// GetClaimsBsnServiceLaw operation middleware
-func (sh *strictHandler) GetClaimsBsnServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw, params GetClaimsBsnServiceLawParams) {
-	var request GetClaimsBsnServiceLawRequestObject
+// ClaimListBasedOnBSNServiceLaw operation middleware
+func (sh *strictHandler) ClaimListBasedOnBSNServiceLaw(w http.ResponseWriter, r *http.Request, bsn PathBSN, service PathService, law PathLaw, params ClaimListBasedOnBSNServiceLawParams) {
+	var request ClaimListBasedOnBSNServiceLawRequestObject
 
 	request.Bsn = bsn
 	request.Service = service
@@ -2566,18 +2836,18 @@ func (sh *strictHandler) GetClaimsBsnServiceLaw(w http.ResponseWriter, r *http.R
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetClaimsBsnServiceLaw(ctx, request.(GetClaimsBsnServiceLawRequestObject))
+		return sh.ssi.ClaimListBasedOnBSNServiceLaw(ctx, request.(ClaimListBasedOnBSNServiceLawRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetClaimsBsnServiceLaw")
+		handler = middleware(handler, "ClaimListBasedOnBSNServiceLaw")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetClaimsBsnServiceLawResponseObject); ok {
-		if err := validResponse.VisitGetClaimsBsnServiceLawResponse(w); err != nil {
+	} else if validResponse, ok := response.(ClaimListBasedOnBSNServiceLawResponseObject); ok {
+		if err := validResponse.VisitClaimListBasedOnBSNServiceLawResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -2677,6 +2947,30 @@ func (sh *strictHandler) ServiceLawsDiscoverableList(w http.ResponseWriter, r *h
 	}
 }
 
+// ResetEngine operation middleware
+func (sh *strictHandler) ResetEngine(w http.ResponseWriter, r *http.Request) {
+	var request ResetEngineRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResetEngine(ctx, request.(ResetEngineRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResetEngine")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResetEngineResponseObject); ok {
+		if err := validResponse.VisitResetEngineResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Evaluate operation middleware
 func (sh *strictHandler) Evaluate(w http.ResponseWriter, r *http.Request) {
 	var request EvaluateRequestObject
@@ -2708,23 +3002,23 @@ func (sh *strictHandler) Evaluate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetEvents operation middleware
-func (sh *strictHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
-	var request GetEventsRequestObject
+// EventList operation middleware
+func (sh *strictHandler) EventList(w http.ResponseWriter, r *http.Request) {
+	var request EventListRequestObject
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetEvents(ctx, request.(GetEventsRequestObject))
+		return sh.ssi.EventList(ctx, request.(EventListRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetEvents")
+		handler = middleware(handler, "EventList")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetEventsResponseObject); ok {
-		if err := validResponse.VisitGetEventsResponse(w); err != nil {
+	} else if validResponse, ok := response.(EventListResponseObject); ok {
+		if err := validResponse.VisitEventListResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -2808,70 +3102,105 @@ func (sh *strictHandler) RuleSpecGet(w http.ResponseWriter, r *http.Request, par
 	}
 }
 
+// SetSourceDataFrame operation middleware
+func (sh *strictHandler) SetSourceDataFrame(w http.ResponseWriter, r *http.Request) {
+	var request SetSourceDataFrameRequestObject
+
+	var body SetSourceDataFrameJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetSourceDataFrame(ctx, request.(SetSourceDataFrameRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetSourceDataFrame")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetSourceDataFrameResponseObject); ok {
+		if err := validResponse.VisitSetSourceDataFrameResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"AQAA//81iwQ/XV8AAA==",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
