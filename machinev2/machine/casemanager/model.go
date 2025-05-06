@@ -1,11 +1,13 @@
 package casemanager
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	eh "github.com/looplab/eventhorizon"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/internal/logging"
 )
 
 // CaseStatus represents the status of a case
@@ -188,6 +190,9 @@ func (c *Case) Decide(
 	c.VerifiedResult = verifiedResult
 	c.VerifierID = verifierID
 	c.UpdatedAt = time.Now()
+
+	logger := logging.FromContext(context.Background())
+	logger.Error(context.Background(), "SETTING NEW CASE STATUS", logging.NewField("status", c.Status))
 	return nil
 }
 
@@ -200,6 +205,8 @@ func (c *Case) Object(reason string) error {
 	c.Status = CaseStatusObjected
 	c.Reason = reason
 	c.UpdatedAt = time.Now()
+	logger := logging.FromContext(context.Background())
+	logger.Error(context.Background(), "SETTING NEW CASE STATUS", logging.NewField("status", c.Status))
 	return nil
 }
 

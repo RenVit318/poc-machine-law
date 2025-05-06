@@ -255,6 +255,7 @@ func (s *Services) ApplyRules(ctx context.Context, event model.Event) error {
 				if err != nil {
 					return err
 				}
+				s.logger.Error(ctx, "GETTING THE CASE", logging.NewField("case", aggregate))
 
 				parameters := map[string]any{
 					apply["name"].(string): aggregate,

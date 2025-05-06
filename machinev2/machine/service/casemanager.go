@@ -121,6 +121,9 @@ func (cm *CaseManager) recordEvent(caseID uuid.UUID, eventType string, data map[
 	// Trigger rules in response to event
 	go func() {
 		ctx := context.Background()
+		case_, _ := casemanager.FindCase(ctx, cm.caseRepo, caseID)
+
+		cm.logger.Error(ctx, "APPLYING RULES", logging.NewField("case", case_))
 		if err := cm.Services.ApplyRules(ctx, event); err != nil {
 			cm.logger.WithIndent().Errorf(ctx, "Error applying rules: %v", err)
 		}
@@ -518,6 +521,10 @@ func (cm *CaseManager) DetermineAppealStatus(
 		courtTypePtr = &courtType
 	}
 
+	c, err := casemanager.FindCase(ctx, cm.caseRepo, caseID)
+	fmt.Printf("err: %v\n", err)
+	fmt.Printf("c: %v\n", c)
+
 	// Determine appeal status
 	if err := casemanager.DetermineAppealStatus(
 		ctx,
@@ -558,6 +565,7 @@ func (cm *CaseManager) DetermineAppealStatus(
 		eventData["court_type"] = courtType
 	}
 
+	cm.logger.Info(ctx, "AppealStatusDetermined", logging.NewField("data", eventData))
 	cm.recordEvent(caseID, "AppealStatusDetermined", eventData)
 
 	return nil
