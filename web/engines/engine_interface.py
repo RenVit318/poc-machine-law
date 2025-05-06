@@ -135,6 +135,7 @@ class EngineInterface(ABC):
         law_infos = [
             {"service": service, "law": law} for service in discoverable_laws for law in discoverable_laws[service]
         ]
+
         for law_info in law_infos:
             service = law_info["service"]
             law = law_info["law"]
@@ -149,7 +150,7 @@ class EngineInterface(ABC):
 
             try:
                 # Get the rule spec to check for citizen_relevance markings
-                rule_spec = self.resolver.get_rule_spec(law, current_date, service=service)
+                rule_spec = self.get_rule_spec(law, current_date, service=service)
 
                 # Run the law for this person and get results
                 result = await self.evaluate(

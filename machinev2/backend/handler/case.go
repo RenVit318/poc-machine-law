@@ -109,6 +109,7 @@ func (handler *Handler) CaseGet(ctx context.Context, request api.CaseGetRequestO
 // CaseReview implements api.StrictServerInterface.
 func (handler *Handler) CaseReview(ctx context.Context, request api.CaseReviewRequestObject) (api.CaseReviewResponseObject, error) {
 	caseID, err := handler.servicer.CaseReview(ctx, model.CaseReview{
+		CaseID:     request.CaseID,
 		VerifierID: request.Body.Data.VerifierId,
 		Approved:   request.Body.Data.Approved,
 		Reason:     request.Body.Data.Reason,

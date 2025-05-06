@@ -359,6 +359,8 @@ func (cm *CaseManager) CompleteManualReview(
 	overrideResult map[string]any,
 ) error {
 	// Get the case from the repository
+	fmt.Printf("caseID: %v\n", caseID)
+
 	c, err := casemanager.FindCase(ctx, cm.caseRepo, caseID)
 	if err != nil {
 		return fmt.Errorf("failed to find case: %w", err)

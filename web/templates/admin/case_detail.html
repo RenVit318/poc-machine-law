@@ -65,22 +65,30 @@
                                     {% endif %}
                                 </p>
                             </div>
-                            <div>
-                                <p class="text-sm text-gray-600">Reden bezwaar niet mogelijk</p>
-                                <p class="font-medium">{{ case.objection_status.not_possible_reason }}</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-600">Bezwaartermijn</p>
-                                <p class="font-medium">{{ case.objection_status.objection_period }} weken</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-600">Beslistermijn</p>
-                                <p class="font-medium">{{ case.objection_status.decision_period }} weken</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-600">Verdagingstermijn</p>
-                                <p class="font-medium">{{ case.objection_status.extension_period }} weken</p>
-                            </div>
+                            {% if case.objection_status.not_possible_reason %}
+                                <div>
+                                    <p class="text-sm text-gray-600">Reden bezwaar niet mogelijk</p>
+                                    <p class="font-medium">{{ case.objection_status.not_possible_reason }}</p>
+                                </div>
+                            {% endif %}
+                            {% if case.objection_status.objection_period %}
+                                <div>
+                                    <p class="text-sm text-gray-600">Bezwaartermijn</p>
+                                    <p class="font-medium">{{ case.objection_status.objection_period }} weken</p>
+                                </div>
+                            {% endif %}
+                            {% if case.objection_status.decision_period %}
+                                <div>
+                                    <p class="text-sm text-gray-600">Beslistermijn</p>
+                                    <p class="font-medium">{{ case.objection_status.decision_period }} weken</p>
+                                </div>
+                            {% endif %}
+                            {% if case.objection_status.extension_period %}
+                                <div>
+                                    <p class="text-sm text-gray-600">Verdagingstermijn</p>
+                                    <p class="font-medium">{{ case.objection_status.extension_period }} weken</p>
+                                </div>
+                            {% endif %}
                         </div>
                     {% else %}
                         <p class="text-gray-500">Bezwaarstatus wordt door de AWB bepaald als er een besluit is.</p>

@@ -124,20 +124,6 @@ class MachineService(EngineInterface):
 
             return result
 
-    async def get_sorted_discoverable_service_laws(self, bsn: str, discoverable_by="CITIZEN") -> list[dict[str, Any]]:
-        """
-        Get sorted laws discoverable by citizens using HTTP calls to the Go backend service.
-        """
-
-        response = self.get_discoverable_service_laws()
-
-        result = []
-        for service, laws in response.items():
-            for law in laws:
-                result.append({"service": service, "law": law})
-
-        return result
-
     def get_all_profiles(self) -> dict[str, dict[str, Any]]:
         # Instantiate the API client
         client = Client(base_url=self.base_url)

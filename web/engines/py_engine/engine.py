@@ -86,12 +86,6 @@ class PythonMachineService(EngineInterface):
         """
         return self.services.get_discoverable_service_laws(discoverable_by)
 
-    async def get_sorted_discoverable_service_laws(self, bsn: str) -> list[dict[str, Any]]:
-        """
-        Get sorted laws discoverable by citizens using the embedded Python machine.service library.
-        """
-        return await self.services.get_sorted_discoverable_service_laws(bsn)
-
     def get_rule_spec(self, law: str, reference_date: str, service: str) -> dict[str, Any]:
         """
         Get the rule specification for a specific law.

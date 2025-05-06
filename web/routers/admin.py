@@ -1,10 +1,9 @@
 import os
 import sys
 from datetime import datetime
+from uuid import UUID
 
-from engines.factory import MachineType
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 
 from explain.llm_factory import LLMFactory
@@ -26,18 +25,6 @@ llm_factory = LLMFactory()
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-
-# Define Engine model
-class Engine(BaseModel):
-    id: MachineType
-    name: str
-    description: str
-    active: bool = False
-
-
-def get_engines() -> list[Engine]:
-    return config_loader.config.get_engines()
 
 
 def get_llm_providers(request: Request) -> tuple[list[dict], str]:
@@ -94,7 +81,7 @@ def group_cases_by_status(cases):
     grouped = {status.value: [] for status in CaseStatus}
 
     for case in cases:
-        grouped[case.status].append(case)
+        grouped[case.status.value].append(case)
 
     return grouped
 
@@ -124,8 +111,8 @@ async def control(request: Request, services: EngineInterface = Depends(get_mach
     return templates.TemplateResponse(
         "admin/control.html",
         {
-            "request": request,
-            "engines": get_engines(),
+            "request": request, 
+            "engines": config_loader.config.get_engines(), 
             "current_engine_id": get_engine_id(),
             "providers": providers,
             "current_provider": current_provider,
@@ -138,7 +125,7 @@ async def post_set_engine(
     request: Request, engine_id: str = Form(...), services: EngineInterface = Depends(get_machine_service)
 ):
     # Validate engine exists
-    engine_exists = any(engine.get("id") == engine_id for engine in get_engines())
+    engine_exists = any(engine.get("id") == engine_id for engine in config_loader.config.get_engines())
     if not engine_exists:
         raise HTTPException(status_code=404, detail="Selected engine not found")
 
@@ -147,7 +134,7 @@ async def post_set_engine(
     # Redirect back to admin dashboard
     return templates.TemplateResponse(
         "/admin/partials/engines.html",
-        {"request": request, "engines": get_engines(), "current_engine_id": get_engine_id()},
+        {"request": request, "engines": config_loader.config.get_engines(), "current_engine_id": get_engine_id()},
     )
 
 
@@ -318,16 +305,14 @@ async def move_case(
 @router.post("/cases/{case_id}/complete-review")
 async def complete_review(
     request: Request,
-    case_id: str,
+    case_id: UUID,
     decision: bool = Form(...),
     reason: str = Form(...),  # Note: changed from reasoning to match form
     case_manager: CaseManagerInterface = Depends(get_case_manager),
 ):
     """Complete manual review of a case"""
     try:
-        case_id = case_manager.complete_manual_review(
-            case_id=case_id, verifier_id="ADMIN", approved=decision, reason=reason
-        )
+        case_manager.complete_manual_review(case_id=case_id, verifier_id="ADMIN", approved=decision, reason=reason)
 
         # Get the updated case
         updated_case = case_manager.get_case_by_id(case_id)
