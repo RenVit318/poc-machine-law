@@ -359,6 +359,8 @@ func (cm *CaseManager) CompleteManualReview(
 	overrideResult map[string]any,
 ) error {
 	// Get the case from the repository
+	fmt.Printf("caseID: %v\n", caseID)
+
 	c, err := casemanager.FindCase(ctx, cm.caseRepo, caseID)
 	if err != nil {
 		return fmt.Errorf("failed to find case: %w", err)
@@ -659,6 +661,27 @@ func (cm *CaseManager) GetCasesByLaw(ctx context.Context, service, law string) (
 		}
 
 		if c.Law == law && c.Service == service {
+			result = append(result, c)
+		}
+	}
+
+	return result, nil
+}
+
+func (cm *CaseManager) GetCasesByBSN(ctx context.Context, bsn string) ([]*casemanager.Case, error) {
+	// This would normally involve a more efficient query to the repository
+	// For now, we'll scan through all cases in the index
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	var result []*casemanager.Case
+	for _, caseID := range cm.caseIndex {
+		c, err := casemanager.FindCase(ctx, cm.caseRepo, caseID)
+		if err != nil {
+			continue
+		}
+
+		if c.BSN == bsn {
 			result = append(result, c)
 		}
 	}

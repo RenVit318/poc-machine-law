@@ -33,7 +33,7 @@ func Equal(a, b any) (bool, error) {
 //	 1 if a > b
 //
 // It handles cross-type numeric comparisons (e.g., int(1) == float64(1.0) is true).
-func Compare(a, b interface{}) (int, error) {
+func Compare(a, b any) (int, error) {
 	// Handle nil cases
 	if a == nil && b == nil {
 		return 0, nil

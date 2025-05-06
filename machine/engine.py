@@ -61,7 +61,13 @@ class RulesEngine:
     def _enforce_output_type(self, name: str, value: Any) -> Any:
         """Enforce type specifications on output value"""
         if name in self.output_specs:
-            return self.output_specs[name].enforce(value)
+            result = self.output_specs[name].enforce(value)
+
+            if not operator.eq(value, result):
+                logger.debug(f"Enforcing type spec changed value from: {value} to {result}")
+
+            return result
+
         return value
 
     @staticmethod

@@ -13,17 +13,9 @@ class EventType(str, Enum):
 
 
 @dataclass
-class EventData:
-    approved: bool
-    claimed_result: dict[str, Any]
-    reason: str
-    verified_result: dict[str, Any]
-
-
-@dataclass
 class Event:
     """Event"""
 
     event_type: EventType
     timestamp: datetime
-    data: EventData
+    data: dict[str, Any]

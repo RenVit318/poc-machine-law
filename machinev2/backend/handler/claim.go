@@ -11,8 +11,8 @@ import (
 	"github.com/minbzk/poc-machine-law/machinev2/backend/service"
 )
 
-// GetClaimsBsn implements api.StrictServerInterface.
-func (handler *Handler) GetClaimsBsn(ctx context.Context, request api.GetClaimsBsnRequestObject) (api.GetClaimsBsnResponseObject, error) {
+// ClaimListBasedOnBSN implements api.StrictServerInterface.
+func (handler *Handler) ClaimListBasedOnBSN(ctx context.Context, request api.ClaimListBasedOnBSNRequestObject) (api.ClaimListBasedOnBSNResponseObject, error) {
 	filter := service.ClaimListFilter{
 		OnlyApproved:    request.Params.Approved,
 		IncludeRejected: request.Params.IncludeRejected,
@@ -20,20 +20,20 @@ func (handler *Handler) GetClaimsBsn(ctx context.Context, request api.GetClaimsB
 
 	claims, err := handler.servicer.ClaimListBasedOnBSN(ctx, request.Bsn, filter)
 	if err != nil {
-		return api.GetClaimsBsn400JSONResponse{
+		return api.ClaimListBasedOnBSN400JSONResponse{
 			BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("claim list based on bsn: %w", err)),
 		}, nil
 	}
 
-	return api.GetClaimsBsn200JSONResponse{
+	return api.ClaimListBasedOnBSN200JSONResponse{
 		ClaimListResponseJSONResponse: api.ClaimListResponseJSONResponse{
 			Data: adapter.FromClaims(claims),
 		},
 	}, nil
 }
 
-// GetClaimsBsnServiceLaw implements api.StrictServerInterface.
-func (handler *Handler) GetClaimsBsnServiceLaw(ctx context.Context, request api.GetClaimsBsnServiceLawRequestObject) (api.GetClaimsBsnServiceLawResponseObject, error) {
+// ClaimListBasedOnBSNServiceLaw implements api.StrictServerInterface.
+func (handler *Handler) ClaimListBasedOnBSNServiceLaw(ctx context.Context, request api.ClaimListBasedOnBSNServiceLawRequestObject) (api.ClaimListBasedOnBSNServiceLawResponseObject, error) {
 	filter := service.ClaimListFilter{
 		OnlyApproved:    request.Params.Approved,
 		IncludeRejected: request.Params.IncludeRejected,
@@ -41,7 +41,7 @@ func (handler *Handler) GetClaimsBsnServiceLaw(ctx context.Context, request api.
 
 	claims, err := handler.servicer.ClaimListBasedOnBSNServiceLaw(ctx, request.Bsn, request.Service, request.Law, filter)
 	if err != nil {
-		return api.GetClaimsBsnServiceLaw400JSONResponse{
+		return api.ClaimListBasedOnBSNServiceLaw400JSONResponse{
 			BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("claim list based on bsn: %w", err)),
 		}, nil
 	}
@@ -52,7 +52,7 @@ func (handler *Handler) GetClaimsBsnServiceLaw(ctx context.Context, request api.
 		list[key] = adapter.FromClaim(value)
 	}
 
-	return api.GetClaimsBsnServiceLaw200JSONResponse{
+	return api.ClaimListBasedOnBSNServiceLaw200JSONResponse{
 		ClaimListWithKeyResponseJSONResponse: api.ClaimListWithKeyResponseJSONResponse{
 			Data: list,
 		},

@@ -9,7 +9,7 @@ import os
 
 import jinja2
 
-from machine.service import Services
+from web.engines import CaseManagerInterface, ClaimManagerInterface, EngineInterface
 
 from .mcp_claims import MCPClaimProcessor
 from .mcp_formatter import MCPResultFormatter
@@ -22,7 +22,12 @@ from .mcp_types import MCPResult
 class MCPLawConnector:
     """Connector for making law services available to LLMs via MCP"""
 
-    def __init__(self, services: Services):
+    def __init__(
+        self,
+        services: EngineInterface,
+        case_manager: CaseManagerInterface,
+        claim_manager: ClaimManagerInterface,
+    ):
         """Initialize the MCP law connector.
 
         Args:
@@ -33,9 +38,11 @@ class MCPLawConnector:
 
         # Store services instance
         self.services = services
+        self.case_manager = case_manager
+        self.claim_manager = claim_manager
 
         # Initialize components
-        self.registry = MCPServiceRegistry(services)
+        self.registry = MCPServiceRegistry(services, case_manager, claim_manager)
         self.claim_processor = MCPClaimProcessor(self.registry)
         self.service_executor = MCPServiceExecutor(self.registry)
         self.formatter = MCPResultFormatter(self.registry)
@@ -94,7 +101,7 @@ class MCPLawConnector:
             Formatted cases context for the system prompt
         """
         # Get all cases for this user from the case manager using our new method
-        cases = self.services.case_manager.get_cases_by_bsn(bsn)
+        cases = self.case_manager.get_cases_by_bsn(bsn)
 
         if not cases:
             return self.jinja_env.get_template("includes/cases_context.j2").render(cases=None)
@@ -158,7 +165,7 @@ class MCPLawConnector:
                         current_result = result.output
 
                         # Get the rule spec to check for citizen_relevance markings
-                        rule_spec = self.services.resolver.get_rule_spec(case.law, "2025-01-01", service=case.service)
+                        rule_spec = self.services.get_rule_spec(case.law, "2025-01-01", service=case.service)
 
                         # Extract primary value marked with citizen_relevance: primary
                         primary_field = None
@@ -356,7 +363,7 @@ class MCPLawConnector:
 
         return results
 
-    def format_results_for_llm(self, results: MCPResult) -> str:
+    async def format_results_for_llm(self, results: MCPResult) -> str:
         """Format service results for inclusion in the LLM context
 
         Args:
@@ -365,4 +372,4 @@ class MCPLawConnector:
         Returns:
             Formatted results as markdown
         """
-        return self.formatter.format_for_llm(results)
+        return await self.formatter.format_for_llm(results)

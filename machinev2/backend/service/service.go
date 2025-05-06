@@ -20,6 +20,7 @@ type Service struct {
 	cfg      *config.Config
 	service  *machine.Services
 	profiles map[string]model.Profile
+	input    model.Input
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *Service {
@@ -40,13 +41,18 @@ func (service *Service) Status(ctx context.Context) error {
 }
 
 func (service *Service) AppendInput(input model.Input) {
-	for svc, tables := range input.GlobalServices {
+	service.input = input
+	service.setInput()
+}
+
+func (service *Service) setInput() {
+	for svc, tables := range service.input.GlobalServices {
 		for table, data := range tables {
 			service.service.SetSourceDataFrame(svc, table, dataframe.New(data))
 		}
 	}
 
-	for bsn, profile := range input.Profiles {
+	for bsn, profile := range service.input.Profiles {
 		for svc, tables := range profile.Sources {
 			for table, data := range tables {
 				service.service.SetSourceDataFrame(svc, table, dataframe.New(data))
@@ -85,11 +91,16 @@ type Servicer interface {
 	CaseGet(ctx context.Context, caseID uuid.UUID) (model.Case, error)
 	CaseGetBasedOnBSNServiceLaw(ctx context.Context, bsn, service, law string) (model.Case, error)
 	CaseListBasedOnServiceLaw(ctx context.Context, service, law string) ([]model.Case, error)
+	CaseListBasedOnBSN(ctx context.Context, bsn string) ([]model.Case, error)
 	CaseSubmit(ctx context.Context, case_ model.CaseSubmit) (uuid.UUID, error)
 	CaseReview(ctx context.Context, case_ model.CaseReview) (uuid.UUID, error)
+	CaseObject(ctx context.Context, case_ model.CaseObject) (uuid.UUID, error)
 
 	EventList(ctx context.Context) ([]model.Event, error)
 	CaseEventList(ctx context.Context, caseID uuid.UUID) ([]model.Event, error)
+
+	SetSourceDataFrame(ctx context.Context, df model.DataFrame) error
+	ResetEngine(ctx context.Context) error
 }
 
 // ServiceLawsDiscoverableList implements Servicer.

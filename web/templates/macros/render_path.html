@@ -14,9 +14,9 @@
             hx-target="#edit-form-container"
             hx-vals='{ "case_id": "{{ case_id }}", "service": "{{ service }}", "key": "{{ key }}", "value": {{ display_value|tojson }}, "law": "{{ law }}", "bsn": "{{ bsn }}", "show_approve": {{ show_approve|default(false) |tojson }}, "claimant": "{{ claimant }}", {% if node.details %}"details": {{ node.details|tojson }},{% endif %} "has_details": {{ (node.details is defined)|tojson }} }'
             type="button">
-        {% if display_value is none or display_value is undefined %}
+        {% if display_value is none or display_value is undefined or display_value == {} %}
             {% if node.required is defined and node.required %}
-                BENODIGD GEGEVEN
+                <span class="text-red-600 font-medium">BENODIGD GEGEVEN</span>
             {% else %}
                 Ontbrekend gegeven
             {% endif %}
@@ -31,15 +31,17 @@
                 {% else %}
                     {{ display_value }}
                 {% endif %}
-            {% elif display_value is mapping %}
+            {% elif display_value is mapping and display_value|length > 0 %}
                 {% for key, val in display_value.items() %}
                     {% if val is mapping %}
                         {{ key }}:
                         {% for subkey, subval in val.items() %}
-                            {{ subkey }}: {{ subval }}
-                            {% if not loop.last %},{% endif %}
+                            {% if subval is not none %}
+                                {{ subkey }}: {{ subval }}
+                                {% if not loop.last %},{% endif %}
+                            {% endif %}
                         {% endfor %}
-                    {% else %}
+                    {% elif val is not none %}
                         {{ key }}: {{ val }}
                     {% endif %}
                     {% if not loop.last %},{% endif %}
@@ -181,28 +183,31 @@
             </div>
         </div>
     {% else %}
-        <div class="text-sm leading-5 py-0.5">
-            <span class="text-gray-600">{{ key|title|replace('_', ' ') }}:</span>
-            <span class="ml-2">{{ render_value(key, node, case_id, service, law, bsn, claim_map, show_approve, claimant) }}</span>
-        </div>
+        {% set display_result = node.result if node is mapping and node.result is defined else node %}
+        {% if display_result is not none and display_result != {} and display_result != {'value': None} or (node is mapping and node.required) %}
+            <div class="text-sm leading-5 py-0.5">
+                <span class="text-gray-600">{{ key|title|replace('_', ' ') }}:</span>
+                <span class="ml-2">{{ render_value(key, node, case_id, service, law, bsn, claim_map, show_approve, claimant) }}</span>
+            </div>
+        {% endif %}
     {% endif %}
 {% endmacro %}
 {% macro render_missing_required_form(path, case_id, service, law, bsn, claim_map, show_approve=False, claimant="CITIZEN") %}
     {% set missing_required = [] %}
     {% for key, node in path.items() %}
         {% if node is mapping %}
-            {% if node.required is defined and node.required and (node.result is none or node.result is undefined) %}
+            {% if node.required is defined and node.required and (node.result is none or node.result is undefined or node.result == {}) %}
                 {% set _ = missing_required.append({'key': key, 'node': node}) %}
             {% endif %}
             {% if node.children is defined %}
                 {% for child_key, child_node in node.children.items() %}
                     {% if child_node is mapping %}
-                        {% if child_node.required is defined and child_node.required and (child_node.result is none or child_node.result is undefined) %}
+                        {% if child_node.required is defined and child_node.required and (child_node.result is none or child_node.result is undefined or child_node.result == {}) %}
                             {% set _ = missing_required.append({'key': child_key, 'node': child_node}) %}
                         {% endif %}
                         {% if child_node.children is defined %}
                             {% for grandchild_key, grandchild_node in child_node.children.items() %}
-                                {% if grandchild_node is mapping and grandchild_node.required is defined and grandchild_node.required and (grandchild_node.result is none or grandchild_node.result is undefined) %}
+                                {% if grandchild_node is mapping and grandchild_node.required is defined and grandchild_node.required and (grandchild_node.result is none or grandchild_node.result is undefined or grandchild_node.result == {}) %}
                                     {% set _ = missing_required.append({'key': grandchild_key, 'node': grandchild_node}) %}
                                 {% endif %}
                             {% endfor %}

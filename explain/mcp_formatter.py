@@ -20,7 +20,7 @@ class MCPResultFormatter:
         """
         self.registry = registry
 
-    def format_for_llm(self, results: MCPResult) -> str:
+    async def format_for_llm(self, results: MCPResult) -> str:
         """Format service results for inclusion in the LLM context.
 
         Args:
@@ -44,7 +44,7 @@ class MCPResultFormatter:
             if service_name == "claims":
                 continue
 
-            formatted += self._format_service_section(service_name, result)
+            formatted += await self._format_service_section(service_name, result)
 
         return formatted
 
@@ -82,7 +82,7 @@ class MCPResultFormatter:
         formatted += "---\n\n"
         return formatted
 
-    def _format_service_section(self, service_name: str, result: dict[str, Any]) -> str:
+    async def _format_service_section(self, service_name: str, result: dict[str, Any]) -> str:
         """Format a service section.
 
         Args:
@@ -121,7 +121,7 @@ class MCPResultFormatter:
             formatted += self._format_missing_required(result)
 
         # Get field types
-        money_fields, primary_outputs = self._get_field_types(service_type, law_path)
+        money_fields, primary_outputs = await self._get_field_types(service_type, law_path)
 
         # Format result data
         formatted += self._format_result_data(result, money_fields, primary_outputs)
@@ -178,7 +178,7 @@ class MCPResultFormatter:
 
         return formatted
 
-    def _get_field_types(self, service_type: str | None, law_path: str | None) -> tuple[list[str], list[str]]:
+    async def _get_field_types(self, service_type: str | None, law_path: str | None) -> tuple[list[str], list[str]]:
         """Get field types from the rule spec.
 
         Args:
@@ -193,7 +193,7 @@ class MCPResultFormatter:
 
         try:
             if service_type and law_path:
-                rule_spec = self.registry.services.resolver.get_rule_spec(law_path, "2025-01-01", service_type)
+                rule_spec = self.registry.services.get_rule_spec(law_path, "2025-01-01", service_type)
                 # Extract money fields and primary outputs
                 for output in rule_spec.get("properties", {}).get("output", []):
                     output_name = output.get("name")

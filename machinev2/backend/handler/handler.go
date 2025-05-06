@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -12,8 +11,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	cache "github.com/victorspringer/http-cache"
-	"github.com/victorspringer/http-cache/adapter/memory"
 
 	"github.com/minbzk/poc-machine-law/machinev2/backend/config"
 	"github.com/minbzk/poc-machine-law/machinev2/backend/interface/api"
@@ -50,23 +47,6 @@ func New(logger *slog.Logger, cfg *config.Config, servicer service.Servicer) (*H
 }
 
 func router(handler *Handler) (http.Handler, error) {
-	memcached, err := memory.NewAdapter(
-		memory.AdapterWithAlgorithm(memory.LRU),
-		memory.AdapterWithCapacity(10000000),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("memory new adapter: %w", err)
-	}
-
-	cacheClient, err := cache.NewClient(
-		cache.ClientWithAdapter(memcached),
-		cache.ClientWithTTL(1*time.Minute),
-		cache.ClientWithRefreshKey("opn"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("cache new client: %w", err)
-	}
-
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(NewStructuredLogger(handler.logger))
@@ -89,7 +69,6 @@ func router(handler *Handler) (http.Handler, error) {
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.SetHeader("Content-Type", "application/json"))
-		r.Use(cacheClient.Middleware)
 		r.Mount("/v0", api.Handler(api.NewStrictHandler(handler, nil)))
 	})
 

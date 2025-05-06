@@ -8,10 +8,10 @@ from ..models import Claim
 from .machine_client.law_as_code_client import Client
 from .machine_client.law_as_code_client.api.claim import (
     claim_approve,
+    claim_list_based_on_bsn,
+    claim_list_based_on_bsn_service_law,
     claim_reject,
     claim_submit,
-    get_claims_bsn,
-    get_claims_bsn_service_law,
 )
 from .machine_client.law_as_code_client.models import (
     ClaimApprove,
@@ -21,6 +21,7 @@ from .machine_client.law_as_code_client.models import (
     ClaimSubmit,
     ClaimSubmitBody,
 )
+from .machine_client.law_as_code_client.types import UNSET
 
 
 class ClaimManager(ClaimManagerInterface):
@@ -32,7 +33,7 @@ class ClaimManager(ClaimManagerInterface):
         self.base_url = base_url
         self.client = httpx.AsyncClient(base_url=self.base_url)
 
-    async def get_claims_by_bsn(self, bsn: str, approved: bool = False, include_rejected: bool = False) -> list[Claim]:
+    def get_claims_by_bsn(self, bsn: str, approved: bool = False, include_rejected: bool = False) -> list[Claim]:
         """
         Retrieves case information using the embedded Python machine.service library.
 
@@ -49,13 +50,13 @@ class ClaimManager(ClaimManagerInterface):
         client = Client(base_url=self.base_url)
 
         with client as client:
-            response = get_claims_bsn.sync_detailed(
+            response = claim_list_based_on_bsn.sync_detailed(
                 client=client, bsn=bsn, approved=approved, include_rejected=include_rejected
             )
 
             return to_claims(response.parsed.data)
 
-    async def get_claim_by_bsn_service_law(
+    def get_claim_by_bsn_service_law(
         self, bsn: str, service: str, law: str, approved: bool = False, include_rejected: bool = False
     ) -> dict[UUID:Claim]:
         """
@@ -74,13 +75,13 @@ class ClaimManager(ClaimManagerInterface):
         client = Client(base_url=self.base_url)
 
         with client as client:
-            response = get_claims_bsn_service_law.sync_detailed(
+            response = claim_list_based_on_bsn_service_law.sync_detailed(
                 client=client, bsn=bsn, service=service, law=law, approved=approved, include_rejected=include_rejected
             )
 
             return to_dict_claims(response.parsed.data.additional_properties)
 
-    async def submit_claim(
+    def submit_claim(
         self,
         service: str,
         key: str,
@@ -132,7 +133,7 @@ class ClaimManager(ClaimManagerInterface):
 
             return content.data
 
-    async def reject_claim(self, claim_id: UUID, rejected_by: str, rejection_reason: str) -> None:
+    def reject_claim(self, claim_id: UUID, rejected_by: str, rejection_reason: str) -> None:
         """
         Reject a claim with reason
 
@@ -154,7 +155,7 @@ class ClaimManager(ClaimManagerInterface):
         with client as client:
             claim_reject.sync_detailed(client=client, claim_id=claim_id, body=body)
 
-    async def approve_claim(self, claim_id: UUID, verified_by: str, verified_value: str) -> None:
+    def approve_claim(self, claim_id: UUID, verified_by: str, verified_value: str) -> None:
         """
         Approve a claim with verified value
 
@@ -188,9 +189,9 @@ def to_claim(claim) -> Claim:
         law=claim.law,
         bsn=claim.bsn,
         status=claim.status,
-        case_id=claim.case_id,
-        old_value=claim.old_value,
-        evidence_path=claim.evidence_path,
+        case_id=claim.case_id if claim.case_id is not UNSET else None,
+        old_value=claim.old_value if claim.old_value is not UNSET else None,
+        evidence_path=claim.evidence_path if claim.evidence_path is not UNSET else None,
     )
 
 

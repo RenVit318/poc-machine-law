@@ -11,7 +11,7 @@ class CaseManagerInterface(ABC):
     """
 
     @abstractmethod
-    async def get_case(self, bsn: str, service: str, law: str) -> Case | None:
+    def get_case(self, bsn: str, service: str, law: str) -> Case | None:
         """
         Retrieves case information based on provided parameters.
 
@@ -25,7 +25,7 @@ class CaseManagerInterface(ABC):
         """
 
     @abstractmethod
-    async def get_case_by_id(self, id: UUID) -> Case | None:
+    def get_case_by_id(self, id: UUID) -> Case | None:
         """
         Retrieves case information based on provided parameters.
 
@@ -37,7 +37,7 @@ class CaseManagerInterface(ABC):
         """
 
     @abstractmethod
-    async def get_cases_by_law(self, service: str, law: str) -> list[Case]:
+    def get_cases_by_law(self, service: str, law: str) -> list[Case]:
         """
         Retrieves case information based on provided parameters.
 
@@ -47,6 +47,18 @@ class CaseManagerInterface(ABC):
 
         Returns:
             All Cases containing the case information filtered on service & law
+        """
+
+    @abstractmethod
+    def get_cases_by_bsn(self, bsn: str) -> list[Case]:
+        """
+        Get all cases for a specific citizen by BSN
+
+        Args:
+            bsn: identifier of the citizen
+
+        Returns:
+            All Cases that are attached to this bsn
         """
 
     @abstractmethod
@@ -75,7 +87,7 @@ class CaseManagerInterface(ABC):
         """
 
     @abstractmethod
-    async def complete_manual_review(
+    def complete_manual_review(
         self,
         case_id: UUID,
         verifier_id: str,
@@ -86,17 +98,34 @@ class CaseManagerInterface(ABC):
         Complete a manual review
 
         Args:
-            case_id: UUID identifier of the specific
+            case_id: UUID identifier of the specific case
             verifier_id: String identifier of the reviewer
             approved: Boolean value with decision
             reason: explained over the decision
 
         Returns:
-            The UUID of the case
+            None
         """
 
     @abstractmethod
-    async def get_events(
+    def objection(
+        self,
+        case_id: UUID,
+        reason: str,
+    ) -> None:
+        """
+        Object to a case
+
+        Args:
+            case_id: UUID identifier of the specific case
+            reason: reason of the objection
+
+        Returns:
+            None
+        """
+
+    @abstractmethod
+    def get_events(
         self,
         case_id: UUID | None = None,
     ) -> list[Event]:

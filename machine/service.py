@@ -242,7 +242,7 @@ class Services:
 
         return flattened
 
-    async def get_discoverable_service_laws(self, discoverable_by="CITIZEN"):
+    def get_discoverable_service_laws(self, discoverable_by="CITIZEN"):
         return self.resolver.get_discoverable_service_laws(discoverable_by)
 
     async def get_sorted_discoverable_service_laws(self, bsn):
@@ -254,7 +254,7 @@ class Services:
         based on outputs marked with citizen_relevance: primary in their YAML definitions.
         """
         # Get basic discoverable laws from the resolver
-        discoverable_laws = await self.get_discoverable_service_laws()
+        discoverable_laws = self.get_discoverable_service_laws()
 
         # Initialize cache if it doesn't exist
         if not hasattr(self, "_impact_cache") or not self._impact_cache:
