@@ -20,6 +20,9 @@ from .machine_client.law_as_code_client.models import (
     SetSourceDataFrameBody,
 )
 from .machine_client.law_as_code_client.models import (
+    EvaluateResponseSchema as ApiRuleResult,
+)
+from .machine_client.law_as_code_client.models import (
     PathNode as ApiPathNode,
 )
 from .machine_client.law_as_code_client.types import UNSET
@@ -94,16 +97,7 @@ class MachineService(EngineInterface):
 
         with client as client:
             response = evaluate.sync_detailed(client=client, body=body)
-            content = response.parsed
-
-            return RuleResult(
-                input=content.data.input_.to_dict(),
-                output=content.data.output.to_dict(),
-                requirements_met=content.data.requirements_met,
-                missing_required=content.data.missing_required,
-                rulespec_uuid=content.data.rulespec_id,
-                path=to_path_node(content.data.path),
-            )
+            return to_rule_result(response.parsed.data)
 
     def get_discoverable_service_laws(self, discoverable_by="CITIZEN") -> dict[str, list[str]]:
         """
@@ -181,6 +175,17 @@ def profile_transform(profile: Profile) -> dict[str, Any]:
 def source_transform(sources: ProfileSources) -> dict[str, Any]:
     s = sources.to_dict()
     return s
+
+
+def to_rule_result(result: ApiRuleResult) -> RuleResult:
+    return RuleResult(
+        input=result.input_.to_dict(),
+        output=result.output.to_dict(),
+        requirements_met=result.requirements_met,
+        missing_required=result.missing_required,
+        rulespec_uuid=result.rulespec_id,
+        path=to_path_node(result.path),
+    )
 
 
 def to_path_node(path_node: ApiPathNode) -> PathNode:

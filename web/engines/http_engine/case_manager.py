@@ -216,12 +216,12 @@ def to_objection_status(objection) -> CaseObjectionStatus:
         return None
 
     return CaseObjectionStatus(
-        possible=objection.possible,
-        not_possible_reason=objection.not_possible_reason,
-        objection_period=objection.objection_period,
-        decision_period=objection.decision_period,
-        extension_period=objection.extension_period,
-        admissable=objection.admissable,
+        possible=get_value(objection.possible),
+        not_possible_reason=get_value(objection.not_possible_reason),
+        objection_period=get_value(objection.objection_period),
+        decision_period=get_value(objection.decision_period),
+        extension_period=get_value(objection.extension_period),
+        admissable=get_value(objection.admissable),
     )
 
 

@@ -21,6 +21,7 @@ from .machine_client.law_as_code_client.models import (
     ClaimSubmit,
     ClaimSubmitBody,
 )
+from .machine_client.law_as_code_client.types import UNSET
 
 
 class ClaimManager(ClaimManagerInterface):
@@ -188,9 +189,9 @@ def to_claim(claim) -> Claim:
         law=claim.law,
         bsn=claim.bsn,
         status=claim.status,
-        case_id=claim.case_id,
-        old_value=claim.old_value,
-        evidence_path=claim.evidence_path,
+        case_id=claim.case_id if claim.case_id is not UNSET else None,
+        old_value=claim.old_value if claim.old_value is not UNSET else None,
+        evidence_path=claim.evidence_path if claim.evidence_path is not UNSET else None,
     )
 
 
