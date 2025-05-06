@@ -126,9 +126,9 @@ def to_objection_status(objection) -> CaseObjectionStatus:
 
 def to_event(event) -> Event:
     return Event(
-        event_type=event.event_type,
-        timestamp=event.timestamp,
-        data=event.data,
+        event_type=event.get("event_type"),
+        timestamp=event.get("timestamp"),
+        data=event.get("data"),
     )
 
 
