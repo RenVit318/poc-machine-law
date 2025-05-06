@@ -18,11 +18,11 @@ import (
 
 // TypeSpec defines specifications for value types
 type TypeSpec struct {
-	Type      string  `json:"type,omitempty" yaml:"type,omitempty"`
-	Unit      string  `json:"unit,omitempty" yaml:"unit,omitempty"`
-	Precision *int    `json:"precision,omitempty" yaml:"precision,omitempty"`
-	Min       float64 `json:"min,omitempty" yaml:"min,omitempty"`
-	Max       float64 `json:"max,omitempty" yaml:"max,omitempty"`
+	Type      string   `json:"type,omitempty" yaml:"type,omitempty"`
+	Unit      *string  `json:"unit,omitempty" yaml:"unit,omitempty"`
+	Precision *int     `json:"precision,omitempty" yaml:"precision,omitempty"`
+	Min       *float64 `json:"min,omitempty" yaml:"min,omitempty"`
+	Max       *float64 `json:"max,omitempty" yaml:"max,omitempty"`
 }
 
 // Enforce applies type specifications to a value
@@ -59,11 +59,11 @@ func (ts *TypeSpec) Enforce(value any) any {
 	}
 
 	// Apply min/max constraints
-	if ts.Min != 0 {
-		floatVal = math.Max(floatVal, ts.Min)
+	if ts.Min != nil {
+		floatVal = math.Max(floatVal, *ts.Min)
 	}
-	if ts.Max != 0 {
-		floatVal = math.Min(floatVal, ts.Max)
+	if ts.Max != nil {
+		floatVal = math.Min(floatVal, *ts.Max)
 	}
 
 	// Apply precision
@@ -77,8 +77,11 @@ func (ts *TypeSpec) Enforce(value any) any {
 	}
 
 	// Convert to int for cent units
-	if ts.Unit == "eurocent" {
-		return int(math.Round(floatVal))
+	if ts.Unit != nil {
+		switch *ts.Unit {
+		case "eurocent":
+			return int(math.Round(floatVal))
+		}
 	}
 
 	return floatVal

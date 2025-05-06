@@ -137,7 +137,7 @@ func (re *RulesEngine) buildOutputSpecs(properties map[string]any) map[string]co
 					// Extract type_spec details
 					if typeSpecMap, ok := outputMap["type_spec"].(map[string]any); ok {
 						if unit, ok := typeSpecMap["unit"].(string); ok {
-							typeSpec.Unit = unit
+							typeSpec.Unit = &unit
 						}
 
 						if precision, ok := typeSpecMap["precision"].(int); ok {
@@ -148,15 +148,17 @@ func (re *RulesEngine) buildOutputSpecs(properties map[string]any) map[string]co
 						}
 
 						if min, ok := typeSpecMap["min"].(float64); ok {
-							typeSpec.Min = min
+							typeSpec.Min = &min
 						} else if minInt, ok := typeSpecMap["min"].(int); ok {
-							typeSpec.Min = float64(minInt)
+							min = float64(minInt)
+							typeSpec.Min = &min
 						}
 
 						if max, ok := typeSpecMap["max"].(float64); ok {
-							typeSpec.Max = max
+							typeSpec.Max = &max
 						} else if maxInt, ok := typeSpecMap["max"].(int); ok {
-							typeSpec.Max = float64(maxInt)
+							max = float64(maxInt)
+							typeSpec.Max = &max
 						}
 					}
 
@@ -170,10 +172,17 @@ func (re *RulesEngine) buildOutputSpecs(properties map[string]any) map[string]co
 }
 
 // enforceOutputType enforces type specifications on an output value
-func (re *RulesEngine) enforceOutputType(name string, value any) any {
+func (re *RulesEngine) enforceOutputType(ctx context.Context, name string, value any) any {
 	if spec, exists := re.OutputSpecs[name]; exists {
-		return spec.Enforce(value)
+		result := spec.Enforce(value)
+
+		if equal, _ := utils.Equal(result, value); !equal {
+			re.logger.Debugf(ctx, "Enforcing type spec changed value from: %v to %v", value, result)
+		}
+
+		return result
 	}
+
 	return value
 }
 
@@ -577,15 +586,16 @@ func (re *RulesEngine) evaluateAction(
 		}
 
 		// Apply type enforcement
-		result = re.enforceOutputType(outputName, result)
+		result = re.enforceOutputType(ctx, outputName, result)
 		actionNode.Result = result
 
-		re.logger.Debugf(ctx, "Result of %s: %v", outputName, result)
 		return nil
 	})
 	if err != nil {
 		return nil, "", err
 	}
+
+	re.logger.Debugf(ctx, "Result of %s: %v", outputName, result)
 
 	// Build output with metadata
 	outputDef := map[string]any{
