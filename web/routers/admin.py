@@ -111,8 +111,8 @@ async def control(request: Request, services: EngineInterface = Depends(get_mach
     return templates.TemplateResponse(
         "admin/control.html",
         {
-            "request": request, 
-            "engines": config_loader.config.get_engines(), 
+            "request": request,
+            "engines": config_loader.config.get_engines(),
             "current_engine_id": get_engine_id(),
             "providers": providers,
             "current_provider": current_provider,
