@@ -83,6 +83,14 @@ func (service *Service) CaseReview(ctx context.Context, case_ model.CaseReview) 
 	return case_.CaseID, nil
 }
 
+func (service *Service) CaseObject(ctx context.Context, case_ model.CaseObject) (uuid.UUID, error) {
+	err := service.service.CaseManager.ObjectCase(ctx, case_.CaseID, case_.Reason)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("object case: %w", err)
+	}
+
+	return case_.CaseID, nil
+}
 func ToCase(case_ *casemanager.Case) model.Case {
 	return model.Case{
 		ID:                 case_.ID,

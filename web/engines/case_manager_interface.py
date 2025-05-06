@@ -98,13 +98,30 @@ class CaseManagerInterface(ABC):
         Complete a manual review
 
         Args:
-            case_id: UUID identifier of the specific
+            case_id: UUID identifier of the specific case
             verifier_id: String identifier of the reviewer
             approved: Boolean value with decision
             reason: explained over the decision
 
         Returns:
-            The UUID of the case
+            None
+        """
+
+    @abstractmethod
+    def objection(
+        self,
+        case_id: UUID,
+        reason: str,
+    ) -> None:
+        """
+        Object to a case
+
+        Args:
+            case_id: UUID identifier of the specific case
+            reason: reason of the objection
+
+        Returns:
+            None
         """
 
     @abstractmethod

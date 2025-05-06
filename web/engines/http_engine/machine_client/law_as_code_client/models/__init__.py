@@ -16,6 +16,12 @@ from .case_list_based_on_bsn_response_500 import CaseListBasedOnBSNResponse500
 from .case_list_based_on_service_law_response_200 import CaseListBasedOnServiceLawResponse200
 from .case_list_based_on_service_law_response_400 import CaseListBasedOnServiceLawResponse400
 from .case_list_based_on_service_law_response_500 import CaseListBasedOnServiceLawResponse500
+from .case_object import CaseObject
+from .case_object_body import CaseObjectBody
+from .case_object_response_200 import CaseObjectResponse200
+from .case_object_response_400 import CaseObjectResponse400
+from .case_object_response_404 import CaseObjectResponse404
+from .case_object_response_500 import CaseObjectResponse500
 from .case_objection_status import CaseObjectionStatus
 from .case_review import CaseReview
 from .case_review_body import CaseReviewBody
@@ -121,7 +127,13 @@ __all__ = (
     "CaseListBasedOnServiceLawResponse200",
     "CaseListBasedOnServiceLawResponse400",
     "CaseListBasedOnServiceLawResponse500",
+    "CaseObject",
+    "CaseObjectBody",
     "CaseObjectionStatus",
+    "CaseObjectResponse200",
+    "CaseObjectResponse400",
+    "CaseObjectResponse404",
+    "CaseObjectResponse500",
     "CaseReview",
     "CaseReviewBody",
     "CaseReviewResponse200",

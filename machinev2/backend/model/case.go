@@ -48,3 +48,8 @@ type CaseReview struct {
 	Approved   bool
 	Reason     string
 }
+
+type CaseObject struct {
+	CaseID uuid.UUID
+	Reason string
+}

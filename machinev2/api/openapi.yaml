@@ -231,6 +231,26 @@ paths:
           $ref: "#/components/responses/ResourceNotFoundErrorResponse"
         "500":
           $ref: "#/components/responses/InternalServerErrorResponse"
+  /cases/{caseID}/object:
+    post:
+      summary: Object to a decision on a case
+      description: Submit a objection to a decision of a case
+      operationId: caseObject
+      tags:
+        - Case
+      parameters:
+        - $ref: "#/components/parameters/pathCaseID"
+      requestBody:
+        $ref: "#/components/requestBodies/CaseObjectRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/CaseObjectResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestErrorResponse"
+        "404":
+          $ref: "#/components/responses/ResourceNotFoundErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerErrorResponse"
   /cases/{bsn}:
     get:
       tags:
@@ -706,6 +726,14 @@ components:
         reason:
           type: string
           description: Explanation for the decision
+    CaseObject:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          description: Explanation for the objection
     Case:
       description: Case
       type: object
@@ -977,6 +1005,18 @@ components:
                 $ref: "#/components/schemas/CaseReview"
             required:
               - data
+    CaseObjectRequest:
+      description: A request to object a case.
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: "#/components/schemas/CaseObject"
+            required:
+              - data
     DataFrameRequest:
       required: true
       content:
@@ -1178,6 +1218,17 @@ components:
             required:
               - data
     CaseReviewResponse:
+      description: Case submit response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: "#/components/schemas/caseID"
+            required:
+              - data
+    CaseObjectResponse:
       description: Case submit response
       content:
         application/json:

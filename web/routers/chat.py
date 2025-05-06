@@ -219,7 +219,7 @@ async def handle_application_submission(
         # Submit the case
         await case_manager.submit_case(
             bsn=bsn,
-            service_type=service_type,
+            service=service_type,
             law=law,
             parameters=parameters,
             claimed_result=result.output,

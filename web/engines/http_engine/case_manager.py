@@ -12,6 +12,7 @@ from .machine_client.law_as_code_client.api.case import (
     case_get,
     case_list_based_on_bsn,
     case_list_based_on_service_law,
+    case_object,
     case_review,
     case_submit,
     event_list_based_on_case_id,
@@ -20,6 +21,8 @@ from .machine_client.law_as_code_client.api.events import (
     event_list,
 )
 from .machine_client.law_as_code_client.models import (
+    CaseObject,
+    CaseObjectBody,
     CaseReview,
     CaseReviewBody,
     CaseSubmit,
@@ -110,7 +113,10 @@ class CaseManager(CaseManagerInterface):
         with client as client:
             response = case_list_based_on_bsn.sync_detailed(client=client, bsn=bsn)
 
-            return to_cases(response.parsed.data)
+            cases = to_cases(response.parsed.data)
+
+            print(cases)
+            return cases
 
     async def submit_case(
         self,
@@ -159,6 +165,22 @@ class CaseManager(CaseManagerInterface):
 
         with client as client:
             case_review.sync_detailed(client=client, case_id=case_id, body=body)
+
+    def objection(
+        self,
+        case_id: UUID,
+        reason: str,
+    ) -> UUID:
+        # Instantiate the API client
+        client = Client(base_url=self.base_url)
+
+        data = CaseObject(
+            reason=reason,
+        )
+        body = CaseObjectBody(data=data)
+
+        with client as client:
+            case_object.sync_detailed(client=client, case_id=case_id, body=body)
 
     def get_events(
         self,

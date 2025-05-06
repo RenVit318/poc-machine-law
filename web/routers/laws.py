@@ -172,7 +172,7 @@ async def objection_case(
     law = unquote(law)
 
     # Submit the objection with new claimed result
-    case_id = case_manager.objection_case(
+    case_manager.objection(
         case_id=case_id,
         reason=reason,
     )

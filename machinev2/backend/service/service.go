@@ -94,6 +94,7 @@ type Servicer interface {
 	CaseListBasedOnBSN(ctx context.Context, bsn string) ([]model.Case, error)
 	CaseSubmit(ctx context.Context, case_ model.CaseSubmit) (uuid.UUID, error)
 	CaseReview(ctx context.Context, case_ model.CaseReview) (uuid.UUID, error)
+	CaseObject(ctx context.Context, case_ model.CaseObject) (uuid.UUID, error)
 
 	EventList(ctx context.Context) ([]model.Event, error)
 	CaseEventList(ctx context.Context, caseID uuid.UUID) ([]model.Event, error)

@@ -80,6 +80,13 @@ class CaseManager(CaseManagerInterface):
             reason=reason,
         )
 
+    def objection(
+        self,
+        case_id: UUID,
+        reason: str,
+    ) -> UUID:
+        return self.case_manager.objection_case(case_id, reason)
+
     def get_events(
         self,
         case_id: UUID | None = None,

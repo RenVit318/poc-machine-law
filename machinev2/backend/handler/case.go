@@ -135,3 +135,31 @@ func (handler *Handler) CaseReview(ctx context.Context, request api.CaseReviewRe
 		},
 	}, nil
 }
+
+// CaseObject implements api.StrictServerInterface.
+func (handler *Handler) CaseObject(ctx context.Context, request api.CaseObjectRequestObject) (api.CaseObjectResponseObject, error) {
+	caseID, err := handler.servicer.CaseObject(ctx, model.CaseObject{
+		CaseID: request.CaseID,
+		Reason: request.Body.Data.Reason,
+	})
+
+	if err != nil {
+		if errors.Is(err, model.ErrCaseNotFound) {
+			return api.CaseObject404JSONResponse{
+				ResourceNotFoundErrorResponseJSONResponse: api.ResourceNotFoundErrorResponseJSONResponse{
+					Errors: &[]api.Error{{
+						Message: err.Error(),
+					}},
+				},
+			}, nil
+		}
+
+		return api.CaseObject400JSONResponse{BadRequestErrorResponseJSONResponse: NewBadRequestErrorResponseObject(fmt.Errorf("case review: %w", err))}, nil
+	}
+
+	return api.CaseObject200JSONResponse{
+		CaseObjectResponseJSONResponse: api.CaseObjectResponseJSONResponse{
+			Data: caseID,
+		},
+	}, nil
+}
