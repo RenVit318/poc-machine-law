@@ -60,8 +60,6 @@ async def root(request: Request, bsn: str = "100000001", services: EngineInterfa
 
     discoverable_service_laws = await services.get_sorted_discoverable_service_laws(bsn)
 
-    print(discoverable_service_laws)
-
     return templates.TemplateResponse(
         "index.html",
         {
