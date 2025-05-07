@@ -113,10 +113,7 @@ class CaseManager(CaseManagerInterface):
         with client as client:
             response = case_list_based_on_bsn.sync_detailed(client=client, bsn=bsn)
 
-            cases = to_cases(response.parsed.data)
-
-            print(cases)
-            return cases
+            return to_cases(response.parsed.data)
 
     async def submit_case(
         self,

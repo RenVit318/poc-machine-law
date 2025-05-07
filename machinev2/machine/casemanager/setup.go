@@ -13,7 +13,6 @@ import (
 	"github.com/looplab/eventhorizon/commandhandler/aggregate"
 	"github.com/looplab/eventhorizon/commandhandler/bus"
 	"github.com/looplab/eventhorizon/eventhandler/projector"
-	"github.com/looplab/eventhorizon/middleware/eventhandler/observer"
 	"github.com/minbzk/poc-machine-law/machinev2/machine/internal/logging"
 )
 
@@ -24,6 +23,8 @@ type HandlerAdder interface {
 	AddHandler(context.Context, eh.EventMatcher, eh.EventHandler) error
 }
 
+type Callback func(caseID uuid.UUID, eventType string, data map[string]any)
+
 // Setup sets up the case manager with all required components.
 func Setup(
 	ctx context.Context,
@@ -32,6 +33,7 @@ func Setup(
 	local, global HandlerAdder,
 	commandBus *bus.CommandHandler,
 	caseRepo eh.ReadWriteRepo,
+	cb Callback,
 ) error {
 
 	registerSync.Do(func() {
@@ -75,26 +77,23 @@ func Setup(
 		}
 	}
 
-	// Create and register a read model for individual invitations.
+	// Create and register a write model
 	caseProjector := projector.NewEventHandler(NewCaseProjector(), caseRepo)
-
 	caseProjector.SetEntityFactory(func() eh.Entity { return &Case{} })
-	if err := local.AddHandler(ctx, eh.MatchEvents{
-		CaseSubmittedEvent,
-		CaseResetEvent,
-		CaseAutomaticallyDecidedEvent,
-		CaseAddedToManualReviewEvent,
-		CaseDecidedEvent,
-		CaseObjectedEvent,
-		ObjectionStatusDeterminedEvent,
-		ObjectionAdmissibilityDeterminedEvent,
-		AppealStatusDeterminedEvent,
-	}, caseProjector); err != nil {
-		return fmt.Errorf("could not add invitation projector: %w", err)
+
+	transaction := NewTransaction(
+		logger,
+		caseProjector,
+		NewExecutor(logger, cb),
+	)
+
+	// Add a logger as an observer
+	if err := local.AddHandler(ctx, eh.MatchAll{}, transaction); err != nil {
+		return fmt.Errorf("could not add transaction to event bus: %w", err)
 	}
 
 	// Add a logger as an observer
-	if err := local.AddHandler(ctx, eh.MatchAll{}, eh.UseEventHandlerMiddleware(NewLogger(logger), observer.Middleware)); err != nil {
+	if err := local.AddHandler(ctx, eh.MatchAll{}, NewLogger(logger)); err != nil {
 		return fmt.Errorf("could not add logger to event bus: %w", err)
 	}
 

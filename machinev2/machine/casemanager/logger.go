@@ -35,6 +35,6 @@ func (l *Logger) HandlerType() eh.EventHandlerType {
 
 // HandleEvent implements the HandleEvent method of the EventHandler interface.
 func (l *Logger) HandleEvent(ctx context.Context, event eh.Event) error {
-	l.logger.Debug(ctx, "handle event", logging.NewField("eventType", event.EventType()), logging.NewField("itemId", event.AggregateID()), logging.NewField("itemType", event.AggregateType()))
+	l.logger.Debug(ctx, "handle event", logging.NewField("eventType", event.EventType()), logging.NewField("itemId", event.AggregateID()), logging.NewField("itemType", event.AggregateType()), logging.NewField("event", event.Data()))
 	return nil
 }

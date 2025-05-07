@@ -188,6 +188,7 @@ func (c *Case) Decide(
 	c.VerifiedResult = verifiedResult
 	c.VerifierID = verifierID
 	c.UpdatedAt = time.Now()
+
 	return nil
 }
 
@@ -200,6 +201,7 @@ func (c *Case) Object(reason string) error {
 	c.Status = CaseStatusObjected
 	c.Reason = reason
 	c.UpdatedAt = time.Now()
+
 	return nil
 }
 
