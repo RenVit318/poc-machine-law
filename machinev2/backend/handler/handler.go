@@ -49,7 +49,7 @@ func New(logger *slog.Logger, cfg *config.Config, servicer service.Servicer) (*H
 func router(handler *Handler) (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	// r.Use(NewStructuredLogger(handler.logger))
+	r.Use(NewStructuredLogger(handler.logger))
 	r.Use(middleware.Recoverer)
 	r.Use(handler.Heartbeat("/healthz"))
 

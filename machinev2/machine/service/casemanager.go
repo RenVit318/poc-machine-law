@@ -72,13 +72,7 @@ func NewCaseManager(logger logging.Logger, services *Services) *CaseManager {
 	caseRepo := memory.NewRepo()
 	caseRepo.SetEntityFactory(func() eh.Entity { return &casemanager.Case{} })
 
-	// Set up the case manager
-	ctx := context.Background()
-	if err := casemanager.Setup(ctx, logger, eventStore, eventBus, eventBus, commandBus, caseRepo); err != nil {
-		log.Fatalf("could not set up case manager: %s", err)
-	}
-
-	return &CaseManager{
+	cm := &CaseManager{
 		logger:      logger.WithName("case_manager"),
 		Services:    services,
 		caseIndex:   make(map[string]uuid.UUID),
@@ -90,6 +84,14 @@ func NewCaseManager(logger logging.Logger, services *Services) *CaseManager {
 		observerBus: observerBus,
 		wg:          &sync.WaitGroup{},
 	}
+
+	// Set up the case manager
+	ctx := context.Background()
+	if err := casemanager.Setup(ctx, logger, eventStore, eventBus, eventBus, commandBus, caseRepo, cm.recordEvent); err != nil {
+		log.Fatalf("could not set up case manager: %s", err)
+	}
+
+	return cm
 }
 
 // indexKey generates a composite key for case indexing
@@ -121,9 +123,6 @@ func (cm *CaseManager) recordEvent(caseID uuid.UUID, eventType string, data map[
 	// Trigger rules in response to event
 	go func() {
 		ctx := context.Background()
-		case_, _ := casemanager.FindCase(ctx, cm.caseRepo, caseID)
-
-		cm.logger.Error(ctx, "APPLYING RULES", logging.NewField("case", case_))
 		if err := cm.Services.ApplyRules(ctx, event); err != nil {
 			cm.logger.WithIndent().Errorf(ctx, "Error applying rules: %v", err)
 		}
@@ -268,8 +267,6 @@ func (cm *CaseManager) SubmitCase(
 	existingCaseID, exists := cm.GetCaseByKey(key)
 
 	var caseID uuid.UUID
-	var eventType string
-	var eventData map[string]any
 
 	if !exists {
 		// Submit a new case
@@ -291,18 +288,6 @@ func (cm *CaseManager) SubmitCase(
 
 		// Add to index
 		cm.indexCase(caseID, bsn, serviceType, law)
-
-		eventType = "Submitted"
-		eventData = map[string]any{
-			"bsn":                  bsn,
-			"service_type":         serviceType,
-			"law":                  law,
-			"parameters":           parameters,
-			"claimed_result":       claimedResult,
-			"verified_result":      verifiedResult,
-			"rulespec_uuid":        result.RulespecUUID,
-			"approved_claims_only": approvedClaimsOnly,
-		}
 	} else {
 		// Reset existing case
 		caseID = existingCaseID
@@ -316,14 +301,6 @@ func (cm *CaseManager) SubmitCase(
 
 		if err := cm.commandBus.HandleCommand(ctx, cmd); err != nil {
 			return uuid.Nil, fmt.Errorf("failed to reset case: %w", err)
-		}
-
-		eventType = "Reset"
-		eventData = map[string]any{
-			"parameters":           parameters,
-			"claimed_result":       claimedResult,
-			"verified_result":      verifiedResult,
-			"approved_claims_only": approvedClaimsOnly,
 		}
 	}
 
@@ -342,11 +319,6 @@ func (cm *CaseManager) SubmitCase(
 	)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("failed to process case: %w", err)
-	}
-
-	// Record the initial event
-	if eventType == "Submitted" {
-		cm.recordEvent(caseID, eventType, eventData)
 	}
 
 	return caseID, nil
@@ -388,29 +360,15 @@ func (cm *CaseManager) CompleteManualReview(
 		return fmt.Errorf("failed to complete manual review: %w", err)
 	}
 
-	// Record the event
-	cm.recordEvent(caseID, "Decided", map[string]any{
-		"verified_result": verifiedResult,
-		"reason":          reason,
-		"verifier_id":     verifierID,
-		"approved":        approved,
-	})
-
 	return nil
 }
 
 // ObjectCase submits an objection for a case
 func (cm *CaseManager) ObjectCase(ctx context.Context, caseID uuid.UUID, reason string) error {
 	// Object to the case
-	err := casemanager.ObjectToCase(ctx, cm.commandBus, caseID, reason)
-	if err != nil {
+	if err := casemanager.ObjectToCase(ctx, cm.commandBus, caseID, reason); err != nil {
 		return fmt.Errorf("failed to object to case: %w", err)
 	}
-
-	// Record the event
-	cm.recordEvent(caseID, "Objected", map[string]any{
-		"reason": reason,
-	})
 
 	return nil
 }
@@ -446,26 +404,6 @@ func (cm *CaseManager) DetermineObjectionStatus(
 		return fmt.Errorf("failed to determine objection status: %w", err)
 	}
 
-	// Record the event
-	eventData := make(map[string]any)
-	if possible != nil {
-		eventData["possible"] = *possible
-	}
-	if notPossibleReason != "" {
-		eventData["not_possible_reason"] = notPossibleReason
-	}
-	if objectionPeriod != nil {
-		eventData["objection_period"] = *objectionPeriod
-	}
-	if decisionPeriod != nil {
-		eventData["decision_period"] = *decisionPeriod
-	}
-	if extensionPeriod != nil {
-		eventData["extension_period"] = *extensionPeriod
-	}
-
-	cm.recordEvent(caseID, "ObjectionStatusDetermined", eventData)
-
 	return nil
 }
 
@@ -477,14 +415,6 @@ func (cm *CaseManager) DetermineObjectionAdmissibility(caseID uuid.UUID, admissi
 	if err := casemanager.DetermineObjectionAdmissibility(ctx, cm.commandBus, caseID, admissible); err != nil {
 		return fmt.Errorf("failed to determine objection admissibility: %w", err)
 	}
-
-	// Record the event
-	eventData := make(map[string]any)
-	if admissible != nil {
-		eventData["admissible"] = *admissible
-	}
-
-	cm.recordEvent(caseID, "ObjectionAdmissibilityDetermined", eventData)
 
 	return nil
 }
@@ -521,10 +451,6 @@ func (cm *CaseManager) DetermineAppealStatus(
 		courtTypePtr = &courtType
 	}
 
-	c, err := casemanager.FindCase(ctx, cm.caseRepo, caseID)
-	fmt.Printf("err: %v\n", err)
-	fmt.Printf("c: %v\n", c)
-
 	// Determine appeal status
 	if err := casemanager.DetermineAppealStatus(
 		ctx,
@@ -540,33 +466,6 @@ func (cm *CaseManager) DetermineAppealStatus(
 	); err != nil {
 		return fmt.Errorf("failed to determine appeal status: %w", err)
 	}
-
-	// Record the event
-	eventData := make(map[string]any)
-	if possible != nil {
-		eventData["possible"] = *possible
-	}
-	if notPossibleReason != "" {
-		eventData["not_possible_reason"] = notPossibleReason
-	}
-	if appealPeriod != nil {
-		eventData["appeal_period"] = *appealPeriod
-	}
-	if directAppeal != nil {
-		eventData["direct_appeal"] = *directAppeal
-	}
-	if directAppealReason != "" {
-		eventData["direct_appeal_reason"] = directAppealReason
-	}
-	if competentCourt != "" {
-		eventData["competent_court"] = competentCourt
-	}
-	if courtType != "" {
-		eventData["court_type"] = courtType
-	}
-
-	cm.logger.Info(ctx, "AppealStatusDetermined", logging.NewField("data", eventData))
-	cm.recordEvent(caseID, "AppealStatusDetermined", eventData)
 
 	return nil
 }

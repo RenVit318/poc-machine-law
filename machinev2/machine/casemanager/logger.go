@@ -11,7 +11,7 @@ import (
 func LoggingMiddleware(logger logging.Logger) func(h eh.CommandHandler) eh.CommandHandler {
 	return func(h eh.CommandHandler) eh.CommandHandler {
 		return eh.CommandHandlerFunc(func(ctx context.Context, cmd eh.Command) error {
-			logger.Error(ctx, "command handler", logging.NewField("commandType", cmd.CommandType()), logging.NewField("itemId", cmd.AggregateID()), logging.NewField("itemType", cmd.AggregateType()))
+			logger.Debug(ctx, "command handler", logging.NewField("commandType", cmd.CommandType()), logging.NewField("itemId", cmd.AggregateID()), logging.NewField("itemType", cmd.AggregateType()))
 			return h.HandleCommand(ctx, cmd)
 		})
 	}
@@ -35,6 +35,6 @@ func (l *Logger) HandlerType() eh.EventHandlerType {
 
 // HandleEvent implements the HandleEvent method of the EventHandler interface.
 func (l *Logger) HandleEvent(ctx context.Context, event eh.Event) error {
-	l.logger.Error(ctx, "handle event", logging.NewField("eventType", event.EventType()), logging.NewField("itemId", event.AggregateID()), logging.NewField("itemType", event.AggregateType()), logging.NewField("event", event.Data()))
+	l.logger.Debug(ctx, "handle event", logging.NewField("eventType", event.EventType()), logging.NewField("itemId", event.AggregateID()), logging.NewField("itemType", event.AggregateType()), logging.NewField("event", event.Data()))
 	return nil
 }

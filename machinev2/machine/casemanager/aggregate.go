@@ -151,6 +151,7 @@ func (aggregate *CaseAggregate) HandleCommand(ctx context.Context, cmd eh.Comman
 			},
 			time.Now(),
 		)
+
 		return nil
 
 	case ObjectToCaseCommand:
@@ -169,6 +170,7 @@ func (aggregate *CaseAggregate) HandleCommand(ctx context.Context, cmd eh.Comman
 			},
 			time.Now(),
 		)
+
 		return nil
 
 	case SetObjectionStatusCommand:
@@ -187,6 +189,7 @@ func (aggregate *CaseAggregate) HandleCommand(ctx context.Context, cmd eh.Comman
 			},
 			time.Now(),
 		)
+
 		return nil
 
 	case SetObjectionAdmissibilityCommand:
@@ -201,6 +204,7 @@ func (aggregate *CaseAggregate) HandleCommand(ctx context.Context, cmd eh.Comman
 			},
 			time.Now(),
 		)
+
 		return nil
 
 	case SetAppealStatusCommand:
@@ -221,6 +225,7 @@ func (aggregate *CaseAggregate) HandleCommand(ctx context.Context, cmd eh.Comman
 			},
 			time.Now(),
 		)
+
 		return nil
 	}
 
@@ -340,11 +345,6 @@ func (aggregate *CaseAggregate) ApplyEvent(ctx context.Context, event eh.Event) 
 	}
 
 	return fmt.Errorf("couldn't apply event: %s", event.EventType())
-}
-
-// SetResultsMatchFunction sets the function used to determine if results match
-func (aggregate *CaseAggregate) SetResultsMatchFunction(fn func(map[string]any, map[string]any) bool) {
-	aggregate.resultsMatchFn = fn
 }
 
 // SetSampleRate sets the sample rate for random manual reviews

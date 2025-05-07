@@ -1,8 +1,6 @@
 package adapter
 
 import (
-	"fmt"
-
 	"github.com/minbzk/poc-machine-law/machinev2/backend/interface/api"
 	"github.com/minbzk/poc-machine-law/machinev2/backend/model"
 )
@@ -19,7 +17,6 @@ func ToCaseSubmit(record api.CaseSubmit) model.CaseSubmit {
 }
 
 func FromCase(case_ model.Case) api.Case {
-	fmt.Printf("case_.AppealStatus: %v\n", case_.AppealStatus)
 	return api.Case{
 		Approved:           case_.Approved,
 		ApprovedClaimsOnly: case_.ApprovedClaimsOnly,
