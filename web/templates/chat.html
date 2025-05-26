@@ -2,11 +2,53 @@
 {% block content %}
     <div class="flex flex-col h-[calc(100vh-120px)]"
          x-data="chatApp()"
-         x-init="init('{{ bsn }}')">
+         x-init="init('{{ bsn }}', '{{ current_provider }}')">
         <!-- Header section -->
-        <div>
-            <h2 class="text-2xl font-semibold text-gray-900 mb-2">Chat over wetten en regels</h2>
-            <p class="text-gray-600 mb-4">Stel uw vraag over wetten, toeslagen, uitkeringen of andere regelingen.</p>
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-2xl font-semibold text-gray-900 mb-2">Chat over wetten en regels</h2>
+                <p class="text-gray-600 mb-4">Stel uw vraag over wetten, toeslagen, uitkeringen of andere regelingen.</p>
+            </div>
+            <div class="relative" x-data="{ settingsOpen: false }">
+                <button @click="settingsOpen = !settingsOpen"
+                        @click.away="settingsOpen = false"
+                        class="text-gray-600 hover:text-gray-800 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="h-5 w-5"
+                         viewBox="0 0 20 20"
+                         fill="currentColor">
+                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                    </svg>
+                </button>
+                <div x-show="settingsOpen"
+                     x-cloak
+                     @click.away="settingsOpen = false"
+                     class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 py-1 text-sm">
+                    <div class="px-3 py-2 text-xs font-medium text-gray-500">LLM Provider</div>
+                    {% for provider in llm_providers %}
+                        <div class="border-t border-gray-100"></div>
+                        <form hx-post="/chat/set-provider"
+                              hx-target="body"
+                              hx-swap="beforeend"
+                              class="m-0 p-0">
+                            <input type="hidden" name="provider" value="{{ provider }}">
+                            <button type="submit"
+                                    @click="settingsOpen = false"
+                                    class="w-full text-left flex items-center px-4 py-2 hover:bg-gray-100 {% if provider == current_provider %}font-semibold text-indigo-600{% else %}text-gray-700{% endif %}">
+                                {{ provider|capitalize }}
+                                {% if provider == current_provider %}
+                                    <svg class="ml-1.5 h-2 w-2 text-indigo-600"
+                                         fill="currentColor"
+                                         viewBox="0 0 8 8">
+                                        <circle cx="4" cy="4" r="3" />
+                                    </svg>
+                                {% endif %}
+                            </button>
+                        </form>
+                    {% endfor %}
+                </div>
+                <span x-show="modelInfo" x-text="modelInfo" class="hidden"></span>
+            </div>
         </div>
         <!-- Main chat container -->
         <div class="flex flex-col bg-white rounded-lg shadow overflow-hidden flex-grow relative">
@@ -120,14 +162,14 @@
             newMessage: '',
             isLoading: false,
             bsn: '',
+            selectedProvider: '',
+            modelInfo: '',
+            isConnected: false,
 
-            init(bsn) {
+            init(bsn, provider) {
                 this.bsn = bsn || '100000001'; // Default BSN if none provided
-                console.log("Initializing chat with BSN:", this.bsn);
-
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/chat/ws/chat_${this.bsn}`;
-                console.log("Connecting to WebSocket URL:", wsUrl);
+                this.selectedProvider = provider || 'claude'; // Default provider if none provided
+                console.log("Initializing chat with BSN:", this.bsn, "and provider:", this.selectedProvider);
 
                 // Add event listener for cancelling application form
                 document.addEventListener('cancel-application-form', () => {
@@ -138,11 +180,38 @@
                     }
                 });
 
+                // Connect to WebSocket
+                this.connectWebSocket();
+            },
+
+            connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/chat/ws/chat_${this.bsn}`;
+                console.log("Connecting to WebSocket URL:", wsUrl, "with provider:", this.selectedProvider);
+
                 this.websocket = new WebSocket(wsUrl);
 
+                this.websocket.onopen = () => {
+                    // Send initial connection data with provider preference
+                    this.websocket.send(JSON.stringify({
+                        provider: this.selectedProvider,
+                        bsn: this.bsn,
+                        isConnectionInit: true
+                    }));
+                };
+
                 this.websocket.onmessage = (event) => {
-                    this.isLoading = false;
                     const data = JSON.parse(event.data);
+
+                    // Handle connection confirmation
+                    if (data.connected) {
+                        this.isConnected = true;
+                        this.modelInfo = data.model || '';
+                        console.log("Connected to LLM provider:", data.provider, "with model:", data.model);
+                        return;
+                    }
+
+                    this.isLoading = false;
 
                     if (data.error) {
                         this.messages.push({
@@ -286,6 +355,12 @@
             scrollToBottom() {
                 const container = this.$refs.chatContainer;
                 container.scrollTop = container.scrollHeight;
+            },
+
+            // Note: We're not using this method anymore, but keeping it for compatibility
+            changeProvider() {
+                // This is now handled by the form post to /chat/set-provider
+                // which will reload the page
             }
         };
     }

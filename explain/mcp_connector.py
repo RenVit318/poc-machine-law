@@ -9,7 +9,7 @@ import os
 
 import jinja2
 
-from machine.service import Services
+from web.engines import CaseManagerInterface, ClaimManagerInterface, EngineInterface
 
 from .mcp_claims import MCPClaimProcessor
 from .mcp_formatter import MCPResultFormatter
@@ -22,7 +22,12 @@ from .mcp_types import MCPResult
 class MCPLawConnector:
     """Connector for making law services available to LLMs via MCP"""
 
-    def __init__(self, services: Services):
+    def __init__(
+        self,
+        services: EngineInterface,
+        case_manager: CaseManagerInterface,
+        claim_manager: ClaimManagerInterface,
+    ):
         """Initialize the MCP law connector.
 
         Args:
@@ -33,9 +38,11 @@ class MCPLawConnector:
 
         # Store services instance
         self.services = services
+        self.case_manager = case_manager
+        self.claim_manager = claim_manager
 
         # Initialize components
-        self.registry = MCPServiceRegistry(services)
+        self.registry = MCPServiceRegistry(services, case_manager, claim_manager)
         self.claim_processor = MCPClaimProcessor(self.registry)
         self.service_executor = MCPServiceExecutor(self.registry)
         self.formatter = MCPResultFormatter(self.registry)
@@ -84,7 +91,7 @@ class MCPLawConnector:
         system_prompt_template = self.jinja_env.get_template("mcp_system_prompt.j2")
         return system_prompt_template.render(service_tools=service_tools)
 
-    async def get_cases_context(self, bsn: str) -> str:
+    def get_cases_context(self, bsn: str) -> str:
         """Get formatted context about a user's existing cases (applications).
 
         Args:
@@ -94,7 +101,7 @@ class MCPLawConnector:
             Formatted cases context for the system prompt
         """
         # Get all cases for this user from the case manager using our new method
-        cases = self.services.case_manager.get_cases_by_bsn(bsn)
+        cases = self.case_manager.get_cases_by_bsn(bsn)
 
         if not cases:
             return self.jinja_env.get_template("includes/cases_context.j2").render(cases=None)
@@ -105,9 +112,7 @@ class MCPLawConnector:
         # Check if we have a profile for this BSN
         profile = None
         try:
-            from web.services.profiles import get_profile_data
-
-            profile = get_profile_data(bsn)
+            profile = self.services.get_profile_data(bsn)
         except Exception as e:
             logger.warning(f"Error fetching profile for BSN {bsn}: {e}")
 
@@ -150,15 +155,13 @@ class MCPLawConnector:
                 if profile and hasattr(case, "verified_result") and case.verified_result:
                     # Run a current calculation with approved=False to see current situation
                     parameters = {"BSN": bsn}
-                    result = await self.services.evaluate(
-                        case.service, law=case.law, parameters=parameters, approved=False
-                    )
+                    result = self.services.evaluate(case.service, law=case.law, parameters=parameters, approved=False)
 
                     if result and result.output:
                         current_result = result.output
 
                         # Get the rule spec to check for citizen_relevance markings
-                        rule_spec = self.services.resolver.get_rule_spec(case.law, "2025-01-01", service=case.service)
+                        rule_spec = self.services.get_rule_spec(case.law, "2025-01-01", service=case.service)
 
                         # Extract primary value marked with citizen_relevance: primary
                         primary_field = None
@@ -312,7 +315,7 @@ class MCPLawConnector:
 
         return None
 
-    async def process_message(self, message: str, bsn: str) -> MCPResult:
+    def process_message(self, message: str, bsn: str) -> MCPResult:
         """Process a user message and execute any law services that might be referred to
 
         Args:
@@ -337,14 +340,14 @@ class MCPLawConnector:
         # Process any claims first
         if claim_refs:
             logger.info(f"Processing {len(claim_refs)} claims")
-            claims_result = await self.claim_processor.process_claims(claim_refs, bsn)
+            claims_result = self.claim_processor.process_claims(claim_refs, bsn)
             if claims_result:
                 results["claims"] = claims_result
 
         # Execute each referenced service
         if service_refs:
             logger.info(f"Executing {len(service_refs)} services")
-            service_results = await self.service_executor.execute_services(service_refs, bsn)
+            service_results = self.service_executor.execute_services(service_refs, bsn)
             # Add service results to the overall results
             for service_name, result in service_results.items():
                 results[service_name] = result

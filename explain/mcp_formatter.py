@@ -67,7 +67,7 @@ class MCPResultFormatter:
                 if isinstance(value_display, int) and (
                     "inkomen" in claim["key"].lower() or "bedrag" in claim["key"].lower()
                 ):
-                    value_display = f"€{value_display / 100:.2f}"
+                    value_display = f"€{value_display / 100:.2f}".replace(".", ",")
                 formatted += f"- {claim['key'].replace('_', ' ')}: **{value_display}** (voor {claim['service']})\n"
             formatted += "\n"
 
@@ -193,7 +193,7 @@ class MCPResultFormatter:
 
         try:
             if service_type and law_path:
-                rule_spec = self.registry.services.resolver.get_rule_spec(law_path, "2025-01-01", service_type)
+                rule_spec = self.registry.services.get_rule_spec(law_path, "2025-01-01", service_type)
                 # Extract money fields and primary outputs
                 for output in rule_spec.get("properties", {}).get("output", []):
                     output_name = output.get("name")
@@ -232,7 +232,7 @@ class MCPResultFormatter:
                 primary_shown = True
                 value = result_data[key]
                 if key in money_fields and isinstance(value, int | float):
-                    formatted += f"- {key} (primaire waarde): **€{value / 100:.2f}**\n"
+                    formatted += f"- {key} (primaire waarde): **€{value / 100:.2f}".replace(".", ",") + "**\n"
                 else:
                     formatted += f"- {key} (primaire waarde): **{value}**\n"
 
@@ -251,7 +251,7 @@ class MCPResultFormatter:
                 )
 
                 if is_money:
-                    formatted += f"- {key}: **€{value / 100:.2f}**\n"
+                    formatted += f"- {key}: **€{value / 100:.2f}".replace(".", ",") + "**\n"
                 else:
                     formatted += f"- {key}: {value}\n"
 

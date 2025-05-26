@@ -129,7 +129,7 @@ class MCPClaimProcessor:
             except Exception as e:
                 raise MCPClaimParsingError(e, json_str)
 
-    async def process_claims(self, claims: list[ClaimData], bsn: str) -> ClaimsResponse:
+    def process_claims(self, claims: list[ClaimData], bsn: str) -> ClaimsResponse:
         """Process claim references and create claims.
 
         Args:
@@ -160,7 +160,7 @@ class MCPClaimProcessor:
 
                 # Submit the claim
                 try:
-                    claim_id = self.registry.services.claim_manager.submit_claim(
+                    claim_id = self.registry.claim_manager.submit_claim(
                         service=service.service_type,
                         key=key,
                         new_value=value,

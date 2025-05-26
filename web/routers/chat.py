@@ -1,16 +1,21 @@
 import asyncio
 import json
-import os
 import re
 
-import anthropic
-from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Form, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
+from explain.llm_factory import LLMFactory
 from explain.mcp_connector import MCPLawConnector
-from machine.service import Services
-from web.dependencies import get_services, templates
-from web.services.profiles import get_profile_data
+from web.dependencies import (
+    TODAY,
+    get_case_manager,
+    get_claim_manager,
+    get_machine_service,
+    templates,
+)
+from web.engines import CaseManagerInterface, ClaimManagerInterface, EngineInterface
+from web.feature_flags import is_chat_enabled
 from web.utils import format_message
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -36,7 +41,16 @@ class ChatConnectionManager:
 
 
 async def handle_application_display(
-    websocket: WebSocket, bsn: str, services, mcp_connector, service_results, messages, user_msg_content, templates
+    websocket: WebSocket,
+    bsn: str,
+    services,
+    case_manager,
+    claim_manager,
+    mcp_connector,
+    service_results,
+    messages,
+    user_msg_content,
+    templates,
 ):
     """Display an application panel in the chat interface."""
     from web.routers.laws import evaluate_law
@@ -87,16 +101,21 @@ async def handle_application_display(
                         break
 
         if service and law:
-            # Get data for the application panel
-            law, result, rule_spec, parameters = await evaluate_law(bsn, law, service, services, approved=False)
+            # Get data for the application panel - explicitly use approved=False to include unapproved claims
+            law, result, parameters = evaluate_law(bsn, law, service, services, approved=False)
+
+            # Get the rule spec separately
+            rule_spec = services.get_rule_spec(law, TODAY, service)
+
+            # Use the service's extract_value_tree method, which now should be properly set up
             value_tree = services.extract_value_tree(result.path)
 
             # Get claims for this user
-            claims = services.claim_manager.get_claims_by_bsn(bsn, include_rejected=True)
+            claims = claim_manager.get_claims_by_bsn(bsn, include_rejected=True)
             claim_map = {(claim.service, claim.law, claim.key): claim for claim in claims}
 
             # Get existing case if any
-            existing_case = services.case_manager.get_case(bsn, service, law)
+            existing_case = case_manager.get_case(bsn, service, law)
 
             # Render the application panel template with in_chat_panel=True
             panel_html = templates.get_template("partials/tiles/components/application_form.html").render(
@@ -174,7 +193,7 @@ async def handle_application_display(
 
 
 async def handle_application_submission(
-    websocket: WebSocket, bsn: str, services, mcp_connector, service_name, law_path=None
+    websocket: WebSocket, bsn: str, services, case_manager, mcp_connector, service_name, law_path=None
 ):
     """Handle submission of an application from the chat interface."""
     try:
@@ -195,12 +214,13 @@ async def handle_application_submission(
         law = law_path or service_obj.law_path
 
         # Get data needed for submission
-        law, result, rule_spec, parameters = await evaluate_law(bsn, law, service_type, services, approved=False)
+        law, result, parameters = evaluate_law(bsn, law, service_type, services, approved=False)
+        rule_spec = services.get_rule_spec(law, TODAY, service_type)
 
         # Submit the case
-        await services.case_manager.submit_case(
+        case_manager.submit_case(
             bsn=bsn,
-            service_type=service_type,
+            service=service_type,
             law=law,
             parameters=parameters,
             claimed_result=result.output,
@@ -236,13 +256,45 @@ manager = ChatConnectionManager()
 
 
 @router.get("/", response_class=HTMLResponse)
-async def get_chat_page(request: Request, bsn: str = "100000001", services: Services = Depends(get_services)):
+async def get_chat_page(
+    request: Request,
+    bsn: str = "100000001",
+    llm: str = Query(None, description="LLM provider to use (claude or vlam)"),
+    services: EngineInterface = Depends(get_machine_service),
+):
     """Render the chat interface page"""
-    profile = get_profile_data(bsn)
+    # Check if chat feature is enabled
+    if not is_chat_enabled():
+        return templates.TemplateResponse(
+            "partials/feature_disabled.html", {"request": request, "feature_name": "Chat", "return_url": f"/?bsn={bsn}"}
+        )
+
+    profile = services.get_profile_data(bsn)
     if not profile:
         return HTMLResponse("Profile not found", status_code=404)
 
-    from web.services.profiles import get_all_profiles
+    # Get available and configured LLM providers
+    available_providers = LLMFactory.get_available_providers()
+    configured_providers = LLMFactory.get_configured_providers(request)
+
+    # Determine which provider to use
+    current_provider = None
+
+    # First, check URL parameter
+    if llm and llm in configured_providers:
+        current_provider = llm
+        request.session["preferred_llm_provider"] = llm
+
+    # Then check session
+    elif (
+        "preferred_llm_provider" in request.session
+        and request.session["preferred_llm_provider"] in configured_providers
+    ):
+        current_provider = request.session["preferred_llm_provider"]
+
+    # Fall back to default
+    else:
+        current_provider = LLMFactory.get_provider(request)
 
     return templates.TemplateResponse(
         "chat.html",
@@ -250,19 +302,60 @@ async def get_chat_page(request: Request, bsn: str = "100000001", services: Serv
             "request": request,
             "profile": profile,
             "bsn": bsn,
-            "all_profiles": get_all_profiles(),  # Add this for the profile selector
+            "all_profiles": services.get_all_profiles(),
+            "llm_providers": available_providers,
+            "current_provider": current_provider,
+            "chat_enabled": is_chat_enabled(),
+            "wallet_enabled": is_chat_enabled(),
+        },
+    )
+
+
+@router.post("/set-provider")
+async def set_chat_provider(request: Request, provider: str = Form(...)):
+    """Set the preferred LLM provider in the session"""
+    configured_providers = LLMFactory.get_configured_providers(request)
+
+    if provider in configured_providers:
+        request.session["preferred_llm_provider"] = provider
+
+    # Redirect back to the chat page
+    return templates.TemplateResponse(
+        "partials/provider_updated.html",
+        {
+            "request": request,
+            "provider": provider,
         },
     )
 
 
 @router.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Services = Depends(get_services)):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    client_id: str,
+    services: EngineInterface = Depends(get_machine_service),
+    case_manager: CaseManagerInterface = Depends(get_case_manager),
+    claim_manager: ClaimManagerInterface = Depends(get_claim_manager),
+):
+    # Check if chat feature is enabled
+    if not is_chat_enabled():
+        await websocket.accept()
+        await websocket.send_text(json.dumps({"error": "Chat feature is currently disabled", "feature_disabled": True}))
+        await websocket.close()
+        return
     await manager.connect(websocket, client_id)
 
     try:
-        # Get the BSN from the client_id (client_id format is "chat_{bsn}")
-        bsn = client_id.split("_")[1] if "_" in client_id else "100000001"
-        profile = get_profile_data(bsn)
+        # First receive connection data to get provider and BSN
+        data = await websocket.receive_text()
+        connection_data = json.loads(data)
+
+        # Get the BSN from the client_id or connection data
+        bsn = connection_data.get("bsn") or (client_id.split("_")[1] if "_" in client_id else "100000001")
+        # Get LLM provider from request or use default
+        selected_provider = connection_data.get("provider") or LLMFactory.get_provider()
+
+        profile = services.get_profile_data(bsn)
 
         if not profile:
             error_msg = f"Profile not found for BSN: {bsn}"
@@ -271,26 +364,32 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
             manager.disconnect(client_id)
             return
 
-        # Set up Anthropic client
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            error_msg = "ANTHROPIC_API_KEY environment variable not set"
+        # services.set_profile_data(bsn) # TODO verify if this is necessary
+
+        # Check if selected provider is properly configured
+        if not LLMFactory.is_provider_configured(selected_provider):
+            error_msg = f"LLM provider {selected_provider} is not properly configured"
             print(error_msg)
             await websocket.send_text(json.dumps({"error": error_msg}))
             manager.disconnect(client_id)
             return
 
-        client = anthropic.Anthropic(api_key=api_key)
+        # Get appropriate LLM service using the factory
+        llm_service = LLMFactory.get_service(selected_provider)
 
-        # Set up MCP connector
-        mcp_connector = MCPLawConnector(services)
+        # Send confirmation with provider info
+        await websocket.send_text(
+            json.dumps({"connected": True, "provider": selected_provider, "model": llm_service.model_id, "bsn": bsn})
+        )
+
+        mcp_connector = MCPLawConnector(services, case_manager, claim_manager)
 
         # Initial empty system prompt placeholder - we'll update it with fresh claims data each time
         system_prompt = ""
 
         # Function to get fresh system prompt with up-to-date cases data
-        async def get_updated_system_prompt():
-            cases_context = await mcp_connector.get_cases_context(bsn)
+        def get_updated_system_prompt():
+            cases_context = mcp_connector.get_cases_context(bsn)
             return mcp_connector.jinja_env.get_template("chat_system_prompt.j2").render(
                 profile=profile,
                 bsn=bsn,
@@ -299,7 +398,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
             )
 
         # Initialize system prompt with initial data
-        system_prompt = await get_updated_system_prompt()
+        system_prompt = get_updated_system_prompt()
 
         # Initialize the conversation with just a list for user/assistant messages
         messages = []
@@ -317,7 +416,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
                 service_name = user_message.get("service")
                 law = user_message.get("law")
 
-                if await handle_application_submission(websocket, bsn, services, mcp_connector, service_name, law):
+                if await handle_application_submission(
+                    websocket, bsn, services, case_manager, mcp_connector, service_name, law
+                ):
                     continue
 
             # Note: We previously had code here to check for "toon aanvraagformulier",
@@ -328,19 +429,18 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
             messages.append({"role": "user", "content": user_msg_content})
 
             # Get fresh system prompt with up-to-date claims data before each message
-            system_prompt = await get_updated_system_prompt()
+            system_prompt = get_updated_system_prompt()
 
-            # Send message to Claude API to get initial response
-            response = client.messages.create(
-                model="claude-3-7-sonnet-20250219",
+            # Send message to get initial response using the LLM service
+            response = llm_service.chat_completion(
+                messages=messages,
                 max_tokens=2000,
                 system=system_prompt,
-                messages=messages,
                 temperature=0.7,
             )
 
-            # Get Claude's response and extract any tool calls
-            assistant_message = response.content[0].text
+            # Extract the message text using the service's standard method
+            assistant_message = llm_service.get_completion_text(response)
 
             # Check for value responses to previous questions about missing fields
             # Format would be like "mijn inkomen is 35000 euro" or "mijn leeftijd is 42"
@@ -393,7 +493,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
                                     service = mcp_connector.registry.get_service(service_name)
                                     if service:
                                         # Submit claim for this value
-                                        services.claim_manager.submit_claim(
+                                        claim_manager.submit_claim(
                                             service=service.service_type,
                                             key=key,
                                             new_value=parsed_value,
@@ -401,11 +501,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
                                             claimant=f"CHAT_USER_{bsn}",
                                             law=service.law_path,
                                             bsn=bsn,
-                                            auto_approve=True,  # Auto-approve user-provided values in chat
+                                            auto_approve=False,  # Don't auto-approve to ensure proper review
                                         )
 
                                         # Update system prompt with new claim data
-                                        system_prompt = await get_updated_system_prompt()
+                                        system_prompt = get_updated_system_prompt()
                                         print(f"Created claim for {key}={parsed_value} for service {service_name}")
                         except Exception as e:
                             print(f"Error creating claim for {key}: {str(e)}")
@@ -414,10 +514,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
                             traceback.print_exc()
 
             # Process Claude's message with MCP connector to extract and execute law services
-            service_results = await mcp_connector.process_message(assistant_message, bsn)
+            service_results = mcp_connector.process_message(assistant_message, bsn)
 
             # Get fresh system prompt with updated claims data
-            system_prompt = await get_updated_system_prompt()
+            system_prompt = get_updated_system_prompt()
 
             # If there are service results, add them to the context and generate a new response
             final_message = assistant_message
@@ -472,19 +572,18 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
                 tool_conversation.append(tool_response)
 
                 # Get latest claims data before generating the final response
-                system_prompt = await get_updated_system_prompt()
+                system_prompt = get_updated_system_prompt()
 
-                # Get a new response from Claude with the tool results
-                final_response = client.messages.create(
-                    model="claude-3-7-sonnet-20250219",
+                # Get a new response with the tool results
+                final_response = llm_service.chat_completion(
+                    messages=tool_conversation,
                     max_tokens=2000,
                     system=system_prompt,
-                    messages=tool_conversation,
                     temperature=0.7,
                 )
 
                 # Get the final message with tool results incorporated
-                final_message = final_response.content[0].text
+                final_message = llm_service.get_completion_text(final_response)
 
                 # Update our conversation history
                 messages.append(tool_message)
@@ -520,6 +619,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
                     websocket,
                     bsn,
                     services,
+                    case_manager,
+                    claim_manager,
                     mcp_connector,
                     app_form_request["results"],
                     messages,
@@ -548,7 +649,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
                 claim_refs = mcp_connector.claim_processor.extract_claims(current_message)
                 if claim_refs:
                     print(f"Found {len(claim_refs)} claim references in message")
-                    claims_result = await mcp_connector.claim_processor.process_claims(claim_refs, bsn)
+                    claims_result = mcp_connector.claim_processor.process_claims(claim_refs, bsn)
 
                     if claims_result and claims_result.get("submitted"):
                         # Collect affected services for execution
@@ -595,7 +696,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
 
                     try:
                         # Execute the service
-                        result = await service.execute(bsn, {})
+                        result = service.execute(bsn, {})
                         service_results = {service_name: result}
 
                         # Format the results
@@ -617,17 +718,16 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, services: Ser
                         next_conversation = current_messages.copy()
                         next_conversation.append({"role": "user", "content": content})
 
-                        # Get a new response from Claude
-                        next_response = client.messages.create(
-                            model="claude-3-7-sonnet-20250219",
+                        # Get a new response using the LLM service
+                        next_response = llm_service.chat_completion(
+                            messages=next_conversation,
                             max_tokens=2000,
                             system=system_prompt,
-                            messages=next_conversation,
                             temperature=0.7,
                         )
 
                         # Get the response message
-                        next_message = next_response.content[0].text
+                        next_message = llm_service.get_completion_text(next_response)
 
                         # Update conversation history
                         current_messages.append({"role": "user", "content": content})

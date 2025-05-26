@@ -1,5 +1,5 @@
 # Stage 1: build the SvelteKit app
-FROM node:23-alpine3.21 AS node_builder
+FROM node:24-alpine3.21 AS node_builder
 
 # Install corepack and pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -16,7 +16,6 @@ RUN pnpm run build
 
 
 # Copy and build importer
-
 WORKDIR /importer
 COPY importer/.eslintrc.cjs importer/.npmrc importer/.prettierrc importer/package.json importer/pnpm-lock.yaml importer/postcss.config.js importer/svelte.config.js importer/tailwind.config.js importer/tsconfig.json importer/vite.config.ts ./
 

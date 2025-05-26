@@ -175,6 +175,64 @@ uv run web/main.py
 
 Dit zou een interface hier http://0.0.0.0:8000 en hier http://0.0.0.0:8000/admin op moeten leveren.
 
+### Go server starten (backend)
+
+De web interface is geconfigureerd om standaard de Go engine te gebruiken (zie `web/config/config.yaml`). Om de Go server te starten:
+
+```bash
+cd machinev2/backend
+APP_BACKEND_LISTEN_ADDRESS=:8081 APP_INPUT_FILE=./cmd/serve_input.yaml APP_DEBUG=false go run . serve
+```
+
+De Go server is vervolgens beschikbaar op port 8081. Als je de Python engine wilt gebruiken in plaats van de Go engine, pas dan `web/config/config.yaml` aan door de `default: true` regel te verplaatsen naar de Python engine.
+
+### Control Panel
+
+Er is ook een control panel beschikbaar op http://0.0.0.0:8000/admin/control waarmee je de engine kunt configureren en monitoren.
+
+### LLM Providers
+
+De applicatie ondersteunt meerdere LLM providers voor het genereren van uitleg en het beantwoorden van vragen:
+
+1. **Claude (Anthropic)** - Standaard provider
+   ```bash
+   # Stel Claude in als provider
+   export ANTHROPIC_API_KEY=jouw_anthropic_api_key
+   export LLM_PROVIDER=claude
+   ```
+
+2. **VLAM.ai** - Nederlandse overheids-LLM
+   ```bash
+   # Stel VLAM.ai in als provider
+   export VLAM_API_KEY=jouw_vlam_api_key
+   export VLAM_BASE_URL=https://api.demo.vlam.ai/v2.1/projects/poc/openai-compatible/v1
+   export VLAM_MODEL_ID=ubiops-deployment/bzk-dig-chat//chat-model
+   export LLM_PROVIDER=vlam
+   ```
+
+Je kunt ook de provider selecteren in de web-interface, op voorwaarde dat de benodigde API-sleutels zijn ingesteld.
+
+### Feature Flags
+
+De applicatie ondersteunt feature flags om bepaalde functionaliteiten aan of uit te zetten. Feature flags kunnen worden beheerd via het admin control panel op `/admin/control`.
+
+Momenteel ondersteunde feature flags:
+
+- `WALLET` - Bestuurt de NL Wallet integratie
+- `CHAT` - Bestuurt de chat interface
+
+Feature flags worden opgeslagen als environment variables met het prefix `FEATURE_`. Bijvoorbeeld, de wallet feature flag wordt opgeslagen als `FEATURE_WALLET`.
+
+Je kunt features in- en uitschakelen via de admin control panel UI of door de environment variables handmatig in te stellen:
+
+```bash
+# Wallet feature uitschakelen
+export FEATURE_WALLET=0
+
+# Chat feature inschakelen
+export FEATURE_CHAT=1
+```
+
 
 
 ## 📂 Repository structuur
