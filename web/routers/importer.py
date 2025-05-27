@@ -4,7 +4,7 @@ import os
 import pprint
 import re
 import uuid
-from typing import Annotated, Dict, List, Literal, Set, Tuple, TypedDict
+from typing import Annotated, List, Literal, TypedDict
 
 import jsonschema
 import nest_asyncio
@@ -74,17 +74,15 @@ nest_asyncio.apply()
 loop = asyncio.get_event_loop()
 
 
-def validate_schema(yaml_content: str) -> str | None:
+def validate_schema(yaml_data: any) -> str | None:
     """Validate a YAML file against the JSON schema."""
     schema = json.loads(schema_content)
-
-    yaml_data = yaml.safe_load(yaml_content)
 
     try:
         validate(instance=yaml_data, schema=schema)
         return None
     except jsonschema.exceptions.ValidationError as err:
-        return f"Error: {err.message}"
+        return str(err.message)
 
 
 # Get all law YAML files
@@ -97,20 +95,13 @@ for root, _, files in os.walk(laws_dir):
             with open(os.path.join(root, file)) as f:
                 examples.append(f.read())
 
-# Limit to 2 YAML files for testing purposes to reduce costs. TODO: remove this
-if len(examples) > 2:
-    examples = examples[:2]
-
 
 def validate_service_references(
-    yaml_content: str,
+    yaml_data: any,
 ) -> List[
     str
 ]:  # Note: somewhat similar to the function with the same name in script/validate
     """Validate that all service references have corresponding outputs."""
-
-    # Collect all references and outputs
-    yaml_data = yaml.safe_load(yaml_content)
 
     # Collect references from this block
     references = collect_service_references(yaml_data)
@@ -133,13 +124,11 @@ def validate_service_references(
 
 
 def validate_variable_definitions(
-    yaml_content: str,
+    yaml_data: any,
 ) -> List[
     str
 ]:  # Note: somewhat similar to the function with the same name in script/validate
     """Validate that all $VARIABLES are defined."""
-
-    yaml_data = yaml.safe_load(yaml_content)
 
     defined = collect_defined_variables(yaml_data)
     referenced = find_variables_in_dict(yaml_data)
@@ -301,7 +290,7 @@ analyize_law_prompt = ChatPromptTemplate(
                         "title": "Voorbeeld",
                         "text": example,
                     }
-                    for example in examples
+                    for example in examples[:2]  # Limit to the first 2 examples for testing purposes to reduce costs
                 ],
             ],
         ),
@@ -332,7 +321,7 @@ def process_law(state: State, config: dict) -> dict:
         manager.send_message(
             WebSocketMessage(
                 id=str(uuid.uuid4()),
-                content="De wettekst wordt nu opgehaald en omgezet, dit kan even duren…",
+                content="De wettekst wordt nu opgehaald en geïnterpreteerd, dit kan even duren…",
                 quick_replies=[],
             ),
             thread_id,
@@ -396,15 +385,23 @@ def process_law_feedback(state: State, config: dict) -> dict:
         yaml_blocks = [match.group(1) for match in matches]
         for block in yaml_blocks:
             print("----> YAML block found")
-            err = validate_schema(block)
+
+            yaml_data = yaml.safe_load(block)
+
+            # If the YAML data is not a dictionary, skip it (since it is most likely a subset of a larger block, included as explanation)
+            if not isinstance(yaml_data, dict):
+                print("----> skipping YAML block, not a dictionary")
+                continue
+
+            err = validate_schema(yaml_data)
             if err:
                 validation_errors.append(err)
 
-            validation_errors.extend(validate_service_references(block))
-            validation_errors.extend(validate_variable_definitions(block))
+            validation_errors.extend(validate_service_references(yaml_data))
+            validation_errors.extend(validate_variable_definitions(yaml_data))
 
         if validation_errors:
-            user_input = f"Er zijn fouten gevonden in de YAML output:\n```\n{'\n- '.join(validation_errors)}\n```"
+            user_input = f"Er zijn fouten gevonden in de YAML output:\n```\n{"\n".join(f"- {error}" for error in validation_errors)}\n```"
         else:
             user_input = "De YAML output lijkt correct."  # IMPROVE: validate agains the Girkin tables
 
