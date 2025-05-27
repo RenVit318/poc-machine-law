@@ -20,12 +20,16 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.types import Command, interrupt
+from langchain_core.utils import (
+    convert_to_secret_str,
+    get_from_dict_or_env,
+)
 
 router = APIRouter(prefix="/importer", tags=["importer"])
 
 
 model = ChatAnthropic(
-    model="claude-3-5-sonnet-latest",
+    model="claude-3-7-sonnet-latest",
     temperature=0,
     max_retries=2,
     max_tokens_to_sample=4000,  # Note: default is 1024 tokens
@@ -41,6 +45,10 @@ class State(TypedDict):
     should_retry: bool
     law_url: str
     law_url_approved: bool | None  # Can be True, False, or None
+    anthropic_api_key: (
+        str | None
+    )  # Optional, can be None if not provided by the user. Also below
+    tavily_api_key: str | None
 
 
 class WebSocketMessage(TypedDict):
@@ -78,7 +86,11 @@ def ask_law(state: State, config: dict) -> dict:
 
     # Ask the user for the law name
     msg = "Wat is de naam van de wet?"
-    loop.run_until_complete(manager.send_message(WebSocketMessage(id=str(uuid.uuid4()), content=msg), thread_id))
+    loop.run_until_complete(
+        manager.send_message(
+            WebSocketMessage(id=str(uuid.uuid4()), content=msg), thread_id
+        )
+    )
 
     return {"messages": []}  # Note: we reset the messages
 
@@ -101,7 +113,7 @@ def check_law_input(state: State, config: dict) -> dict:
             )
         )
         return {"should_retry": True, "law": resp}
-    
+
     # Send a mesage to the frontend to update the progress to the next step
     loop.run_until_complete(
         manager.send_message(
@@ -121,6 +133,7 @@ def ask_law_confirmation(state: State, config: dict) -> dict:
     print("----> ask_law_confirmation")
 
     # Find the law URL
+    retriever.api_key = get_from_dict_or_env(state, "tavily_api_key", "TAVILY_API_KEY")
     docs = retriever.invoke(state["law"])
 
     if len(docs) == 0:
@@ -185,7 +198,9 @@ def handle_law_confirmation(state: State, config: dict) -> dict:
 
 
 def fetch_and_format_data(url: str) -> str:
-    docs = WebBaseLoader(url).load()  # IMPROVE: compare to UnstructuredLoader and DoclingLoader
+    docs = WebBaseLoader(
+        url
+    ).load()  # IMPROVE: compare to UnstructuredLoader and DoclingLoader
     return "\n\n".join(doc.page_content for doc in docs)
 
 
@@ -273,6 +288,9 @@ def process_law(state: State, config: dict) -> dict:
         content = content[:1000]
 
     # Add a human message to process the law
+    model.anthropic_api_key = convert_to_secret_str(
+        get_from_dict_or_env(state, "anthropic_api_key", "ANTHROPIC_API_KEY")
+    )
     result = model.invoke(
         analyize_law_prompt.format_messages(
             schema_content=schema_content,
@@ -353,6 +371,9 @@ def process_law_feedback(state: State, config: dict) -> dict:
 
     state["messages"].append(HumanMessage(user_input))
 
+    model.anthropic_api_key = convert_to_secret_str(
+        get_from_dict_or_env(state, "anthropic_api_key", "ANTHROPIC_API_KEY")
+    )
     result = model.invoke(state["messages"])
 
     return {"messages": result}
@@ -391,7 +412,9 @@ def handle_law_confirmation_result(state: State) -> Literal["process_law", "ask_
     return "process_law" if state["law_url_approved"] else "ask_law"
 
 
-workflow.add_conditional_edges("handle_law_confirmation", handle_law_confirmation_result)
+workflow.add_conditional_edges(
+    "handle_law_confirmation", handle_law_confirmation_result
+)
 
 workflow.add_edge("process_law", "process_law_feedback")
 workflow.add_edge("process_law_feedback", "process_law_feedback")
@@ -425,9 +448,9 @@ class ConnectionManager:
         if thread_id in self.active_connections:
             del self.active_connections[thread_id]
 
-    async def broadcast(self, message: WebSocketMessage):
-        for websocket in self.active_connections.values():
-            await websocket.send_text(message)
+    # async def broadcast(self, message: WebSocketMessage):
+    #     for websocket in self.active_connections.values():
+    #         await websocket.send_text(json.dumps(message))
 
     async def send_message(self, message: WebSocketMessage, thread_id: uuid.UUID):
         if thread_id in self.active_connections:
@@ -443,35 +466,50 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         while True:
-            user_input = await websocket.receive_text()
+            user_input = json.loads(await websocket.receive_text())
 
             # Process the received data through the workflow
             print("message received:", user_input)
 
-            contains_yaml = False
-            chunk_content_so_far = ""
-            for chunk, _ in graph.stream(
-                Command(resume=user_input),
-                {"configurable": {"thread_id": thread_id}},
-                stream_mode="messages",
-            ):
-                if not contains_yaml:
-                    chunk_content_so_far += chunk.content
-                    if "```yaml" in chunk_content_so_far:
-                        contains_yaml = True
-
-                # If the chunk contains response_metadata.stop_reason "max_tokens", then add a quick reply to continue
-                quick_replies = []
-                stop_reason = chunk.response_metadata.get("stop_reason")
-                if stop_reason == "max_tokens":
-                    quick_replies = ["Ga door"]
-                elif contains_yaml and stop_reason == "end_turn":
-                    quick_replies = ["Analyseer deze YAML-code"]
-
-                await manager.send_message(
-                    WebSocketMessage(id=chunk.id, content=chunk.content, quick_replies=quick_replies),
-                    thread_id,
+            if user_input.get("type") == "keys":
+                # Store the keys in the state
+                graph.update_state(
+                    {"configurable": {"thread_id": thread_id}},
+                    {
+                        "anthropic_api_key": user_input["anthropicApiKey"],
+                        "tavily_api_key": user_input["tavilyApiKey"],
+                    },
                 )
+
+            elif user_input.get("type") == "text":
+                contains_yaml = False
+                chunk_content_so_far = ""
+                for chunk, _ in graph.stream(
+                    Command(resume=user_input.get("content")),
+                    {"configurable": {"thread_id": thread_id}},
+                    stream_mode="messages",
+                ):
+                    if not contains_yaml:
+                        chunk_content_so_far += chunk.content
+                        if "```yaml" in chunk_content_so_far:
+                            contains_yaml = True
+
+                    # If the chunk contains response_metadata.stop_reason "max_tokens", then add a quick reply to continue
+                    quick_replies = []
+                    stop_reason = chunk.response_metadata.get("stop_reason")
+                    if stop_reason == "max_tokens":
+                        quick_replies = ["Ga door"]
+                    elif contains_yaml and stop_reason == "end_turn":
+                        quick_replies = ["Analyseer deze YAML-code"]
+
+                    await manager.send_message(
+                        WebSocketMessage(
+                            id=chunk.id,
+                            content=chunk.content,
+                            quick_replies=quick_replies,
+                        ),
+                        thread_id,
+                    )
 
     except WebSocketDisconnect:
         manager.disconnect(thread_id)

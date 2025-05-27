@@ -6,6 +6,7 @@
   import 'highlight.js/styles/github-dark.css';
   import PreWithCopyButton from './PreWithCopyButton.svelte';
   import { browser } from '$app/environment';
+  import { json } from '@sveltejs/kit';
 
   const copyButtonPlugin = {
     renderer: { pre: PreWithCopyButton },
@@ -18,9 +19,9 @@
     timestamp: Date;
   };
 
-  let anthropicApiKey = '';
-  let tavilyApiKey = '';
-  let apiFormIsShown = true;
+  let anthropicApiKey = localStorage.getItem('anthropic-api-key') || '';
+  let tavilyApiKey = localStorage.getItem('tavily-api-key') || '';
+  let apiFormIsShown = anthropicApiKey === '' || tavilyApiKey === '';
   let anthropicApiKeyInput: HTMLInputElement | undefined;
 
   let messages: Message[] = [];
@@ -38,6 +39,15 @@
       localStorage.setItem('tavily-api-key', tavilyApiKey);
     }
 
+    // Send the keys to the server
+    socket.send(
+      JSON.stringify({
+        type: 'keys',
+        anthropicApiKey,
+        tavilyApiKey,
+      }),
+    );
+
     apiFormIsShown = false;
   }
 
@@ -47,6 +57,17 @@
   // Connection opened
   socket.addEventListener('open', function (event) {
     console.log('Connected to server');
+
+    // If the API keys are already set, send them to the server
+    if (anthropicApiKey && tavilyApiKey) {
+      socket.send(
+        JSON.stringify({
+          type: 'keys',
+          anthropicApiKey,
+          tavilyApiKey,
+        }),
+      );
+    }
   });
 
   // Listen for messages
@@ -92,7 +113,7 @@
   // Submit handler
   function handleSubmit() {
     if (input && socket.readyState === WebSocket.OPEN) {
-      socket.send(input);
+      socket.send(JSON.stringify({ type: 'text', content: input }));
 
       messages = [
         ...messages,
