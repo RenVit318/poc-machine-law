@@ -4,7 +4,7 @@ import os
 import pprint
 import re
 import uuid
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, Dict, List, Literal, Set, Tuple, TypedDict
 
 import jsonschema
 import nest_asyncio
@@ -24,9 +24,15 @@ from langchain_core.utils import (
     convert_to_secret_str,
     get_from_dict_or_env,
 )
+from script.validate import (
+    collect_service_references,
+    collect_service_outputs,
+    collect_defined_variables,
+    find_variables_in_dict,
+)
+
 
 router = APIRouter(prefix="/importer", tags=["importer"])
-
 
 model = ChatAnthropic(
     model="claude-3-7-sonnet-latest",
@@ -36,7 +42,9 @@ model = ChatAnthropic(
 )
 
 # Retriever to find the specified law online
-retriever = TavilySearchAPIRetriever(k=1, include_domains=["wetten.overheid.nl"])  # Limit to 1 result
+retriever = TavilySearchAPIRetriever(
+    k=1, include_domains=["wetten.overheid.nl"]
+)  # Limit to 1 result
 
 
 class State(TypedDict):
@@ -77,6 +85,73 @@ def validate_schema(yaml_content: str) -> str | None:
         return None
     except jsonschema.exceptions.ValidationError as err:
         return f"Error: {err.message}"
+
+
+# Get all law YAML files
+laws_dir = os.path.join(os.path.dirname(__file__), "../../law")
+examples = []
+for root, _, files in os.walk(laws_dir):
+    for file in files:
+        if file.endswith(".yaml"):  # Return only YAML files
+            # law_files.append(os.path.relpath(os.path.join(root, file), laws_dir))
+            with open(os.path.join(root, file)) as f:
+                examples.append(f.read())
+
+# Limit to 2 YAML files for testing purposes to reduce costs. TODO: remove this
+if len(examples) > 2:
+    examples = examples[:2]
+
+
+def validate_service_references(
+    yaml_content: str,
+) -> List[
+    str
+]:  # Note: somewhat similar to the function with the same name in script/validate
+    """Validate that all service references have corresponding outputs."""
+
+    # Collect all references and outputs
+    yaml_data = yaml.safe_load(yaml_content)
+
+    # Collect references from this block
+    references = collect_service_references(yaml_data)
+
+    # Collect outputs from this block file and existing files
+    all_outputs = collect_service_outputs(yaml_data)
+    for example in examples:
+        example_data = yaml.safe_load(example)
+        all_outputs.update(collect_service_outputs(example_data))
+
+    # Check for missing references
+    missing_references = references - all_outputs
+
+    return list(
+        {
+            f"missing reference: {service}.{field} (law: {law})"
+            for service, law, field in sorted(missing_references)
+        }
+    )  # Return as a list for consistency with the function signature
+
+
+def validate_variable_definitions(
+    yaml_content: str,
+) -> List[
+    str
+]:  # Note: somewhat similar to the function with the same name in script/validate
+    """Validate that all $VARIABLES are defined."""
+
+    yaml_data = yaml.safe_load(yaml_content)
+
+    defined = collect_defined_variables(yaml_data)
+    referenced = find_variables_in_dict(yaml_data)
+
+    # calculation_date is implicitly defined
+    referenced.discard("$calculation_date")
+
+    undefined = {v.replace("$", "") for v in referenced} - defined
+
+    return list(
+        {f"undefined variable: {var}" for var in sorted(undefined)}
+    )  # Return as a list for consistency with the function signature
 
 
 def ask_law(state: State, config: dict) -> dict:
@@ -205,28 +280,8 @@ def fetch_and_format_data(url: str) -> str:
 
 
 # Get the schema content
-with open("schema/v0.1.3/schema.json") as sf:
+with open("schema/v0.1.4/schema.json") as sf:
     schema_content = sf.read()
-
-# Get all law YAML files
-laws_dir = os.path.join(os.path.dirname(__file__), "../../law")
-examples = []
-for root, _, files in os.walk(laws_dir):
-    for file in files:
-        if file.endswith(".yaml"):  # Return only YAML files
-            # law_files.append(os.path.relpath(os.path.join(root, file), laws_dir))
-            with open(os.path.join(root, file)) as f:
-                examples.append(
-                    {
-                        "type": "document",
-                        "title": "Voorbeeld",
-                        "text": f.read(),
-                    }
-                )
-
-# Limit to 2 YAML files for testing purposes to reduce costs. TODO: remove this
-if len(examples) > 2:
-    examples = examples[:2]
 
 analyize_law_prompt = ChatPromptTemplate(
     [
@@ -240,7 +295,14 @@ analyize_law_prompt = ChatPromptTemplate(
                     "type": "text",
                     "text": "Ik heb deze wetten zo gemodelleerd in YAML.",
                 },
-                *examples,  # Use the * operator to unpack the examples list
+                *[  # Use the * operator to unpack the examples list
+                    {
+                        "type": "document",
+                        "title": "Voorbeeld",
+                        "text": example,
+                    }
+                    for example in examples
+                ],
             ],
         ),
         (
@@ -270,7 +332,7 @@ def process_law(state: State, config: dict) -> dict:
         manager.send_message(
             WebSocketMessage(
                 id=str(uuid.uuid4()),
-                content="De wettekst wordt nu opgehaald en geanalyseerd, dit kan even duren…",
+                content="De wettekst wordt nu opgehaald en omgezet, dit kan even duren…",
                 quick_replies=[],
             ),
             thread_id,
@@ -335,12 +397,14 @@ def process_law_feedback(state: State, config: dict) -> dict:
         for block in yaml_blocks:
             print("----> YAML block found")
             err = validate_schema(block)
-
             if err:
                 validation_errors.append(err)
 
+            validation_errors.extend(validate_service_references(block))
+            validation_errors.extend(validate_variable_definitions(block))
+
         if validation_errors:
-            user_input = f"Er zijn fouten gevonden in de YAML output:\n```\n{'\n'.join(validation_errors)}\n```"
+            user_input = f"Er zijn fouten gevonden in de YAML output:\n```\n{'\n- '.join(validation_errors)}\n```"
         else:
             user_input = "De YAML output lijkt correct."  # IMPROVE: validate agains the Girkin tables
 

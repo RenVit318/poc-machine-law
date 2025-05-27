@@ -288,7 +288,7 @@
       </div>
     </div>
 
-    <div>
+    <div class="mb-2 overflow-y-auto">
       <ol class="relative ml-4 border-s border-gray-200 text-gray-500">
         <li class="mb-10 ms-6">
           <span
