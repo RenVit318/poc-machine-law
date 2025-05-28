@@ -4,7 +4,7 @@ import os
 import pprint
 import re
 import uuid
-from typing import Annotated, List, Literal, TypedDict
+from typing import Annotated, Literal, TypedDict
 
 import jsonschema
 import nest_asyncio
@@ -16,18 +16,19 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.retrievers import TavilySearchAPIRetriever
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import StateGraph
-from langgraph.graph.message import add_messages
-from langgraph.types import Command, interrupt
 from langchain_core.utils import (
     convert_to_secret_str,
     get_from_dict_or_env,
 )
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import StateGraph
+from langgraph.graph.message import add_messages
+from langgraph.types import Command, interrupt
+
 from script.validate import (
-    collect_service_references,
-    collect_service_outputs,
     collect_defined_variables,
+    collect_service_outputs,
+    collect_service_references,
     find_variables_in_dict,
 )
 
@@ -44,9 +45,7 @@ model = ChatAnthropic(
 )
 
 # Retriever to find the specified law online
-retriever = TavilySearchAPIRetriever(
-    k=1, include_domains=["wetten.overheid.nl"]
-)  # Limit to 1 result
+retriever = TavilySearchAPIRetriever(k=1, include_domains=["wetten.overheid.nl"])  # Limit to 1 result
 
 
 class State(TypedDict):
@@ -55,9 +54,7 @@ class State(TypedDict):
     should_retry: bool
     law_url: str
     law_url_approved: bool | None  # Can be True, False, or None
-    anthropic_api_key: (
-        str | None
-    )  # Optional, can be None if not provided by the user. Also below
+    anthropic_api_key: str | None  # Optional, can be None if not provided by the user. Also below
     tavily_api_key: str | None
 
 
@@ -100,9 +97,7 @@ for root, _, files in os.walk(laws_dir):
 
 def validate_service_references(
     yaml_data: any,
-) -> List[
-    str
-]:  # Note: somewhat similar to the function with the same name in script/validate
+) -> list[str]:  # Note: somewhat similar to the function with the same name in script/validate
     """Validate that all service references have corresponding outputs."""
 
     # Collect references from this block
@@ -127,9 +122,7 @@ def validate_service_references(
 
 def validate_variable_definitions(
     yaml_data: any,
-) -> List[
-    str
-]:  # Note: somewhat similar to the function with the same name in script/validate
+) -> list[str]:  # Note: somewhat similar to the function with the same name in script/validate
     """Validate that all $VARIABLES are defined."""
 
     defined = collect_defined_variables(yaml_data)
@@ -152,11 +145,7 @@ def ask_law(state: State, config: dict) -> dict:
 
     # Ask the user for the law name
     msg = "Wat is de naam van de wet?"
-    loop.run_until_complete(
-        manager.send_message(
-            WebSocketMessage(id=str(uuid.uuid4()), content=msg), thread_id
-        )
-    )
+    loop.run_until_complete(manager.send_message(WebSocketMessage(id=str(uuid.uuid4()), content=msg), thread_id))
 
     return {"messages": []}  # Note: we reset the messages
 
@@ -264,9 +253,7 @@ def handle_law_confirmation(state: State, config: dict) -> dict:
 
 
 def fetch_and_format_data(url: str) -> str:
-    docs = WebBaseLoader(
-        url
-    ).load()  # IMPROVE: compare to UnstructuredLoader and DoclingLoader
+    docs = WebBaseLoader(url).load()  # IMPROVE: compare to UnstructuredLoader and DoclingLoader
     return "\n\n".join(doc.page_content for doc in docs)
 
 
@@ -295,9 +282,7 @@ analyize_law_prompt = ChatPromptTemplate(
                     for example in (
                         examples
                         if is_production
-                        else examples[
-                            :2
-                        ]  # Limit to the first 2 examples for testing purposes to reduce tokens / costs
+                        else examples[:2]  # Limit to the first 2 examples for testing purposes to reduce tokens / costs
                     )
                 ],
             ],
@@ -409,7 +394,7 @@ def process_law_feedback(state: State, config: dict) -> dict:
             validation_errors.extend(validate_variable_definitions(yaml_data))
 
         if validation_errors:
-            user_input = f"Er zijn fouten gevonden in de YAML output:\n```\n{"\n".join(f"- {error}" for error in validation_errors)}\n```"
+            user_input = f"Er zijn fouten gevonden in de YAML output:\n```\n{'\n'.join(f'- {error}' for error in validation_errors)}\n```"
         else:
             user_input = "De YAML output lijkt correct."  # IMPROVE: validate agains the Girkin tables
 
@@ -481,9 +466,7 @@ def handle_law_confirmation_result(state: State) -> Literal["process_law", "ask_
     return "process_law" if state["law_url_approved"] else "ask_law"
 
 
-workflow.add_conditional_edges(
-    "handle_law_confirmation", handle_law_confirmation_result
-)
+workflow.add_conditional_edges("handle_law_confirmation", handle_law_confirmation_result)
 
 workflow.add_edge("process_law", "process_law_feedback")
 workflow.add_edge("process_law_feedback", "process_law_feedback")
