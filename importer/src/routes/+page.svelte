@@ -34,6 +34,9 @@
 
   let messageIdToIgnore: string | undefined;
 
+  // Loading / busy indicator
+  let isLoading = false;
+
   function handleKeySubmit() {
     if (browser) {
       localStorage.setItem('anthropic-api-key', anthropicApiKey);
@@ -96,6 +99,8 @@
       messages[messages.length - 1].content += `${data.content}`; // IMPROVE: also look at earlier messages, since the user may post a message in between?
       messages = [...messages];
     } else {
+      isLoading = false; // Clear loading state
+
       messages = [
         ...messages,
         {
@@ -118,15 +123,19 @@
   // Submit handler
   function handleSubmit() {
     if (input && socket.readyState === WebSocket.OPEN) {
-      if (input.toLocaleLowerCase() === 'stop' && messages.length && messages[messages.length - 1].id) {
+      if (
+        input.toLocaleLowerCase() === 'stop' &&
+        messages.length &&
+        messages[messages.length - 1].id
+      ) {
         // Abort the current processing (note: only client-side, see the comments in the backend code). IMPROVE: improve this functionality, use a button that is only visible when streaming, etc.
         input = '';
         messageIdToIgnore = messages[messages.length - 1].id;
 
-
         return;
       }
-    
+
+      isLoading = true; // Set loading state
       socket.send(JSON.stringify({ type: 'text', content: input }));
 
       messages = [
@@ -262,6 +271,25 @@
           </div>
         {/if}
       {/each}
+
+      {#if isLoading}
+        <div class="message flex items-center gap-2">
+          <svg
+            class="h-5 w-5 animate-spin text-blue-600"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+            ></circle>
+            <path
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          <span class="text-sm text-gray-600">Bericht wordt gegenereerd…</span>
+        </div>
+      {/if}
 
       <div class="self-start">
         {#each quickReplies as quickReply}
