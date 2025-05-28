@@ -511,24 +511,22 @@ class ConnectionManager:
 
     # async def broadcast(self, message: WebSocketMessage):
     #     for websocket in self.active_connections.values():
-    #         await websocket.send_text(json.dumps(message))
+    #         await websocket.send_json(message)
 
     async def send_message(self, message: WebSocketMessage, thread_id: uuid.UUID):
         if thread_id in self.active_connections:
-            await self.active_connections[thread_id].send_text(json.dumps(message))
+            await self.active_connections[thread_id].send_json(message)
 
 
 manager = ConnectionManager()
 
-
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     thread_id = await manager.connect(websocket)
+    # IMPROVE: implement functionality similar to the 'Stop generating' functionality in ChatGPT. Use an AbortController, so the API will actually stop generating? See https://community.openai.com/t/chatgpts-stop-generating-function-how-to-implement/235121 and https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 
     try:
-        while True:
-            user_input = json.loads(await websocket.receive_text())
-
+        async for user_input in websocket.iter_json():
             # Process the received data through the workflow
             print("message received:", user_input)
 
@@ -545,7 +543,8 @@ async def websocket_endpoint(websocket: WebSocket):
             elif user_input.get("type") == "text":
                 contains_yaml = False
                 chunk_content_so_far = ""
-                for chunk, _ in graph.stream(
+
+                async for chunk, _ in graph.astream(
                     Command(resume=user_input.get("content")),
                     {"configurable": {"thread_id": thread_id}},
                     stream_mode="messages",

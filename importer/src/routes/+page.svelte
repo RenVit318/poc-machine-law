@@ -6,7 +6,6 @@
   import 'highlight.js/styles/github-dark.css';
   import PreWithCopyButton from './PreWithCopyButton.svelte';
   import { browser } from '$app/environment';
-  import { json } from '@sveltejs/kit';
 
   const copyButtonPlugin = {
     renderer: { pre: PreWithCopyButton },
@@ -32,6 +31,8 @@
   let quickReplies: string[] = [];
 
   let progress = 0;
+
+  let messageIdToIgnore: string | undefined;
 
   function handleKeySubmit() {
     if (browser) {
@@ -87,6 +88,10 @@
     }
 
     // If the message ID equals the ID of the previous message, append it to the previous message
+    if (data.id === messageIdToIgnore) {
+      return; // Skip this message
+    }
+
     if (messages.length && messages[messages.length - 1].id === data.id) {
       messages[messages.length - 1].content += `${data.content}`; // IMPROVE: also look at earlier messages, since the user may post a message in between?
       messages = [...messages];
@@ -113,6 +118,15 @@
   // Submit handler
   function handleSubmit() {
     if (input && socket.readyState === WebSocket.OPEN) {
+      if (input.toLocaleLowerCase() === 'stop' && messages.length && messages[messages.length - 1].id) {
+        // Abort the current processing (note: only client-side, see the comments in the backend code). IMPROVE: improve this functionality, use a button that is only visible when streaming, etc.
+        input = '';
+        messageIdToIgnore = messages[messages.length - 1].id;
+
+
+        return;
+      }
+    
       socket.send(JSON.stringify({ type: 'text', content: input }));
 
       messages = [
