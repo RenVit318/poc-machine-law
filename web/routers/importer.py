@@ -290,7 +290,9 @@ analyize_law_prompt = ChatPromptTemplate(
                         "title": "Voorbeeld",
                         "text": example,
                     }
-                    for example in examples[:2]  # Limit to the first 2 examples for testing purposes to reduce costs
+                    for example in examples[
+                        :2
+                    ]  # Limit to the first 2 examples for testing purposes to reduce costs
                 ],
             ],
         ),
@@ -405,30 +407,30 @@ def process_law_feedback(state: State, config: dict) -> dict:
         else:
             user_input = "De YAML output lijkt correct."  # IMPROVE: validate agains the Girkin tables
 
-    thread_id = config["configurable"]["thread_id"]
+        thread_id = config["configurable"]["thread_id"]
 
-    # Send a mesage to the frontend to update the progress to the next step
-    loop.run_until_complete(
-        manager.send_message(
-            WebSocketMessage(
-                id=str(uuid.uuid4()),
-                type="progress",
-                content=4,
-            ),
-            thread_id,
+        # Send a mesage to the frontend to update the progress to the next step
+        loop.run_until_complete(
+            manager.send_message(
+                WebSocketMessage(
+                    id=str(uuid.uuid4()),
+                    type="progress",
+                    content=4,
+                ),
+                thread_id,
+            )
         )
-    )
 
-    loop.run_until_complete(
-        manager.send_message(
-            WebSocketMessage(
-                id=str(uuid.uuid4()),
-                content=user_input,
-                quick_replies=[],
-            ),
-            thread_id,
-        )
-    )  # IMPROVE: send/show this as user message instead of AI message in the frontend
+        loop.run_until_complete(
+            manager.send_message(
+                WebSocketMessage(
+                    id=str(uuid.uuid4()),
+                    content=user_input,
+                    quick_replies=[],
+                ),
+                thread_id,
+            )
+        )  # IMPROVE: send/show this as user message instead of AI message in the frontend
 
     state["messages"].append(HumanMessage(user_input))
 
@@ -519,6 +521,7 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
