@@ -536,8 +536,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         async for user_input in websocket.iter_json():
-            # Process the received data through the workflow
-            print("message received:", user_input)
+            # # Process the received data through the workflow
+            # print("message received:", user_input)
 
             if user_input.get("type") == "keys":
                 # Store the keys in the state
