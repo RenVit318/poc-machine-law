@@ -169,6 +169,19 @@ def check_law_input(state: State, config: dict) -> dict:
         )
         return {"should_retry": True, "law": resp}
 
+    # If the API keys are unset or empty, return an error message
+    if (not state.get("anthropic_api_key")) or (not state.get("tavily_api_key")):
+        loop.run_until_complete(
+            manager.send_message(
+                WebSocketMessage(
+                    id=str(uuid.uuid4()),
+                    content="Je moet eerst hierboven API-keys invoeren om verder te kunnen.",
+                ),
+                thread_id,
+            )
+        )
+        return {"should_retry": True, "law": resp}
+
     # Send a mesage to the frontend to update the progress to the next step
     loop.run_until_complete(
         manager.send_message(
