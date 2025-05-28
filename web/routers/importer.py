@@ -31,6 +31,8 @@ from script.validate import (
     find_variables_in_dict,
 )
 
+# If this is a production environment, we use more resources / tokens
+is_production = os.getenv("IS_PRODUCTION", "false").lower() == "true"
 
 router = APIRouter(prefix="/importer", tags=["importer"])
 
@@ -117,7 +119,7 @@ def validate_service_references(
 
     return list(
         {
-            f"missing reference: {service}.{field} (law: {law})"
+            f"non-existing output that is referenced: {service}.{field} (law: {law})"
             for service, law, field in sorted(missing_references)
         }
     )  # Return as a list for consistency with the function signature
@@ -290,9 +292,13 @@ analyize_law_prompt = ChatPromptTemplate(
                         "title": "Voorbeeld",
                         "text": example,
                     }
-                    for example in examples[
-                        :2
-                    ]  # Limit to the first 2 examples for testing purposes to reduce costs
+                    for example in (
+                        examples
+                        if is_production
+                        else examples[
+                            :2
+                        ]  # Limit to the first 2 examples for testing purposes to reduce tokens / costs
+                    )
                 ],
             ],
         ),
@@ -336,8 +342,8 @@ def process_law(state: State, config: dict) -> dict:
     # Remove duplicate whitespace from the content
     content = re.sub(r"\s+", " ", content)
 
-    # Cap the law content for testing purposes to reduce costs. TODO: remove this
-    if len(content) > 1000:
+    # Cap the law content for testing purposes to reduce costs when not on pro
+    if (not is_production) and len(content) > 1000:
         content = content[:1000]
 
     # Add a human message to process the law
