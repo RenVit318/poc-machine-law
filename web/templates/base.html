@@ -85,18 +85,23 @@
             }
         };
         </script>
-
-        <link rel="icon" type="image/png" href="/static/img/favicon-96x96.png" sizes="96x96" />
+        <link rel="icon"
+              type="image/png"
+              href="/static/img/favicon-96x96.png"
+              sizes="96x96" />
         <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
         <link rel="shortcut icon" href="/static/img/favicon.ico" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/static/img/apple-touch-icon.png" />
+        <link rel="apple-touch-icon"
+              sizes="180x180"
+              href="/static/img/apple-touch-icon.png" />
         <link rel="manifest" href="/static/img/site.webmanifest" />
     </head>
     <body class="min-h-screen bg-gray-50"
           x-data="{ openWallet() { window.openWalletModal(); } }"
           x-on:open-wallet-modal.window="openWallet()">
         <!-- Header -->
-        <header class="bg-linear-to-br from-blue-600 to-blue-800 text-white" x-data="{ mobileMenuOpen: false }">
+        <header class="bg-linear-to-br from-blue-600 to-blue-800 text-white"
+                x-data="{ mobileMenuOpen: false }">
             <div class="container mx-auto px-4">
                 <div class="flex justify-between items-center py-4">
                     <!-- Mobile Menu Button (Left Side) -->
@@ -114,7 +119,15 @@
                     <div class="flex items-center flex-1 justify-center lg:justify-start">
                         <h1 class="text-2xl font-semibold">
                             <a href="/" class="flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mr-3" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 13a3 3 0 1 0 0-6a3 3 0 0 0 0 6"/><path d="M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9s-9-1.8-9-9s1.8-9 9-9"/><path d="M6 20.05V20a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v.05"/></g></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                     class="w-8 h-8 mr-3"
+                                     viewBox="0 0 24 24">
+                                    <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                                    <path d="M12 13a3 3 0 1 0 0-6a3 3 0 0 0 0 6" />
+                                    <path d="M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9s-9-1.8-9-9s1.8-9 9-9" />
+                                    <path d="M6 20.05V20a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v.05" />
+                                    </g>
+                                </svg>
                                 Burger.nl
                             </a>
                         </h1>

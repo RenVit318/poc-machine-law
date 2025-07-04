@@ -21,7 +21,9 @@
                 <div class="text-gray-600">Box 3 (sparen en beleggen):</div>
                 <div class="text-right font-medium">{{ (result.box3_tax / 100) | format_currency }}</div>
                 <div class="text-gray-600 mt-1">Totaal heffingskortingen:</div>
-                <div class="text-right font-medium mt-1 text-green-600">- {{ (result.total_tax_credits / 100) | format_currency }}</div>
+                <div class="text-right font-medium mt-1 text-green-600">
+                    - {{ (result.total_tax_credits / 100) | format_currency }}
+                </div>
                 <div class="text-gray-800 font-medium mt-2 pt-2 border-t border-gray-200">Totaal verschuldigd:</div>
                 <div class="text-right font-medium mt-2 pt-2 border-t border-gray-200">
                     {{ (result.total_tax_due / 100) | format_currency }}

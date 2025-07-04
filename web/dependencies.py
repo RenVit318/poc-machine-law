@@ -13,7 +13,9 @@ config_loader = ConfigLoader()
 # Set Dutch locale
 try:
     locale.setlocale(locale.LC_ALL, "nl_NL.UTF-8")
-    locale.setlocale(locale.LC_MONETARY, "it_IT.UTF-8")  # Use Italian locale for monetary formatting, which is similar to Dutch but has better thousand separators and places the minus sign correctly
+    locale.setlocale(
+        locale.LC_MONETARY, "it_IT.UTF-8"
+    )  # Use Italian locale for monetary formatting, which is similar to Dutch but has better thousand separators and places the minus sign correctly
 except locale.Error:
     # Fallback for CI environments where Dutch locale might not be installed
     try:
@@ -107,7 +109,7 @@ def setup_jinja_env(directory: str) -> Jinja2Templates:
         """Format a number as currency with locale settings."""
         if value is None:
             return ""
-        
+
         # Use locale.currency for proper formatting. Note: on some systems, the locale definitions use 'Eu' as the currency symbol instead of the actual euro sign €, so we replace it
         return locale.currency(value, grouping=True).replace("Eu", "€")
 
