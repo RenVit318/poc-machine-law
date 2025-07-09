@@ -1,38 +1,45 @@
-package service
+package memory
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	"github.com/google/uuid"
+	contexter "github.com/minbzk/poc-machine-law/machinev2/machine/internal/context"
 	"github.com/minbzk/poc-machine-law/machinev2/machine/internal/engine"
 	"github.com/minbzk/poc-machine-law/machinev2/machine/internal/logging"
-	"github.com/minbzk/poc-machine-law/machinev2/machine/internal/utils"
 	"github.com/minbzk/poc-machine-law/machinev2/machine/model"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/ruleresolver"
 )
 
 // RuleService interface for executing business rules for a specific service
 type RuleService struct {
 	logger           logging.Logger
 	ServiceName      string
-	Services         *Services
-	Resolver         *utils.RuleResolver
+	Services         contexter.ServiceProvider
+	Resolver         *ruleresolver.RuleResolver
 	engines          map[string]map[string]*engine.RulesEngine
 	SourceDataFrames model.SourceDataFrame
 	mu               sync.RWMutex
 }
 
-// NewRuleService creates a new rule service instance
-func NewRuleService(logger logging.Logger, serviceName string, services *Services) *RuleService {
+// New creates a new rule service instance
+func New(logger logging.Logger, serviceName string, services contexter.ServiceProvider) (*RuleService, error) {
+	logger.Warningf(context.Background(), "creating inmemory ruleservice: %s", serviceName)
+
+	resolver, err := ruleresolver.New()
+	if err != nil {
+		return nil, fmt.Errorf("new rule resolver: %w", err)
+	}
+
 	return &RuleService{
 		logger:           logger.WithName("service"),
 		ServiceName:      serviceName,
 		Services:         services,
-		Resolver:         utils.NewRuleResolver(),
+		Resolver:         resolver,
 		engines:          make(map[string]map[string]*engine.RulesEngine),
 		SourceDataFrames: NewSourceDataFrame(),
-	}
+	}, nil
 }
 
 // getEngine gets or creates a RulesEngine instance for given law and date
@@ -55,11 +62,8 @@ func (rs *RuleService) getEngine(law, referenceDate string) (*engine.RulesEngine
 		return nil, err
 	}
 
-	if service, ok := spec["service"].(string); !ok || service != rs.ServiceName {
-		return nil, fmt.Errorf(
-			"rule spec service '%s' does not match service '%s'",
-			service, rs.ServiceName,
-		)
+	if spec.Service != rs.ServiceName {
+		return nil, fmt.Errorf("rule spec service '%s' does not match service '%s'", spec.Service, rs.ServiceName)
 	}
 
 	ruleEngine := engine.NewRulesEngine(rs.logger, spec, rs.Services, referenceDate)
@@ -69,7 +73,7 @@ func (rs *RuleService) getEngine(law, referenceDate string) (*engine.RulesEngine
 }
 
 // GetResolver returns the rule resolver
-func (rs *RuleService) GetResolver() *utils.RuleResolver {
+func (rs *RuleService) GetResolver() *ruleresolver.RuleResolver {
 	return rs.Resolver
 }
 
@@ -101,34 +105,19 @@ func (rs *RuleService) Evaluate(
 		return nil, err
 	}
 
-	rulespecID, err := uuid.Parse(ruleEngine.Spec["uuid"].(string))
-	if err != nil {
-		return nil, err
-	}
-
-	return model.NewRuleResult(result, rulespecID), nil
-}
-
-// GetRuleInfo gets metadata about the rule that would be applied for given law and date
-func (rs *RuleService) GetRuleInfo(law, referenceDate string) map[string]any {
-	rule, err := rs.Resolver.FindRule(law, referenceDate, rs.ServiceName)
-	if err != nil {
-		return nil
-	}
-
-	return map[string]any{
-		"uuid":       rule.UUID,
-		"name":       rule.Name,
-		"valid_from": rule.ValidFrom.Format("2006-01-02"),
-	}
+	return model.NewRuleResult(result, ruleEngine.Spec.UUID), nil
 }
 
 // SetSourceDataFrame sets a source DataFrame
-func (rs *RuleService) SetSourceDataFrame(table string, df model.DataFrame) {
+func (rs *RuleService) SetSourceDataFrame(_ context.Context, table string, df model.DataFrame) error {
 	rs.SourceDataFrames.Set(table, df)
+
+	return nil
 }
 
 // Reset removes all data in the rule service
-func (rs *RuleService) Reset() {
+func (rs *RuleService) Reset(_ context.Context) error {
 	rs.SourceDataFrames.Reset()
+
+	return nil
 }

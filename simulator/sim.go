@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"log"
 	"math"
 	"math/rand"
 	"os"
@@ -19,6 +18,11 @@ import (
 	"github.com/minbzk/poc-machine-law/machinev2/machine/dataframe"
 	"github.com/minbzk/poc-machine-law/machinev2/machine/service"
 )
+
+type Res struct {
+	persons  []Person
+	services *service.Services
+}
 
 // Person represents an individual in the simulation
 type Person struct {
@@ -36,18 +40,18 @@ type Person struct {
 
 // SimulationResult represents the outcome of a person's simulation
 type SimulationResult struct {
+	HasPartner          bool
+	IsStudent           bool
+	ZorgtoeslagEligible bool
+	AOWEligible         bool
 	BSN                 string
 	Age                 int
-	HasPartner          bool
 	Income              float64
 	NetWorth            float64
 	WorkYears           float64
 	ResidenceYears      float64
-	IsStudent           bool
 	StudyGrant          float64
-	ZorgtoeslagEligible bool
 	ZorgtoeslagAmount   float64
-	AOWEligible         bool
 	AOWAmount           float64
 	AOWAccrual          float64
 }
@@ -66,20 +70,18 @@ func lognormal(mean, sigma float64) float64 {
 // LawSimulator is the main simulation engine
 type LawSimulator struct {
 	SimulationDate time.Time
-	Services       *service.Services
 	Results        []SimulationResult
 	UsedBSNs       map[string]bool
 	mutex          sync.Mutex
 }
 
 // NewLawSimulator creates a new LawSimulator instance
-func NewLawSimulator(simulationDate time.Time) *LawSimulator {
+func NewLawSimulator(simulationDate time.Time) (*LawSimulator, error) {
 	return &LawSimulator{
 		SimulationDate: simulationDate,
-		Services:       service.NewServices(simulationDate),
 		Results:        make([]SimulationResult, 0),
 		UsedBSNs:       make(map[string]bool),
-	}
+	}, nil
 }
 
 // GenerateBSN generates a unique BSN (citizen identification number)
@@ -88,7 +90,7 @@ func (ls *LawSimulator) GenerateBSN() string {
 	defer ls.mutex.Unlock()
 
 	for {
-		bsn := fmt.Sprintf("999%06d", rand.Intn(900000)+100000)
+		bsn := fmt.Sprintf("99%07d", rand.Intn(9000000)+1000000)
 		if !ls.UsedBSNs[bsn] {
 			ls.UsedBSNs[bsn] = true
 			return bsn
@@ -141,16 +143,16 @@ func (ls *LawSimulator) GeneratePerson(birthYearMin, birthYearMax int) Person {
 }
 
 // GeneratePairedPeople creates a set of people, some with partners
-func (ls *LawSimulator) GeneratePairedPeople(numPeople int, people chan Person) {
+func (ls *LawSimulator) GeneratePairedPeople(numPeople int, people chan []Person) {
 	count := 0
 
 	for count < numPeople {
 
 		person := ls.GeneratePerson(1940, 2007)
-		people <- person
+		persons := []Person{person}
 
 		// 60% chance of having a partner
-		if rand.Float64() < 0.0 {
+		if rand.Float64() < 0.6 {
 			// Age difference with Gaussian distribution (mean 0, std dev 5 years)
 			ageDiff := int(rand.NormFloat64() * 5)
 
@@ -164,238 +166,258 @@ func (ls *LawSimulator) GeneratePairedPeople(numPeople int, people chan Person) 
 			person.PartnerBSN = partner.BSN
 			partner.PartnerBSN = person.BSN
 
-			people <- partner
-
+			persons = append(persons, partner)
 			count += 2
 		} else {
 			count++
 		}
+
+		people <- persons
 	}
 
 	close(people)
 }
 
 // SetupTestData prepares all the data sources for simulation
-func (ls *LawSimulator) SetupTestData(people <-chan Person, data chan Person) {
+func (ls *LawSimulator) SetupTestData(ctx context.Context, date time.Time, people <-chan []Person, data chan<- Res) error {
 
-	ls.Services.SetSourceDataFrame("CBS", "levensverwachting", dataframe.New([]map[string]any{
-		{
-			"jaar":           "2025",
-			"verwachting_65": 20.5,
-		},
-	}))
-
-	for person := range people {
-		ls.Services.SetSourceDataFrame("RvIG", "personen", dataframe.New([]map[string]any{
-			{
-				"bsn":            person.BSN,
-				"geboortedatum":  person.BirthDate.Format("2006-01-02"),
-				"verblijfsadres": "Amsterdam",
-				"land_verblijf":  "NEDERLAND",
-			},
-		}))
-
-		partnershipType := "GEEN"
-		if person.PartnerBSN != "" {
-			partnershipType = "HUWELIJK"
+	for persons := range people {
+		services, err := service.NewServices(date, service.WithRuleServiceInMemory())
+		if err != nil {
+			return fmt.Errorf("new services: %w", err)
 		}
 
-		ls.Services.SetSourceDataFrame("RvIG", "relaties", dataframe.New([]map[string]any{
+		services.SetSourceDataFrame(ctx, "CBS", "levensverwachting", dataframe.New([]map[string]any{
 			{
-				"bsn":               person.BSN,
-				"partnerschap_type": partnershipType,
-				"partner_bsn":       person.PartnerBSN,
+				"jaar":           "2025",
+				"verwachting_65": 20.5,
 			},
 		}))
 
-		ls.Services.SetSourceDataFrame("BELASTINGDIENST", "inkomen", dataframe.New([]map[string]any{
-			{
-				"bsn":         person.BSN,
-				"box1":        person.AnnualIncome,
-				"box2":        0,
-				"box3":        0,
-				"buitenlands": 0,
-			},
-		}))
+		for _, person := range persons {
 
-		ls.Services.SetSourceDataFrame("BELASTINGDIENST", "vermogen", dataframe.New([]map[string]any{
-			{
-				"bsn":         person.BSN,
-				"bezittingen": person.NetWorth,
-				"schulden":    0,
-			},
-		}))
+			services.SetSourceDataFrame(ctx, "RvIG", "personen", dataframe.New([]map[string]any{
+				{
+					"bsn":            person.BSN,
+					"geboortedatum":  person.BirthDate.Format("2006-01-02"),
+					"verblijfsadres": "Amsterdam",
+					"land_verblijf":  "NEDERLAND",
+				},
+			}))
 
-		ls.Services.SetSourceDataFrame("BELASTINGDIENST", "dienstverbanden", dataframe.New([]map[string]any{
-			{
-				"bsn":        person.BSN,
-				"start_date": person.BirthDate.Format("2006-01-02"),
-				"end_date":   ls.SimulationDate,
-			},
-		}))
+			partnershipType := "GEEN"
+			if person.PartnerBSN != "" {
+				partnershipType = "HUWELIJK"
+			}
 
-		ls.Services.SetSourceDataFrame("SVB", "verzekerde_tijdvakken", dataframe.New([]map[string]any{
-			{
-				"bsn":          person.BSN,
-				"woonperiodes": person.ResidenceYears,
-			},
-		}))
+			services.SetSourceDataFrame(ctx, "RvIG", "relaties", dataframe.New([]map[string]any{
+				{
+					"bsn":               person.BSN,
+					"partnerschap_type": partnershipType,
+					"partner_bsn":       person.PartnerBSN,
+				},
+			}))
 
-		status := "ACTIEF"
-		if rand.Float64() >= 0.95 {
-			status = "INACTIEF"
+			services.SetSourceDataFrame(ctx, "BELASTINGDIENST", "inkomen", dataframe.New([]map[string]any{
+				{
+					"bsn":         person.BSN,
+					"box1":        person.AnnualIncome,
+					"box2":        0,
+					"box3":        0,
+					"buitenlands": 0,
+				},
+			}))
+
+			services.SetSourceDataFrame(ctx, "BELASTINGDIENST", "vermogen", dataframe.New([]map[string]any{
+				{
+					"bsn":         person.BSN,
+					"bezittingen": person.NetWorth,
+					"schulden":    0,
+				},
+			}))
+
+			services.SetSourceDataFrame(ctx, "BELASTINGDIENST", "dienstverbanden", dataframe.New([]map[string]any{
+				{
+					"bsn":        person.BSN,
+					"start_date": person.BirthDate.Format("2006-01-02"),
+					"end_date":   ls.SimulationDate,
+				},
+			}))
+
+			services.SetSourceDataFrame(ctx, "SVB", "verzekerde_tijdvakken", dataframe.New([]map[string]any{
+				{
+					"bsn":          person.BSN,
+					"woonperiodes": person.ResidenceYears,
+				},
+			}))
+
+			status := "ACTIEF"
+			if rand.Float64() >= 0.95 {
+				status = "INACTIEF"
+			}
+
+			services.SetSourceDataFrame(ctx, "RVZ", "verzekeringen", dataframe.New([]map[string]any{
+				{
+					"bsn":          person.BSN,
+					"polis_status": status,
+				},
+			}))
+
+			services.SetSourceDataFrame(ctx, "RVZ", "verdragsverzekeringen", dataframe.New([]map[string]any{
+				{
+					"bsn":         person.BSN,
+					"registratie": "INACTIEF",
+				},
+			}))
+
+			services.SetSourceDataFrame(ctx, "DJI", "detenties", dataframe.New([]map[string]any{
+				{
+					"bsn":             person.BSN,
+					"status":          "VRIJ",
+					"inrichting_type": "GEEN",
+				},
+			}))
+
+			services.SetSourceDataFrame(ctx, "DJI", "forensische_zorg", dataframe.New([]map[string]any{
+				{
+					"bsn":              person.BSN,
+					"zorgtype":         "GEEN",
+					"juridische_titel": "GEEN",
+				},
+			}))
+
+			onderwijstype := "GEEN"
+			if person.IsStudent {
+				onderwijstype = "HBO"
+			}
+
+			services.SetSourceDataFrame(ctx, "DUO", "inschrijvingen", dataframe.New([]map[string]any{
+				{
+					"bsn":           person.BSN,
+					"onderwijstype": onderwijstype,
+				},
+			}))
+
+			aantalStuderend := 0
+			if person.Age < 30 {
+				aantalStuderend = rand.Intn(4)
+			}
+
+			services.SetSourceDataFrame(ctx, "DUO", "studiefinanciering", dataframe.New([]map[string]any{
+				{
+					"bsn":                    person.BSN,
+					"aantal_studerend_gezin": aantalStuderend,
+				},
+			}))
 		}
 
-		ls.Services.SetSourceDataFrame("RVZ", "verzekeringen", dataframe.New([]map[string]any{
-			{
-				"bsn":          person.BSN,
-				"polis_status": status,
-			},
-		}))
-
-		ls.Services.SetSourceDataFrame("RVZ", "verdragsverzekeringen", dataframe.New([]map[string]any{
-			{
-				"bsn":         person.BSN,
-				"registratie": "INACTIEF",
-			},
-		}))
-
-		ls.Services.SetSourceDataFrame("DJI", "detenties", dataframe.New([]map[string]any{
-			{
-				"bsn":             person.BSN,
-				"status":          "VRIJ",
-				"inrichting_type": "GEEN",
-			},
-		}))
-
-		ls.Services.SetSourceDataFrame("DJI", "forensische_zorg", dataframe.New([]map[string]any{
-			{
-				"bsn":              person.BSN,
-				"zorgtype":         "GEEN",
-				"juridische_titel": "GEEN",
-			},
-		}))
-
-		onderwijstype := "GEEN"
-		if person.IsStudent {
-			onderwijstype = "HBO"
+		data <- Res{
+			persons:  persons,
+			services: services,
 		}
-
-		ls.Services.SetSourceDataFrame("DUO", "inschrijvingen", dataframe.New([]map[string]any{
-			{
-				"bsn":           person.BSN,
-				"onderwijstype": onderwijstype,
-			},
-		}))
-
-		aantalStuderend := 0
-		if person.Age < 30 {
-			aantalStuderend = rand.Intn(4)
-		}
-
-		ls.Services.SetSourceDataFrame("DUO", "studiefinanciering", dataframe.New([]map[string]any{
-			{
-				"bsn":                    person.BSN,
-				"aantal_studerend_gezin": aantalStuderend,
-			},
-		}))
-
-		data <- person
 	}
 
 	close(data)
+
+	return nil
 }
 
 // SimulatePerson evaluates a single person in the simulation
-func (ls *LawSimulator) SimulatePerson(person Person) error {
-	hasPartner := person.PartnerBSN != ""
+func (ls *LawSimulator) SimulatePerson(res Res) error {
+	for _, person := range res.persons {
+		hasPartner := person.PartnerBSN != ""
 
-	// Create parameters for service calls
-	params := map[string]any{
-		"BSN": person.BSN,
+		// Create parameters for service calls
+		params := map[string]any{
+			"BSN": person.BSN,
+		}
+
+		// Call zorgtoeslag service
+		zorgtoeslag, err := res.services.Evaluate(
+			context.TODO(),
+			"TOESLAGEN",
+			"zorgtoeslagwet",
+			params,
+			ls.SimulationDate.Format("2006-01-02"),
+			nil,
+			"",
+			false,
+		)
+
+		if err != nil {
+			return fmt.Errorf("evaluate: %w", err)
+		}
+
+		// Call AOW service
+		aow, err := res.services.Evaluate(
+			context.TODO(),
+			"SVB",
+			"algemene_ouderdomswet",
+			params,
+			ls.SimulationDate.Format("2006-01-02"),
+			nil,
+			"",
+			false,
+		)
+
+		if err != nil {
+			return fmt.Errorf("evaluate: %w", err)
+		}
+
+		// Get zorgtoeslag amount
+		var zorgtoeslagAmount float64
+		if amount, ok := zorgtoeslag.Output["hoogte_toeslag"]; ok {
+			zorgtoeslagAmount = float64(amount.(int)) / 100
+		}
+
+		// Get AOW amount and accrual
+		var aowAmount, aowAccrual float64
+		if amount, ok := aow.Output["pension_amount"]; ok {
+			aowAmount = float64(amount.(int)) / 100
+		}
+		if accrual, ok := aow.Output["accrual_percentage"]; ok {
+			aowAccrual = accrual.(float64)
+		}
+
+		// Create result
+		result := SimulationResult{
+			BSN:                 person.BSN,
+			Age:                 person.Age,
+			HasPartner:          hasPartner,
+			Income:              float64(person.AnnualIncome) / 100,
+			NetWorth:            float64(person.NetWorth) / 100,
+			WorkYears:           person.WorkYears,
+			ResidenceYears:      person.ResidenceYears,
+			IsStudent:           person.IsStudent,
+			StudyGrant:          float64(person.StudyGrant) / 100,
+			ZorgtoeslagEligible: zorgtoeslag.RequirementsMet,
+			ZorgtoeslagAmount:   zorgtoeslagAmount,
+			AOWEligible:         aow.RequirementsMet,
+			AOWAmount:           aowAmount,
+			AOWAccrual:          aowAccrual,
+		}
+
+		ls.mutex.Lock()
+		ls.Results = append(ls.Results, result)
+		ls.mutex.Unlock()
 	}
 
-	// Call zorgtoeslag service
-	zorgtoeslag, err := ls.Services.Evaluate(
-		context.TODO(),
-		"TOESLAGEN",
-		"zorgtoeslagwet",
-		params,
-		ls.SimulationDate.Format("2006-01-02"),
-		nil,
-		"",
-		false,
-	)
-
-	if err != nil {
-		return fmt.Errorf("evaluate: %w", err)
-	}
-
-	// Call AOW service
-	aow, err := ls.Services.Evaluate(
-		context.TODO(),
-		"SVB",
-		"algemene_ouderdomswet",
-		params,
-		ls.SimulationDate.Format("2006-01-02"),
-		nil,
-		"",
-		false,
-	)
-
-	if err != nil {
-		return fmt.Errorf("evaluate: %w", err)
-	}
-
-	// Get zorgtoeslag amount
-	var zorgtoeslagAmount float64
-	if amount, ok := zorgtoeslag.Output["hoogte_toeslag"]; ok {
-		zorgtoeslagAmount = float64(amount.(int)) / 100
-	}
-
-	// Get AOW amount and accrual
-	var aowAmount, aowAccrual float64
-	if amount, ok := aow.Output["pension_amount"]; ok {
-		aowAmount = float64(amount.(int)) / 100
-	}
-	if accrual, ok := aow.Output["accrual_percentage"]; ok {
-		aowAccrual = accrual.(float64)
-	}
-
-	// Create result
-	result := SimulationResult{
-		BSN:                 person.BSN,
-		Age:                 person.Age,
-		HasPartner:          hasPartner,
-		Income:              float64(person.AnnualIncome) / 100,
-		NetWorth:            float64(person.NetWorth) / 100,
-		WorkYears:           person.WorkYears,
-		ResidenceYears:      person.ResidenceYears,
-		IsStudent:           person.IsStudent,
-		StudyGrant:          float64(person.StudyGrant) / 100,
-		ZorgtoeslagEligible: zorgtoeslag.RequirementsMet,
-		ZorgtoeslagAmount:   zorgtoeslagAmount,
-		AOWEligible:         aow.RequirementsMet,
-		AOWAmount:           aowAmount,
-		AOWAccrual:          aowAccrual,
-	}
-
-	ls.mutex.Lock()
-	ls.Results = append(ls.Results, result)
-	ls.mutex.Unlock()
+	res.services.CaseManager.Close()
 
 	return nil
 }
 
 // RunSimulation runs the full simulation
-func (ls *LawSimulator) RunSimulation(numPeople int) []SimulationResult {
+func (ls *LawSimulator) RunSimulation(ctx context.Context, numPeople int) []SimulationResult {
+	ls.Results = make([]SimulationResult, 0, numPeople)
+
 	// Generate people with partnerships
-	people := make(chan Person)
+	people := make(chan []Person)
 	go ls.GeneratePairedPeople(numPeople, people)
 
 	// Set up test data
-	data := make(chan Person)
-	ls.SetupTestData(people, data)
+	data := make(chan Res)
+	go ls.SetupTestData(ctx, ls.SimulationDate, people, data)
 
 	// Use a wait group to wait for all simulations to complete
 	wp := workerpool.New(32)
@@ -403,14 +425,14 @@ func (ls *LawSimulator) RunSimulation(numPeople int) []SimulationResult {
 	bar := progressbar.Default(int64(numPeople), "Simulating")
 
 	// Run simulations for each person
-	for person := range data {
+	for result := range data {
 		wp.Submit(func() {
-			if err := ls.SimulatePerson(person); err != nil {
+			if err := ls.SimulatePerson(result); err != nil {
 				fmt.Printf("simulate person: %v", err)
 			}
 
-			if err := bar.Add(1); err != nil {
-				log.Fatalf("WOLLAH: %v\n", err)
+			for range len(result.persons) {
+				bar.Add(1)
 			}
 		})
 	}

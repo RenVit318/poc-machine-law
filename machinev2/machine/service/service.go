@@ -2,42 +2,126 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	internalContext "github.com/minbzk/poc-machine-law/machinev2/machine/internal/context"
 	"github.com/minbzk/poc-machine-law/machinev2/machine/internal/logging"
-	"github.com/minbzk/poc-machine-law/machinev2/machine/internal/utils"
 	"github.com/minbzk/poc-machine-law/machinev2/machine/model"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/ruleresolver"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/service/ruleservice"
+	"github.com/minbzk/poc-machine-law/machinev2/machine/serviceresolver"
+	tracer "github.com/minbzk/poc-machine-law/machinev2/machine/trace"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Services is the main service provider for rule evaluation
 type Services struct {
 	logger            logging.Logger
-	Resolver          *utils.RuleResolver
-	services          map[string]*RuleService
+	RuleResolver      *ruleresolver.RuleResolver
+	services          map[string]ruleservice.RuleServicer
+	ServiceResolver   *serviceresolver.ServiceResolver
 	RootReferenceDate string
 	CaseManager       *CaseManager
 	ClaimManager      *ClaimManager
-	mu                sync.RWMutex
+	tracer            trace.Tracer
+
+	mu sync.RWMutex
+
+	shutdownFns []func(context.Context) error
+
+	ruleServiceInMemory bool
+	organization        *string
+	standAloneMode      bool
+	ldvEnabled          bool
+	rvaIDs              map[string]uuid.UUID
+}
+
+type Option func(*Services)
+
+func WithRuleServiceInMemory() Option {
+	return func(s *Services) {
+		s.logger.Warning(context.Background(), "running service in memory only mode")
+		s.ruleServiceInMemory = true
+	}
+}
+
+func WithOrganizationName(organization string) Option {
+	return func(s *Services) {
+		s.logger.Warningf(context.Background(), "starting as organization: %s", organization)
+		s.organization = &organization
+	}
+}
+
+func WithLogboekDataVerwerking(endpoint string, name string) Option {
+	return func(s *Services) {
+		s.logger.Warningf(context.Background(), "starting with ldv enabled")
+		sh, err := setupOTelSDK(endpoint, name)
+		if err != nil {
+			s.logger.Errorf(context.Background(), "could not setup otel sdk, disabling LDV", "err", err)
+			return
+		}
+
+		s.ldvEnabled = true
+		s.tracer = otel.Tracer(name)
+		s.shutdownFns = append(s.shutdownFns, sh)
+	}
+}
+
+func SetStandaloneMode() Option {
+	return func(s *Services) {
+		s.logger.Warningf(context.Background(), "setup in standalone mode")
+		s.standAloneMode = true
+	}
 }
 
 // NewServices creates a new services instance
-func NewServices(referenceDate time.Time) *Services {
+func NewServices(referenceDate time.Time, options ...Option) (*Services, error) {
+	serviceResolver, err := serviceresolver.New()
+	if err != nil {
+		return nil, fmt.Errorf("new service resolver: %w", err)
+	}
+
+	ruleResolver, err := ruleresolver.New()
+	if err != nil {
+		return nil, fmt.Errorf("new rule resolver: %w", err)
+	}
+
 	s := &Services{
-		logger:            logging.New("service", os.Stdout, logrus.DebugLevel),
-		Resolver:          utils.NewRuleResolver(),
-		services:          make(map[string]*RuleService),
-		RootReferenceDate: referenceDate.Format("2006-01-02"),
+		logger:              logging.New("service", os.Stdout, logrus.DebugLevel),
+		RuleResolver:        ruleResolver,
+		ServiceResolver:     serviceResolver,
+		services:            make(map[string]ruleservice.RuleServicer),
+		RootReferenceDate:   referenceDate.Format("2006-01-02"),
+		ruleServiceInMemory: false,
+		organization:        nil,
+		standAloneMode:      false,
+		rvaIDs: map[string]uuid.UUID{
+			"evaluate-do": uuid.MustParse("f8d630ae-86e5-4f14-a889-644108429933"),
+		},
+	}
+
+	// Apply all the functional options to configure the client.
+	for _, opt := range options {
+		opt(s)
 	}
 
 	// Initialize services
-	for service := range s.Resolver.GetServiceLaws() {
-		s.services[service] = NewRuleService(s.logger, service, s)
+	for service := range s.RuleResolver.GetServiceLaws() {
+		svc, err := ruleservice.New(s.logger, service, s)
+		if err != nil {
+			return nil, fmt.Errorf("new rule service: %w", err)
+		}
+
+		s.services[service] = svc
 	}
 
 	// Create managers
@@ -45,30 +129,56 @@ func NewServices(referenceDate time.Time) *Services {
 	s.ClaimManager = NewClaimManager(s)
 	s.ClaimManager.CaseManager = s.CaseManager
 
-	return s
+	return s, nil
+}
+
+func (s *Services) GetService(key string) (ruleservice.RuleServicer, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	r, ok := s.services[key]
+	return r, ok
 }
 
 // GetDiscoverableServiceLaws returns discoverable services and laws
 func (s *Services) GetDiscoverableServiceLaws(discoverableBy string) map[string][]string {
-	return s.Resolver.GetDiscoverableServiceLaws(discoverableBy)
+	return s.RuleResolver.GetDiscoverableServiceLaws(discoverableBy)
 }
 
 // SetSourceDataFrame sets a source DataFrame for a service
-func (s *Services) SetSourceDataFrame(service, table string, df model.DataFrame) {
-	if srv, ok := s.services[service]; ok {
-		srv.SetSourceDataFrame(table, df)
+func (s *Services) SetSourceDataFrame(ctx context.Context, service, table string, df model.DataFrame) error {
+	if srv, ok := s.GetService(service); ok {
+		if err := srv.SetSourceDataFrame(ctx, table, df); err != nil {
+			return fmt.Errorf("set source dataframe: %w", err)
+		}
 	}
+
+	return nil
 }
 
-func (s *Services) Reset() {
+func (s *Services) Reset(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var errs error
+
 	for key := range s.services {
-		s.services[key].Reset()
+		if err := s.services[key].Reset(ctx); err != nil {
+			errs = errors.Join(errs, err)
+		}
 	}
+
+	return errs
 }
 
-// GetResolver returns the rule resolver
-func (s *Services) GetResolver() *utils.RuleResolver {
-	return s.Resolver
+// GetRuleResolver returns the rule resolver
+func (s *Services) GetRuleResolver() *ruleresolver.RuleResolver {
+	return s.RuleResolver
+}
+
+// GetRuleResolver returns the rule resolver
+func (s *Services) GetServiceResolver() *serviceresolver.ServiceResolver {
+	return s.ServiceResolver
 }
 
 // GetCaseManager returns the case manager with access to events
@@ -92,10 +202,55 @@ func (s *Services) Evaluate(
 	requestedOutput string,
 	approved bool,
 ) (*model.RuleResult, error) {
-	s.mu.RLock()
-	svc, ok := s.services[service]
-	s.mu.RUnlock()
+	var span trace.Span
 
+	if referenceDate == "" {
+		referenceDate = s.RootReferenceDate
+	}
+
+	if s.ldvEnabled {
+		spec, err := s.RuleResolver.GetRuleSpec(law, referenceDate, service)
+		if err != nil {
+			return nil, fmt.Errorf("get rule spec: %w", err)
+		}
+
+		ctx, span = tracer.Action(ctx, s.tracer,
+			fmt.Sprintf("uri://%s.example/activities/evaluate-do", strings.ToLower(s.GetOrganizationName())),
+			tracer.SetAttributeBSN(parameters["BSN"].(string)),
+			tracer.SetAttributeActivityID(s.rvaIDs["evaluate-do"].String()),
+			tracer.SetAlgorithmID(spec.UUID.String()),
+		)
+
+		defer span.End()
+	}
+
+	result, err := s.evaluate(ctx, service, law, parameters, referenceDate, overwriteInput, requestedOutput, approved)
+	if err != nil {
+		if span != nil {
+			span.SetStatus(codes.Error, err.Error())
+		}
+
+		return nil, err
+	}
+
+	if span != nil {
+		span.SetStatus(codes.Ok, "")
+	}
+
+	return result, nil
+}
+
+func (s *Services) evaluate(
+	ctx context.Context,
+	service string,
+	law string,
+	parameters map[string]any,
+	referenceDate string,
+	overwriteInput map[string]map[string]any,
+	requestedOutput string,
+	approved bool,
+) (*model.RuleResult, error) {
+	svc, ok := s.GetService(service)
 	if !ok {
 		return nil, fmt.Errorf("service not found: %s", service)
 	}
@@ -237,18 +392,8 @@ func (s *Services) ExtractValueTree(root *model.PathNode) map[string]any {
 
 // ApplyRules applies rules in response to events
 func (s *Services) ApplyRules(ctx context.Context, event model.Event) error {
-	for _, rule := range s.Resolver.Rules {
-		applies, ok := rule.Properties["applies"].([]any)
-		if !ok {
-			continue
-		}
-
-		for _, applyObj := range applies {
-			apply, ok := applyObj.(map[string]any)
-			if !ok {
-				continue
-			}
-
+	for _, rule := range s.RuleResolver.Rules {
+		for _, apply := range rule.Properties.Applies {
 			if s.matchesEvent(event, apply) {
 				aggregateID := event.CaseID
 				aggregate, err := s.CaseManager.GetCaseByID(ctx, aggregateID)
@@ -257,7 +402,7 @@ func (s *Services) ApplyRules(ctx context.Context, event model.Event) error {
 				}
 
 				parameters := map[string]any{
-					apply["name"].(string): aggregate,
+					apply.Name: aggregate,
 				}
 
 				ctx := context.Background()
@@ -276,40 +421,19 @@ func (s *Services) ApplyRules(ctx context.Context, event model.Event) error {
 				}
 
 				// Apply updates back to aggregate
-				updates, ok := apply["update"].([]any)
-				if !ok {
-					continue
-				}
-
-				for _, updateObj := range updates {
-					update, ok := updateObj.(map[string]any)
-					if !ok {
-						continue
-					}
-
-					mappings, ok := update["mapping"].(map[string]any)
-					if !ok {
-						continue
-					}
-
+				for _, update := range apply.Update {
 					// Convert values
 					convertedMappings := make(map[string]any)
-					for name, valueRef := range mappings {
-						if valueStr, ok := valueRef.(string); ok && len(valueStr) > 0 && valueStr[0] == '$' {
+					for key, value := range update.Mapping {
+						if len(value) > 0 && value[0] == '$' {
 							// Strip $ from value
-							outputName := valueStr[1:]
-							convertedMappings[name] = result.Output[outputName]
+							outputName := value[1:]
+							convertedMappings[key] = result.Output[outputName]
 						}
 					}
 
-					// Apply method
-					method, ok := update["method"].(string)
-					if !ok {
-						continue
-					}
-
 					// Call method on case manager
-					switch method {
+					switch update.Method {
 					case "determine_objection_status":
 						var possible *bool
 						var objectionPeriod, decisionPeriod, extensionPeriod *int
@@ -404,42 +528,21 @@ func (s *Services) ApplyRules(ctx context.Context, event model.Event) error {
 }
 
 // matchesEvent checks if an event matches the applies spec
-func (s *Services) matchesEvent(event model.Event, applies map[string]any) bool {
+func (s *Services) matchesEvent(event model.Event, apply ruleresolver.Apply) bool {
 	// In a real implementation, we would match event types and filters
 	// For simplicity, we'll just do a very basic check
 
-	aggregate, ok := applies["aggregate"].(string)
-	if !ok || aggregate == "" {
+	aggregate := apply.Aggregate
+	if aggregate == "" {
 		return false
 	}
 
 	// Check if event type matches any specified event
-	events, ok := applies["events"].([]any)
-	if !ok {
-		return false
-	}
-
-	for _, eventObj := range events {
-		eventSpec, ok := eventObj.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		eventType, ok := eventSpec["type"].(string)
-		if !ok {
-			continue
-		}
-
-		if strings.EqualFold(strings.ToLower(eventType), strings.ToLower(event.EventType)) {
-			// Check filters if any
-			filters, ok := eventSpec["filter"].(map[string]any)
-			if !ok {
-				return true // No filters, so it's a match
-			}
-
+	for _, eventObj := range apply.Events {
+		if strings.EqualFold(strings.ToLower(eventObj.Type), strings.ToLower(eventObj.Type)) {
 			// All filters must match
 			match := true
-			for key, filterValue := range filters {
+			for key, filterValue := range eventObj.Filter {
 				if eventValue, ok := event.Data[key]; !ok || eventValue != filterValue {
 					match = false
 					break
@@ -453,4 +556,24 @@ func (s *Services) matchesEvent(event model.Event, applies map[string]any) bool 
 	}
 
 	return false
+}
+
+func (s *Services) HasOrganizationName() bool {
+	return s.organization != nil
+}
+
+func (s *Services) GetOrganizationName() string {
+	if s.organization == nil {
+		return ""
+	}
+
+	return *s.organization
+}
+
+func (s *Services) RuleServicesInMemory() bool {
+	return s.ruleServiceInMemory
+}
+
+func (s *Services) InStandAloneMode() bool {
+	return s.standAloneMode
 }

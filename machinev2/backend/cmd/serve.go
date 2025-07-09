@@ -13,24 +13,40 @@ import (
 )
 
 type ServeCmd struct {
-	BackendListenAddress string `env:"APP_BACKEND_LISTEN_ADDRESS" default:":8080" name:"backend-listen-address" help:"Address to listen  on."`
-	InputFile            string `env:"APP_INPUT_FILE" name:"input-file"`
+	ListenAddress           string `env:"APP_BACKEND_LISTEN_ADDRESS" default:":8080" name:"backend-listen-address" help:"Address to listen  on."`
+	InputFile               string `env:"APP_INPUT_FILE" name:"input-file"`
+	Organization            string `env:"APP_ORGANIZATION" name:"organization"`
+	StandaloneMode          bool   `env:"APP_STANDALONE_MODE" name:"stand-alone" help:"Will set the engine into stand alone mode"`
+	WithRuleServiceInMemory bool   `env:"APP_RULE_SERVICE_IN_MEMORY" name:"rule-service-in-memory" help:"Will only use inmemory rule services"`
+	LDV                     struct {
+		Enabled  bool   `env:"APP_LDV_ENABLED" name:"enabled"`
+		Endpoint string `env:"APP_LDV_ENDPOINT" name:"endpoint"`
+	} `embed:"" prefix:"ldv-"`
 }
 
 func (opt *ServeCmd) Run(ctx *Context) error {
 	proc := process.New()
 
 	config := config.Config{
-		Debug:                ctx.Debug,
-		BackendListenAddress: opt.BackendListenAddress,
+		Debug:                   ctx.Debug,
+		BackendListenAddress:    opt.ListenAddress,
+		Organization:            opt.Organization,
+		StandaloneMode:          opt.StandaloneMode,
+		WithRuleServiceInMemory: opt.WithRuleServiceInMemory,
+		LDV: config.LDV{
+			Enabled:  opt.LDV.Enabled,
+			Endpoint: opt.LDV.Endpoint,
+		},
 	}
 
 	logger := ctx.Logger.With("application", "http_server")
 	logger.Info("starting uwv backend", "config", config)
 
-	// services := service.NewServices(time.Now())
-
-	svc := service.New(logger, &config)
+	svc, err := service.New(logger, &config)
+	if err != nil {
+		logger.Error("service new", "err", err)
+		return fmt.Errorf("service new: %w", err)
+	}
 
 	if opt.InputFile != "" {
 		input, err := parseInputFile(opt.InputFile)
@@ -40,7 +56,9 @@ func (opt *ServeCmd) Run(ctx *Context) error {
 
 		logger.Debug("successfully parsed input file", "services", len(input.GlobalServices), "profiles", len(input.Profiles))
 
-		svc.AppendInput(input)
+		if err := svc.AppendInput(context.Background(), input); err != nil {
+			logger.Error("append input", "err", err)
+		}
 	}
 
 	app, err := handler.New(logger, &config, svc)
@@ -49,7 +67,7 @@ func (opt *ServeCmd) Run(ctx *Context) error {
 		return fmt.Errorf("handler new: %w", err)
 	}
 
-	logger.Info("starting server", "address", opt.BackendListenAddress)
+	logger.Info("starting server", "address", opt.ListenAddress)
 
 	go func() {
 		if err := app.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
