@@ -29,6 +29,9 @@ RUN pnpm run build
 # Stage 2: serve the Python app including static files
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
+# Install the Dutch locale
+RUN apt-get update && apt-get install -y locales locales-all
+
 ADD . .
 
 COPY --from=node_builder /analysis-graph/build analysis/graph/build
