@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { writable } from 'svelte/store';
   import yaml from 'yaml';
-  import { base } from '$app/paths';
+  import { untrack } from 'svelte';
+  import { resolve } from '$app/paths';
   import {
     MarkerType,
     SvelteFlow,
@@ -31,15 +31,15 @@
   // Define the paths to the YAML files
   let filePaths: string[] = [];
 
-  const nodes = writable<Node[]>([]);
-  const edges = writable<Edge[]>([]);
+  let nodes = $state.raw<Node[]>([]);
+  let edges = $state.raw<Edge[]>([]);
 
   const nodeTypes: any = {
     law: LawNode,
   };
 
-  let laws: Law[] = [];
-  let selectedLaws: string[] = []; // Contains the law UUIDs. This will hold the selected laws from the checkboxes
+  let laws = $state<Law[]>([]);
+  let selectedLaws = $state<string[]>([]); // Contains the law UUIDs. This will hold the selected laws from the checkboxes
 
   (async () => {
     try {
@@ -58,7 +58,8 @@
       laws = await Promise.all(
         filePaths.map(async (filePath) => {
           // Read the file content
-          const fileContent = await fetch(`${base}/law/${filePath}`).then((response) =>
+          // @ts-expect-error ts(2345) // Seems like a bug in the type definitions of `resolve`
+          const fileContent = await fetch(resolve(`/law/${filePath}`)).then((response) =>
             response.text(),
           );
 
@@ -230,36 +231,46 @@
       }
 
       // Add the nodes to the graph
-      $nodes = ns;
+      nodes = ns;
 
       // Add the edges to the graph
-      $edges = es;
+      edges = es;
     } catch (error) {
       console.error('Error reading file', error);
     }
   })();
 
-  function handleNodeClick(event: CustomEvent<{ event: MouseEvent | TouchEvent; node: Node }>) {
-    // If the click is on a button.close, remove the node. IMPROVE: remove the child nodes first
-    if ((event.detail.event.target as HTMLElement).closest('.close')) {
-      const node = event.detail.node;
+  function handleNodeClick({ node, event }: any) {
+    // If the click is on a button.close, set the node and connected edges as hidden (using ID prefix matching)
+    if ((event.target as HTMLElement).closest('.close')) {
+      nodes = nodes.map((n) => {
+        if (n.id.startsWith(node.id)) {
+          return { ...n, hidden: true };
+        }
+        return n;
+      });
 
-      // Remove the node and all its children (using ID prefix matching)
-      $nodes = $nodes.filter((n) => !n.id.startsWith(node.id));
-
-      // Remove all edges connected to the removed nodes
-      $edges = $edges.filter((e) => !e.source.startsWith(node.id) && !e.target.startsWith(node.id));
+      edges = edges.map((e) => {
+        if (e.source.startsWith(node.id) || e.target.startsWith(node.id)) {
+          return { ...e, hidden: true };
+        }
+        return e;
+      });
     }
   }
 
   // Handle changes to selectedLaws
-  $: ((selectedLaws: string[]) => {
+  $effect(() => {
+    // Note: empty code block to ensure the effect runs when selectedLaws changes (otherwise not triggered by Svelte)
+    if (selectedLaws) {
+    }
+
     // Hide nodes that are not selected and not connected to any selected law
-    $nodes = $nodes.map((node) => ({
+    nodes = untrack(() => nodes).map((node) => ({
       ...node,
       hidden:
         !selectedLaws.includes(node.id.substring(0, 36)) &&
-        !$edges.some(
+        !untrack(() => edges).some(
           (edge) =>
             (edge.source.startsWith(node.id.substring(0, 36)) &&
               selectedLaws.includes(edge.target.substring(0, 36))) ||
@@ -269,7 +280,7 @@
     }));
 
     // Hide edges that are not connected to any selected law
-    $edges = $edges.map((edge) => {
+    edges = untrack(() => edges).map((edge) => {
       return {
         ...edge,
         hidden:
@@ -277,7 +288,7 @@
           !selectedLaws.includes(edge.target.substring(0, 36)),
       };
     });
-  })(selectedLaws);
+  });
 </script>
 
 <svelte:head>
@@ -292,17 +303,18 @@
       <label class="group inline-flex items-start">
         <input
           bind:group={selectedLaws}
-          class="form-checkbox mt-0.5 mr-1.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          class="form-checkbox mr-1.5 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           type="checkbox"
           value={law.uuid}
         />
         <span
           >{law.name} <span class="text-xs text-gray-600">({law.service})</span>
           <button
-            on:click|preventDefault={() => {
+            type="button"
+            onclick={() => {
               selectedLaws = [law.uuid];
             }}
-            class="invisible cursor-pointer font-semibold text-blue-700 group-hover:visible hover:text-blue-800"
+            class="invisible cursor-pointer font-semibold text-blue-700 hover:text-blue-800 group-hover:visible"
             >alleen</button
           ></span
         >
@@ -314,10 +326,10 @@
 <!-- By default, the Svelte Flow container has a height of 100%. This means that the parent container needs a height to render the flow. -->
 <div class="mr-80 h-screen">
   <SvelteFlow
-    {nodes}
-    {edges}
+    bind:nodes
+    bind:edges
     {nodeTypes}
-    on:nodeclick={handleNodeClick}
+    onnodeclick={handleNodeClick}
     fitView
     nodesConnectable={false}
     proOptions={{
