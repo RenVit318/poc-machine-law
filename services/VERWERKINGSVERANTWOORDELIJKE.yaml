@@ -1,0 +1,5 @@
+$id: https://raw.githubusercontent.com/MinBZK/poc-machine-law/refs/heads/main/schema/v0.1.5/schema.json
+uuid: 81a8ac16-9abe-48e2-90de-3526b534b806
+name: VERWERKINGSVERANTWOORDELIJKE
+description: "Beoordeelt AVG-compliance voor gegevensdeling tussen organisaties"
+endpoint: http://localhost:8098

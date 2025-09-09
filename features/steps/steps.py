@@ -46,6 +46,103 @@ def step_impl(context, service, table):
     # Set the DataFrame in services
     context.services.set_source_dataframe(service, table, df)
 
+# Claude made these step definitions to read data from tables - can we not just use the function above for generic data import?
+@given('een aanvraag met ID "{aanvraag_id}"')
+def step_impl(context, aanvraag_id):
+    """Set the request ID for AVG data sharing scenarios"""
+    if not hasattr(context, "parameters"):
+        context.parameters = {}
+    context.parameters["AANVRAAG_ID"] = aanvraag_id
+
+
+# AVG-specific step definitions
+@given("de volgende rechtsgrondslag gegevens")
+def step_rechtsgrondslag_gegevens(context):
+    """Handle legal basis data for AVG scenarios"""
+    if not context.table:
+        raise ValueError("No table provided for rechtsgrondslag gegevens")
+    
+    data = []
+    for row in context.table:
+        processed_row = {k: parse_value(v) for k, v in row.items()}
+        data.append(processed_row)
+    
+    df = pd.DataFrame(data)
+    context.services.set_source_dataframe("VERWERKINGSVERANTWOORDELIJKE", "rechtsgrondslag_claims", df)
+
+
+@given("de volgende data categorieën")
+def step_data_categorieen(context):
+    """Handle data categories for AVG scenarios"""
+    if not context.table:
+        raise ValueError("No table provided for data categorieën")
+    
+    data = []
+    for row in context.table:
+        processed_row = {k: parse_value(v) for k, v in row.items()}
+        data.append(processed_row)
+    
+    df = pd.DataFrame(data)
+    context.services.set_source_dataframe("VERWERKINGSVERANTWOORDELIJKE", "data_sharing_requests", df)
+
+
+@given("de volgende beveiligingsmaatregelen")
+def step_beveiligingsmaatregelen(context):
+    """Handle security measures for AVG scenarios"""
+    if not context.table:
+        raise ValueError("No table provided for beveiligingsmaatregelen")
+    
+    data = []
+    for row in context.table:
+        processed_row = {k: parse_value(v) for k, v in row.items()}
+        data.append(processed_row)
+    
+    df = pd.DataFrame(data)
+    context.services.set_source_dataframe("VERWERKINGSVERANTWOORDELIJKE", "security_measures", df)
+
+
+@then('bevat de uitkomst "{field_name}"')
+def step_bevat_uitkomst(context, field_name):
+    """Check that output contains a specific field"""
+    assert hasattr(context, 'result'), "No result found in context"
+    assert field_name in context.result, f"Field '{field_name}' not found in result: {context.result.keys()}"
+
+
+@then('is de waarde van "{field_name}" gelijk aan "{expected_value}"')
+def step_waarde_gelijk_aan(context, field_name, expected_value):
+    """Check that a field has a specific value"""
+    assert hasattr(context, 'result'), "No result found in context"
+    assert field_name in context.result, f"Field '{field_name}' not found in result"
+    
+    actual_value = str(context.result[field_name])
+    assert actual_value == expected_value, f"Expected '{expected_value}', got '{actual_value}'"
+
+
+# Generic field value assertions
+@then('is het {field_name} "{expected_value}"')
+def step_impl(context, field_name, expected_value):
+    """Assert specific field value with type-aware comparison"""
+    if not hasattr(context, "result") or context.result is None:
+        raise ValueError("No evaluation result to check")
+    
+    if field_name not in context.result.output:
+        available_fields = list(context.result.output.keys())
+        raise ValueError(
+            f"Field {field_name} not found in output. Available fields: {available_fields}"
+        )
+    
+    actual_value = context.result.output[field_name]
+    
+    # Type-aware comparison
+    if expected_value.lower() in ["true", "false"]:
+        expected_bool = expected_value.lower() == "true"
+        assertions.assertEqual(actual_value, expected_bool)
+    elif expected_value.isdigit():
+        expected_int = int(expected_value)
+        assertions.assertEqual(actual_value, expected_int)
+    else:
+        assertions.assertEqual(actual_value, expected_value)
+
 
 @given('de datum is "{date}"')
 def step_impl(context, date):
@@ -457,3 +554,30 @@ def step_impl(context):
         "is_gerechtigd" not in context.result.output or not context.result.output["is_gerechtigd"],
         "Expected person to NOT be eligible for childcare allowance, but they were",
     )
+
+
+@then('controle vereist_{assessment_type} is niet leeg')
+def step_impl(context, assessment_type):
+    """Check that an assessment field is not null"""
+    field_name = f"vereist_{assessment_type}"
+    if field_name not in context.result.output:
+        raise AssertionError(f"Field '{field_name}' not found in result: {context.result.output.keys()}")
+    
+    value = context.result.output[field_name]
+    assertions.assertIsNotNone(value, f"Expected {field_name} to not be null, but it was null")
+    if isinstance(value, str):
+        assertions.assertNotEqual(value.lower(), "null", f"Expected {field_name} to not be 'null' string, but it was")
+
+
+@then('controle vereist_{assessment_type} bevat "{text}"')
+def step_impl(context, assessment_type, text):
+    """Check that an assessment field contains specific text"""
+    field_name = f"vereist_{assessment_type}"
+    if field_name not in context.result.output:
+        raise AssertionError(f"Field '{field_name}' not found in result: {context.result.output.keys()}")
+    
+    value = context.result.output[field_name]
+    assertions.assertIsNotNone(value, f"Expected {field_name} to have a value, but it was None")
+    assertions.assertIn(text, str(value), f"Expected {field_name} to contain '{text}', but it was '{value}'")
+
+

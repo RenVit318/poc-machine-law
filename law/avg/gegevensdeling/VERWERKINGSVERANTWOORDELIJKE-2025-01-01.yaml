@@ -1,0 +1,568 @@
+$id: https://raw.githubusercontent.com/MinBZK/poc-machine-law/refs/heads/main/schema/v0.1.5/schema.json
+uuid: 2b49deb0-9447-4be2-bb9e-b71d0908827b
+name: "AVG - Gegevensdeling tussen Organisaties"
+law: "avg_gegevensdeling"
+law_type: "FORMELE_WET"
+legal_character: "BESCHIKKING"
+decision_type: "TOEKENNING"
+discoverable: "CITIZEN"
+valid_from: 2025-01-01
+service: "VERWERKINGSVERANTWOORDELIJKE"
+
+legal_basis:
+  law: "Uitvoeringswet Algemene verordening gegevensbescherming"
+  bwb_id: "BWBR0040940"
+  article: "6"
+  url: "https://wetten.overheid.nl/BWBR0040940/2021-07-01#Artikel6"
+  juriconnect: "jci1.3:c:BWBR0040940&artikel=6&z=2024-01-01&g=2024-01-01"
+  explanation: "Artikel 6 AVG bepaalt de rechtmatige grondslag voor verwerking van persoonsgegevens tussen organisaties"
+
+description: >
+  Beoordeelt of gegevensdeling tussen organisaties is toegestaan onder de AVG.
+  Automatische goedkeuring voor duidelijke gevallen, automatische weigering voor
+  schendingen, en doorverwijzing naar menselijke beoordeling voor complexe gevallen.
+
+references:
+  - law: "Algemene Verordening Gegevensbescherming"
+    article: "6.1"
+    url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2051-1-1"
+  - law: "Algemene Verordening Gegevensbescherming"  
+    article: "9"
+    url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2326-1-1"
+  - law: "Algemene Verordening Gegevensbescherming"
+    article: "32"
+    url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e3913-1-1"
+
+properties:
+  parameters:
+    - name: "AANVRAAG_ID"
+      description: "Unieke identificatie van de gegevensdeling aanvraag"
+      type: "string"
+      required: true
+      legal_basis:
+        law: "Uitvoeringswet Algemene verordening gegevensbescherming"
+        bwb_id: "BWBR0040940"
+        article: "28"
+        url: "https://wetten.overheid.nl/BWBR0040940/2021-07-01#Artikel28"
+        juriconnect: "jci1.3:c:BWBR0040940&artikel=28&z=2024-01-01&g=2024-01-01"
+        explanation: "Artikel 28 UAVG bepaalt traceerbaarheid van verwerkingen voor toezicht"
+
+  sources:
+    - name: "RECHTSGRONDSLAG_TYPE"
+      description: "Type rechtsgrondslag voor de gegevensdeling"
+      type: "string"
+      source_reference:
+        table: "rechtsgrondslag_claims"
+        field: "rechtsgrondslag_type"
+        select_on:
+          - name: "aanvraag_id"
+            description: "Aanvraag ID"
+            type: "string"
+            value: "$AANVRAAG_ID"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "6.1"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2051-1-1"
+        explanation: "Artikel 6.1 AVG bepaalt de zes rechtmatige grondslagen voor verwerking van persoonsgegevens"
+    
+    - name: "DOEL_VERWERKING"
+      description: "Specifiek doel van de gegevensverwerking"
+      type: "string"
+      source_reference:
+        table: "rechtsgrondslag_claims"
+        field: "doel_verwerking"
+        select_on:
+          - name: "aanvraag_id"
+            description: "Aanvraag ID"
+            type: "string"
+            value: "$AANVRAAG_ID"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "5.1.b"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e1807-1-1"
+        explanation: "Artikel 5.1.b AVG bepaalt doelbinding van gegevensverwerking"
+    
+    - name: "DATA_CATEGORIES"
+      description: "Array van categorieën persoonsgegevens"
+      type: "array"
+      source_reference:
+        table: "data_sharing_requests"
+        field: "data_categories"
+        select_on:
+          - name: "aanvraag_id"
+            description: "Aanvraag ID"
+            type: "string"
+            value: "$AANVRAAG_ID"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "4.1"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e1489-1-1"
+        explanation: "Artikel 4.1 AVG definieert persoonsgegevens die bescherming behoeven"
+    
+    - name: "AANTAL_BETROKKENEN"
+      description: "Aantal betrokkenen waarvan gegevens gedeeld worden"
+      type: "number"
+      source_reference:
+        table: "data_sharing_requests"
+        field: "aantal_betrokkenen"
+        select_on:
+          - name: "aanvraag_id"
+            description: "Aanvraag ID"
+            type: "string"
+            value: "$AANVRAAG_ID"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "5.1.c"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e1807-1-1"
+        explanation: "Artikel 5.1.c AVG bepaalt proportionaliteit van gegevensverwerking"
+            
+    - name: "ENCRYPTION"
+      description: "Versleuteling van gegevens tijdens overdracht en opslag"
+      type: "boolean"
+      source_reference:
+        table: "security_measures"
+        field: "encryption"
+        select_on:
+          - name: "aanvraag_id"
+            description: "Aanvraag ID"
+            type: "string"
+            value: "$AANVRAAG_ID"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "32.1.a"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e3913-1-1"
+        explanation: "Artikel 32.1.a AVG verplicht pseudonimisering en versleuteling"
+    
+    - name: "ACCESS_CONTROLS"
+      description: "Toegangsbeveiliging en autorisatie"
+      type: "boolean"
+      source_reference:
+        table: "security_measures"
+        field: "access_controls"
+        select_on:
+          - name: "aanvraag_id"
+            description: "Aanvraag ID"
+            type: "string"
+            value: "$AANVRAAG_ID"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "32.1.b"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e3913-1-1"
+        explanation: "Artikel 32.1.b AVG verplicht beveiliging tegen ongeautoriseerde toegang"
+    
+    - name: "AUDIT_LOGGING"
+      description: "Logging en monitoring van gegevenstoegang"
+      type: "boolean"
+      source_reference:
+        table: "security_measures"
+        field: "audit_logging"
+        select_on:
+          - name: "aanvraag_id"
+            description: "Aanvraag ID"
+            type: "string"
+            value: "$AANVRAAG_ID"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "32.1.d"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e3913-1-1"
+        explanation: "Artikel 32.1.d AVG verplicht monitoring van beveiligingsincidenten"
+
+  output:
+    - name: "automatisch_toegestaan"
+      description: "Gegevensdeling automatisch toegestaan zonder menselijke beoordeling"
+      type: "boolean"
+      citizen_relevance: "primary"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "6.1"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2051-1-1"
+        explanation: "Artikel 6.1 AVG bepaalt wanneer verwerking rechtmatig is"
+      
+    - name: "automatisch_geweigerd"
+      description: "Gegevensdeling automatisch geweigerd wegens schending AVG"
+      type: "boolean"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "5.1"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e1807-1-1"
+        explanation: "Artikel 5.1 AVG bepaalt de beginselen voor rechtmatige verwerking"
+      
+    - name: "menselijke_beoordeling_nodig"
+      description: "Vereist menselijke beoordeling voor complexe juridische afweging"
+      type: "boolean"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "6.1.f"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2051-1-1"
+        explanation: "Artikel 6.1.f AVG vereist belangenafweging bij gerechtvaardigd belang"
+      
+    - name: "vereist_belangenafweging"
+      description: "Belangenafweging beoordeling vereist voor gerechtvaardigd belang"
+      type: "string"
+      required: false
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "6.1.f"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2051-1-1"
+        explanation: "Artikel 6.1.f AVG vereist belangenafweging bij gerechtvaardigd belang"
+      
+    - name: "vereist_proportionaliteitstoets"
+      description: "Proportionaliteitstoets vereist voor grote datasets"
+      type: "string"
+      required: false
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "5.1.c"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e1807-1-1"
+        explanation: "Artikel 5.1.c AVG bepaalt proportionaliteitsbeginsel"
+      
+    - name: "vereist_bijzondere_categorie_beoordeling"
+      description: "Bijzondere categorieën beoordeling vereist"
+      type: "string"
+      required: false
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "9.2.a"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2326-1-1"
+        explanation: "Artikel 9.2.a AVG vereist uitdrukkelijke toestemming voor bijzondere categorieën"
+      
+    - name: "heeft_gezondheidsgegevens"
+      description: "Bevat het verzoek gezondheidsgegevens"
+      type: "boolean"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "9.1"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2326-1-1"
+        explanation: "Artikel 9.1 AVG verbiedt verwerking bijzondere categorieën behalve bij uitzondering"
+      
+    - name: "heeft_strafrechtelijke_gegevens"
+      description: "Bevat het verzoek strafrechtelijke gegevens"
+      type: "boolean"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "9.1"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2326-1-1"
+        explanation: "Artikel 9.1 AVG verbiedt verwerking bijzondere categorieën behalve bij uitzondering"
+      
+    - name: "bevat_bijzondere_categorien"
+      description: "Bevat het verzoek bijzondere categorieën persoonsgegevens"
+      type: "boolean"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "9.1"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2326-1-1"
+        explanation: "Artikel 9.1 AVG verbiedt verwerking bijzondere categorieën behalve bij uitzondering"
+      
+    - name: "technische_voorwaarden_ok"
+      description: "Voldoet aan technische minimum beveiligingsvereisten"
+      type: "boolean"
+      legal_basis:
+        law: "Algemene Verordening Gegevensbescherming"
+        article: "32.1"
+        url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e3913-1-1"
+        explanation: "Artikel 32.1 AVG verplicht passende technische beveiligingsmaatregelen"
+
+    - name: "afwijzing_reden"
+      description: "Specifieke reden voor automatische afwijzing"
+      type: "string"
+      required: false
+      legal_basis:
+        law: "Uitvoeringswet Algemene verordening gegevensbescherming"
+        bwb_id: "BWBR0040940"
+        article: "25"
+        url: "https://wetten.overheid.nl/BWBR0040940/2021-07-01#Artikel25"
+        juriconnect: "jci1.3:c:BWBR0040940&artikel=25&z=2024-01-01&g=2024-01-01"
+        explanation: "Artikel 25 UAVG bepaalt motiveringsplicht bij afwijzing"
+
+  definitions:
+    BIJZONDERE_CATEGORIEN:
+      - "GEZONDHEIDSGEGEVENS"
+      - "STRAFRECHTELIJKE_GEGEVENS"
+      - "ETNISCHE_AFKOMST"
+      - "RELIGIEUZE_OVERTUIGINGEN"
+      - "VAKBONDSLIDMAATSCHAP"
+      - "SEKSUELE_ORIENTATIE"
+      - "POLITIEKE_OVERTUIGINGEN"
+      - "BIOMETRISCHE_GEGEVENS"
+      - "GENETISCHE_GEGEVENS"
+      - "FILOSOFISCHE_OVERTUIGINGEN"
+      
+    GELDIGE_RECHTSGRONDSLAG:
+      - "TOESTEMMING"
+      - "UITVOERING_OVEREENKOMST"
+      - "WETTELIJKE_VERPLICHTING"
+      - "VITAAL_BELANG"
+      - "OPENBARE_TAAK"
+      - "GERECHTVAARDIGD_BELANG"
+      
+    AUTOMATISCH_TOEGESTANE_GRONDSLAG:
+      - "WETTELIJKE_VERPLICHTING"
+      - "VITAAL_BELANG"
+      - "OPENBARE_TAAK"
+      
+    MINIMUM_TECHNISCHE_VEREISTEN:
+      encryption: true
+      access_controls: true
+      audit_logging: true
+      
+    MAXIMUM_AUTOMATISCHE_BETROKKENEN: 100
+
+requirements:
+  - all:
+      - subject: "$RECHTSGRONDSLAG_TYPE"
+        operation: "NOT_NULL"
+      - subject: "$DOEL_VERWERKING"
+        operation: "NOT_NULL"
+      - subject: "$ENCRYPTION"
+        operation: "NOT_NULL"
+      - subject: "$ACCESS_CONTROLS"
+        operation: "NOT_NULL"
+      - subject: "$AUDIT_LOGGING"
+        operation: "NOT_NULL"
+
+actions:
+  # Stap 1: Detecteer bijzondere categorieën (comprehensive check for all special categories)
+  - output: "bevat_bijzondere_categorien"
+    operation: "OR"
+    values:
+      - operation: "IN"
+        subject: "GEZONDHEIDSGEGEVENS"
+        values: "$DATA_CATEGORIES"
+      - operation: "IN"
+        subject: "STRAFRECHTELIJKE_GEGEVENS"
+        values: "$DATA_CATEGORIES"
+      - operation: "IN"
+        subject: "ETNISCHE_AFKOMST"
+        values: "$DATA_CATEGORIES"
+      - operation: "IN"
+        subject: "RELIGIEUZE_OVERTUIGINGEN"
+        values: "$DATA_CATEGORIES"
+      - operation: "IN"
+        subject: "VAKBONDSLIDMAATSCHAP"
+        values: "$DATA_CATEGORIES"
+      - operation: "IN"
+        subject: "SEKSUELE_ORIENTATIE"
+        values: "$DATA_CATEGORIES"
+      - operation: "IN"
+        subject: "POLITIEKE_OVERTUIGINGEN"
+        values: "$DATA_CATEGORIES"
+      - operation: "IN"
+        subject: "BIOMETRISCHE_GEGEVENS"
+        values: "$DATA_CATEGORIES"
+      - operation: "IN"
+        subject: "GENETISCHE_GEGEVENS"
+        values: "$DATA_CATEGORIES"
+      - operation: "IN"
+        subject: "FILOSOFISCHE_OVERTUIGINGEN"
+        values: "$DATA_CATEGORIES"
+    legal_basis:
+      law: "Algemene Verordening Gegevensbescherming"
+      article: "9.1"
+      url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2326-1-1"
+      explanation: "Artikel 9.1 AVG identificeert alle bijzondere categorieën persoonsgegevens"
+
+  # Stap 1b: Detecteer specifieke bijzondere categorieën voor gedetailleerde output
+  - output: "heeft_gezondheidsgegevens"
+    operation: "IN"
+    subject: "GEZONDHEIDSGEGEVENS"
+    values: "$DATA_CATEGORIES"
+    
+  - output: "heeft_strafrechtelijke_gegevens"
+    operation: "IN"
+    subject: "STRAFRECHTELIJKE_GEGEVENS"
+    values: "$DATA_CATEGORIES"
+
+  # Stap 2: Technische voorwaarden validatie
+  - output: "technische_voorwaarden_ok"
+    operation: "AND"
+    values:
+      - operation: "EQUALS"
+        subject: "$ENCRYPTION"
+        value: true
+      - operation: "EQUALS"
+        subject: "$ACCESS_CONTROLS"
+        value: true
+      - operation: "EQUALS"
+        subject: "$AUDIT_LOGGING"
+        value: true
+    legal_basis:
+      law: "Algemene Verordening Gegevensbescherming"
+      article: "32.1"
+      url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e3913-1-1"
+      explanation: "Artikel 32.1 AVG verplicht passende technische beveiligingsmaatregelen"
+
+  # Stap 3: Automatische toestemming (eenvoudige gevallen)
+  - output: "automatisch_toegestaan"
+    operation: "AND"
+    values:
+      - "$technische_voorwaarden_ok"
+      - operation: "EQUALS"
+        subject: "$bevat_bijzondere_categorien"
+        value: false
+      - operation: "IN"
+        subject: "$RECHTSGRONDSLAG_TYPE"
+        values: "$AUTOMATISCH_TOEGESTANE_GRONDSLAG"
+      - operation: "LESS_OR_EQUAL"
+        values:
+          - "$AANTAL_BETROKKENEN"
+          - "$MAXIMUM_AUTOMATISCHE_BETROKKENEN"
+    legal_basis:
+      law: "Algemene Verordening Gegevensbescherming"
+      article: "6.1"
+      url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2051-1-1"
+      explanation: "Artikel 6.1 AVG bepaalt rechtmatige grondslag voor automatische goedkeuring"
+
+  # Stap 4: Automatische weigering (duidelijke schendingen)
+  - output: "automatisch_geweigerd"
+    operation: "OR"
+    values:
+      - operation: "EQUALS"
+        subject: "$technische_voorwaarden_ok"
+        value: false
+      - operation: "AND"
+        values:
+          - operation: "EQUALS"
+            subject: "$bevat_bijzondere_categorien"
+            value: true
+          - operation: "NOT_EQUALS"
+            subject: "$RECHTSGRONDSLAG_TYPE"
+            value: "TOESTEMMING"
+      - operation: "NOT_IN"
+        subject: "$RECHTSGRONDSLAG_TYPE"
+        values: "$GELDIGE_RECHTSGRONDSLAG"
+    legal_basis:
+      law: "Algemene Verordening Gegevensbescherming"
+      article: "5.1"
+      url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e1807-1-1"
+      explanation: "Artikel 5.1 AVG bepaalt beginselen die automatische afwijzing vereisen"
+
+  # Stap 5: Menselijke beoordeling nodig
+  - output: "menselijke_beoordeling_nodig"
+    operation: "AND"
+    values:
+      - operation: "EQUALS"
+        subject: "$automatisch_toegestaan"
+        value: false
+      - operation: "EQUALS"
+        subject: "$automatisch_geweigerd"
+        value: false
+    legal_basis:
+      law: "Algemene Verordening Gegevensbescherming"
+      article: "6.1.f"
+      url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2051-1-1"
+      explanation: "Artikel 6.1.f AVG vereist menselijke belangenafweging bij gerechtvaardigd belang"
+
+  # Stap 6: Specificeer vereiste beoordelingen (simplified - individual checks)
+  - output: "vereist_belangenafweging"
+    operation: "IF"
+    conditions:
+      - test:
+          operation: "AND"
+          values:
+            - operation: "EQUALS"
+              subject: "$menselijke_beoordeling_nodig"
+              value: true
+            - operation: "EQUALS"
+              subject: "$RECHTSGRONDSLAG_TYPE"
+              value: "GERECHTVAARDIGD_BELANG"
+        then: "Belangenafweging uitvoeren: weeg gerechtvaardigd belang af tegen privacy-impact betrokkenen conform artikel 6.1.f AVG"
+      - else: null
+    legal_basis:
+      law: "Algemene Verordening Gegevensbescherming"
+      article: "6.1.f"
+      url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2051-1-1"
+      explanation: "Artikel 6.1.f AVG vereist belangenafweging bij gerechtvaardigd belang"
+
+  - output: "vereist_proportionaliteitstoets"
+    operation: "IF"
+    conditions:
+      - test:
+          operation: "AND"
+          values:
+            - operation: "EQUALS"
+              subject: "$menselijke_beoordeling_nodig"
+              value: true
+            - operation: "GREATER_THAN"
+              subject: "$AANTAL_BETROKKENEN"
+              value: "$MAXIMUM_AUTOMATISCHE_BETROKKENEN"
+        then: "Proportionaliteitstoets uitvoeren: beoordeel of de hoeveelheid gegevens proportioneel is aan het doel conform artikel 5.1.c AVG"
+      - else: null
+    legal_basis:
+      law: "Algemene Verordening Gegevensbescherming"
+      article: "5.1.c"
+      url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e1807-1-1"
+      explanation: "Artikel 5.1.c AVG bepaalt proportionaliteitsbeginsel"
+
+  - output: "vereist_bijzondere_categorie_beoordeling"
+    operation: "IF"
+    conditions:
+      - test:
+          operation: "AND"
+          values:
+            - operation: "EQUALS"
+              subject: "$menselijke_beoordeling_nodig"
+              value: true
+            - operation: "EQUALS"
+              subject: "$bevat_bijzondere_categorien"
+              value: true
+            - operation: "EQUALS"
+              subject: "$RECHTSGRONDSLAG_TYPE"
+              value: "TOESTEMMING"
+        then: "Bijzondere categorieën beoordeling: verifieer uitdrukkelijke toestemming voor bijzondere persoonsgegevens conform artikel 9.2.a AVG"
+      - else: null
+    legal_basis:
+      law: "Algemene Verordening Gegevensbescherming"
+      article: "9.2.a"
+      url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2326-1-1"
+      explanation: "Artikel 9.2.a AVG vereist uitdrukkelijke toestemming voor bijzondere categorieën"
+
+  # Stap 7: Afwijzing reden specificatie
+  - output: "afwijzing_reden"
+    operation: "IF"
+    conditions:
+      - test:
+          subject: "$automatisch_geweigerd"
+          operation: "EQUALS"
+          value: true
+        then:
+          operation: "IF"
+          conditions:
+            - test:
+                subject: "$technische_voorwaarden_ok"
+                operation: "EQUALS"
+                value: false
+              then: "Technische beveiligingsmaatregelen voldoen niet aan artikel 32.1 AVG (versleuteling, toegangscontroles, auditlogging vereist)"
+              legal_basis:
+                law: "Algemene Verordening Gegevensbescherming"
+                article: "32.1"
+                url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e3913-1-1"
+                explanation: "Artikel 32.1 AVG verplicht passende technische beveiligingsmaatregelen"
+            - test:
+                operation: "AND"
+                values:
+                  - operation: "EQUALS"
+                    subject: "$bevat_bijzondere_categorien"
+                    value: true
+                  - operation: "NOT_EQUALS"
+                    subject: "$RECHTSGRONDSLAG_TYPE"
+                    value: "TOESTEMMING"
+              then: "Bijzondere categorieën persoonsgegevens vereisen uitdrukkelijke toestemming of specifieke uitzondering conform artikel 9 AVG"
+              legal_basis:
+                law: "Algemene Verordening Gegevensbescherming"
+                article: "9.1"
+                url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2326-1-1"
+                explanation: "Artikel 9.1 AVG verbiedt verwerking bijzondere categorieën zonder rechtmatige uitzondering"
+            - else: "Geen geldige rechtsgrondslag conform artikel 6.1 AVG voor de voorgestelde gegevensdeling"
+              legal_basis:
+                law: "Algemene Verordening Gegevensbescherming"
+                article: "6.1"
+                url: "https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX%3A32016R0679#d1e2051-1-1"
+                explanation: "Artikel 6.1 AVG bepaalt de uitputtende lijst van rechtmatige grondslagen"
+      - else: null
+    legal_basis:
+      law: "Uitvoeringswet Algemene verordening gegevensbescherming"
+      bwb_id: "BWBR0040940"
+      article: "25"
+      url: "https://wetten.overheid.nl/BWBR0040940/2021-07-01#Artikel25"
+      juriconnect: "jci1.3:c:BWBR0040940&artikel=25&z=2024-01-01&g=2024-01-01"
+      explanation: "Artikel 25 UAVG bepaalt motiveringsplicht bij afwijzing van verwerkingen"
